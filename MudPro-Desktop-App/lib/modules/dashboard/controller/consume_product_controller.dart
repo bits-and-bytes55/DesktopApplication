@@ -220,6 +220,7 @@ class ConsumeProductController {
   // ═══════════════════════════════════════════
   Future<List<Map<String, dynamic>>> getAllConsumeProducts({
     String? reportIdOverride,
+    bool scopeToOperationInstance = true,
   }) async {
     try {
       final wellId = currentBackendWellId.trim();
@@ -235,7 +236,8 @@ class ConsumeProductController {
           'wellId': wellId,
           'strictScope': 'true',
           if (reportId.isNotEmpty) 'reportId': reportId,
-          if (operationInstanceKey.trim().isNotEmpty)
+          if (scopeToOperationInstance &&
+              operationInstanceKey.trim().isNotEmpty)
             'operationInstanceKey': operationInstanceKey.trim(),
         },
       );

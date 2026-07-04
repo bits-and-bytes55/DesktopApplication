@@ -1548,7 +1548,8 @@ class _PumpPageState extends State<PumpPage> {
             _checkAddPumpRow(rowIndex);
             _scheduleSavePumpRow(row, rowIndex);
           },
-          textAlign: TextAlign.center,
+          textAlign: TextAlign.left,
+          textAlignVertical: TextAlignVertical.center,
           style: TextStyle(
             fontSize: 11,
             color: Colors.black,
@@ -2019,7 +2020,8 @@ class _PumpPageState extends State<PumpPage> {
                 fields[idx].value = v;
                 _scheduleSaveShakerRow(row);
               },
-              textAlign: TextAlign.center,
+              textAlign: TextAlign.left,
+              textAlignVertical: TextAlignVertical.center,
               style: TextStyle(
                 fontSize: 11,
                 color: isEnabled || (isLocked && isConfigured)
@@ -2676,7 +2678,8 @@ class _PumpPageState extends State<PumpPage> {
                   value.value = text;
                   _scheduleSavePumpSummary();
                 },
-                textAlign: TextAlign.right,
+                textAlign: TextAlign.left,
+                textAlignVertical: TextAlignVertical.center,
                 style: const TextStyle(
                   fontSize: 11,
                   color: Colors.black,
@@ -2875,7 +2878,7 @@ class _PumpPageState extends State<PumpPage> {
       color: lockedEditable
           ? _kPumpLockedEditableColor
           : disabled
-          ? const Color(0xFFD9D9D9)
+          ? const Color(0xFFE8E8E8)
           : Colors.transparent,
       child: Container(
         decoration: BoxDecoration(
@@ -2899,7 +2902,7 @@ class _PumpPageState extends State<PumpPage> {
         color: Colors.black,
         fontWeight: FontWeight.w700,
       ),
-      textAlign: TextAlign.center,
+      textAlign: TextAlign.left,
       overflow: TextOverflow.ellipsis,
     );
   }
@@ -2920,7 +2923,8 @@ class _PumpPageState extends State<PumpPage> {
           rxValue.value = v;
           onChanged?.call();
         },
-        textAlign: TextAlign.center,
+        textAlign: TextAlign.left,
+        textAlignVertical: TextAlignVertical.center,
         style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,

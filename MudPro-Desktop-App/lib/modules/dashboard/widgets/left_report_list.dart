@@ -154,6 +154,7 @@ class _LeftReportTreeState extends State<LeftReportTree> {
             indent: 0,
             toggle: _treeToggle(
               expanded: _rootExpanded,
+              selected: selectedRoot,
               onTap: () {
                 setState(() {
                   _rootExpanded = !_rootExpanded;
@@ -163,7 +164,7 @@ class _LeftReportTreeState extends State<LeftReportTree> {
             leading: Icon(
               Icons.account_tree_outlined,
               size: 16,
-              color: AppTheme.primaryColor,
+              color: selectedRoot ? Colors.white : AppTheme.primaryColor,
             ),
             title: pad?.displayName ?? 'New Pad',
             titleWidget: _buildPadTitle(pad, selectedRoot),
@@ -206,9 +207,9 @@ class _LeftReportTreeState extends State<LeftReportTree> {
 
   Widget _buildPadTitle(AppPad? pad, bool selected) {
     final style = TextStyle(
-      fontSize: 11,
-      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-      color: AppTheme.textPrimary,
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: selected ? Colors.white : Colors.black,
     );
 
     if (_isEditingPadName && pad != null) {
@@ -288,6 +289,7 @@ class _LeftReportTreeState extends State<LeftReportTree> {
             indent: 0,
             toggle: _treeToggle(
               expanded: expanded,
+              selected: selected,
               onTap: () {
                 setState(() {
                   _wellExpansion[well.id] = !expanded;
@@ -297,7 +299,7 @@ class _LeftReportTreeState extends State<LeftReportTree> {
             leading: Icon(
               Icons.location_on_outlined,
               size: 14,
-              color: selected ? AppTheme.primaryColor : AppTheme.textSecondary,
+              color: selected ? Colors.white : AppTheme.textSecondary,
             ),
             title: well.displayName,
             subtitle: null,
@@ -362,18 +364,35 @@ class _LeftReportTreeState extends State<LeftReportTree> {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(left: 34),
+      padding: const EdgeInsets.fromLTRB(34, 4, 0, 6),
       child: Container(
         margin: const EdgeInsets.only(left: 7),
-        padding: const EdgeInsets.only(left: 10, bottom: 2),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(color: Colors.black.withValues(alpha: 0.18)),
-          ),
+          color: const Color(0xFFEAF3FC),
+          border: Border.all(color: const Color(0xFFCFE0F2)),
+          borderRadius: BorderRadius.circular(4),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: reports.map(_buildReportRow).toList(),
+          children: [
+            for (var index = 0; index < reports.length; index++) ...[
+              _buildReportRow(reports[index]),
+              if (index < reports.length - 1)
+                const Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Color(0xFFE4EDF7),
+                ),
+            ],
+          ],
         ),
       ),
     );
@@ -394,13 +413,20 @@ class _LeftReportTreeState extends State<LeftReportTree> {
           },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
-            margin: const EdgeInsets.only(top: 4),
-            padding: const EdgeInsets.fromLTRB(10, 6, 8, 6),
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
             decoration: BoxDecoration(
               color: selected
-                  ? AppTheme.primaryColor.withValues(alpha: 0.10)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(4),
+                  ? AppTheme.primaryColor.withValues(alpha: 0.12)
+                  : const Color(0xFFEAF3FC),
+              border: selected
+                  ? Border(
+                      left: BorderSide(
+                        color: AppTheme.primaryColor,
+                        width: 3,
+                      ),
+                    )
+                  : null,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -423,23 +449,18 @@ class _LeftReportTreeState extends State<LeftReportTree> {
                       Text(
                         _reportTimestamp(report),
                         style: TextStyle(
-                          fontSize: 10,
-                          color: selected
-                              ? AppTheme.textPrimary
-                              : AppTheme.textPrimary,
-                          fontWeight: selected
-                              ? FontWeight.w600
-                              : FontWeight.w500,
+                          fontSize: 10.5,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 1),
                       Text(
                         _reportSequenceLabel(report),
                         style: TextStyle(
-                          fontSize: 10,
-                          color: selected
-                              ? AppTheme.primaryColor
-                              : AppTheme.textSecondary,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
                         ),
                       ),
                     ],
@@ -475,7 +496,7 @@ class _LeftReportTreeState extends State<LeftReportTree> {
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
             decoration: BoxDecoration(
               color: selected
-                  ? AppTheme.primaryColor.withValues(alpha: 0.12)
+                  ? AppTheme.primaryColor
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(4),
             ),
@@ -499,13 +520,9 @@ class _LeftReportTreeState extends State<LeftReportTree> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w600,
-                              color: selected
-                                  ? AppTheme.textPrimary
-                                  : AppTheme.textPrimary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: selected ? Colors.white : Colors.black,
                             ),
                           ),
                       if (subtitle != null && subtitle.trim().isNotEmpty)
@@ -515,7 +532,9 @@ class _LeftReportTreeState extends State<LeftReportTree> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 9.5,
-                            color: AppTheme.textSecondary,
+                            color: selected
+                                ? Colors.white70
+                                : AppTheme.textSecondary,
                           ),
                         ),
                     ],
@@ -556,6 +575,7 @@ class _LeftReportTreeState extends State<LeftReportTree> {
 
   Widget _treeToggle({
     required bool expanded,
+    required bool selected,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -567,7 +587,7 @@ class _LeftReportTreeState extends State<LeftReportTree> {
         child: Icon(
           expanded ? Icons.indeterminate_check_box : Icons.add_box_outlined,
           size: 12,
-          color: const Color(0xFF7A8799),
+          color: selected ? Colors.white : const Color(0xFF7A8799),
         ),
       ),
     );

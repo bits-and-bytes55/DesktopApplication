@@ -302,9 +302,11 @@ class _SceViewState extends State<SceView> {
           Checkbox(
             value: allChecked,
             onChanged: _isLocked ? null : onChanged,
+            activeColor: ugSectionHeader,
+            checkColor: Colors.white,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
-            side: const BorderSide(color: Color(0xFF9EA4AD)),
+            side: const BorderSide(color: Colors.white),
           ),
         ],
       ),

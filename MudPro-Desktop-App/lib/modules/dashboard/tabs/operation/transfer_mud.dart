@@ -20,7 +20,6 @@ class _TransferMudViewState extends State<TransferMudView> {
   final PitController pitController = Get.put(PitController());
 
   final RxInt selectedRow = 0.obs;
-  final ScrollController _horizontalScrollController = ScrollController();
   final ScrollController _verticalScrollController = ScrollController();
 
   static const String kActiveSystem = 'Active System';
@@ -77,12 +76,27 @@ class _TransferMudViewState extends State<TransferMudView> {
   }
 
   Widget _buildControlRow() {
-    return Row(
-      children: [
-        _buildNotTreatedSection(),
-        const Spacer(),
-        _buildFromSection(),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sectionWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth.clamp(520.0, 720.0).toDouble()
+            : 720.0;
+        return Container(
+          width: sectionWidth,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            children: [
+              _buildNotTreatedSection(),
+              const Spacer(),
+              _buildFromSection(),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -95,7 +109,7 @@ class _TransferMudViewState extends State<TransferMudView> {
           style: AppTheme.bodySmall.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 11,
-            color: Colors.black,
+            color: Colors.white,
           ),
         ),
         const SizedBox(width: 12),
@@ -199,11 +213,11 @@ class _TransferMudViewState extends State<TransferMudView> {
           height: 28,
           width: 28,
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.1),
+            color: Colors.white.withOpacity(0.12),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+            border: Border.all(color: Colors.white70),
           ),
-          child: Icon(Icons.settings, size: 14, color: AppTheme.primaryColor),
+          child: const Icon(Icons.settings, size: 14, color: Colors.white),
         ),
       ],
     );
@@ -226,17 +240,17 @@ class _TransferMudViewState extends State<TransferMudView> {
               decoration: BoxDecoration(
                 border: Border.all(
                   color: pitController.notTreatedMud.value
-                      ? AppTheme.primaryColor
-                      : Colors.grey.shade400,
+                      ? Colors.white
+                      : Colors.white70,
                   width: 1.5,
                 ),
                 borderRadius: BorderRadius.circular(3),
                 color: pitController.notTreatedMud.value
-                    ? AppTheme.primaryColor.withOpacity(0.1)
+                    ? Colors.white.withOpacity(0.14)
                     : Colors.transparent,
               ),
               child: pitController.notTreatedMud.value
-                  ? Icon(Icons.check, size: 12, color: AppTheme.primaryColor)
+                  ? const Icon(Icons.check, size: 12, color: Colors.white)
                   : null,
             ),
           ),
@@ -246,7 +260,7 @@ class _TransferMudViewState extends State<TransferMudView> {
             style: AppTheme.bodySmall.copyWith(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: Colors.black,
+              color: Colors.white,
             ),
           ),
         ],
@@ -258,37 +272,27 @@ class _TransferMudViewState extends State<TransferMudView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final tableWidth = constraints.maxWidth.isFinite
-            ? (constraints.maxWidth > 720 ? constraints.maxWidth : 720.0)
-            : 640.0;
-        final pitWidth = tableWidth * 0.65;
-        final volumeWidth = tableWidth - pitWidth;
+            ? constraints.maxWidth.clamp(520.0, 720.0).toDouble()
+            : 720.0;
+        final contentWidth = tableWidth - 2;
+        final pitWidth = contentWidth * 0.65;
+        final volumeWidth = contentWidth - pitWidth;
 
         return Container(
-          width: double.infinity,
+          width: tableWidth,
           decoration: BoxDecoration(
             border: Border.all(color: AppTheme.tableGridBlue),
             borderRadius: BorderRadius.circular(6),
           ),
           child: SizedBox(
-            height: 330,
+            height: 200,
             child: Scrollbar(
               controller: _verticalScrollController,
               thumbVisibility: true,
               trackVisibility: true,
               notificationPredicate: (notification) =>
                   notification.metrics.axis == Axis.vertical,
-              child: Scrollbar(
-                controller: _horizontalScrollController,
-                thumbVisibility: true,
-                trackVisibility: true,
-                notificationPredicate: (notification) =>
-                    notification.metrics.axis == Axis.horizontal,
-                child: SingleChildScrollView(
-                  controller: _horizontalScrollController,
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(
-                    width: tableWidth,
-                    child: Column(
+              child: Column(
                       children: [
                         Container(
                           decoration: BoxDecoration(
@@ -360,9 +364,6 @@ class _TransferMudViewState extends State<TransferMudView> {
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ),
             ),
           ),
         );
@@ -568,7 +569,6 @@ class _TransferMudViewState extends State<TransferMudView> {
 
   @override
   void dispose() {
-    _horizontalScrollController.dispose();
     _verticalScrollController.dispose();
     super.dispose();
   }

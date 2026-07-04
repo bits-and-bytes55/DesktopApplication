@@ -363,21 +363,23 @@ class _AddWaterViewState extends State<AddWaterView> {
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Text(
-              "Add Water",
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+          SizedBox(
+            width: 680,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                "Add Water",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -385,7 +387,7 @@ class _AddWaterViewState extends State<AddWaterView> {
           Align(
             alignment: Alignment.centerLeft,
             child: SizedBox(
-              width: double.infinity,
+              width: 680,
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -405,7 +407,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                     mainAxisSize: MainAxisSize.max,
                     children: [
                       Container(
-                        height: 36,
+                        height: 30,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: const BorderRadius.only(
@@ -422,7 +424,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                 horizontal: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.tableHeaderBlue,
+                                color: AppTheme.primaryColor,
                                 borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(8),
                                 ),
@@ -441,7 +443,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                     margin: const EdgeInsets.only(right: 6),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Colors.black,
+                                      color: Colors.white,
                                     ),
                                   ),
                                   Text(
@@ -556,7 +558,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                         ),
                       ),
                       Container(
-                        height: 36,
+                        height: 30,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           border: Border(
@@ -572,7 +574,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                 horizontal: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.tableHeaderBlue,
+                                color: AppTheme.primaryColor,
                                 border: Border(
                                   right: BorderSide(
                                     color: AppTheme.tableGridBlue,
@@ -588,7 +590,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                     margin: const EdgeInsets.only(right: 6),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Colors.black,
+                                      color: Colors.white,
                                     ),
                                   ),
                                   Text(
@@ -646,7 +648,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                       ...List.generate(
                         _extraRows.length,
                         (index) => Container(
-                          height: 36,
+                          height: 30,
                           decoration: BoxDecoration(
                             color: index % 2 == 0
                                 ? Colors.white
@@ -671,6 +673,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                   horizontal: 8,
                                 ),
                                 decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor,
                                   border: Border(
                                     right: BorderSide(
                                       color: AppTheme.tableGridBlue,

@@ -15,12 +15,10 @@ class PrimaryTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 42,
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border(
-          bottom: BorderSide(color: Colors.black.withOpacity(0.08)),
-        ),
+      height: 44,
+      decoration: const BoxDecoration(
+        color: Color(0xFFF9FBFD),
+        border: Border(bottom: BorderSide(color: Color(0xFFD9E3EE))),
       ),
       child: Obx(
         () => Row(
@@ -30,7 +28,7 @@ class PrimaryTabBar extends StatelessWidget {
             final isEnabled = index == 0 || reportC.hasSelectedReport;
 
             return Container(
-              margin: EdgeInsets.only(left: index == 0 ? 8 : 4, right: 4),
+              margin: EdgeInsets.only(left: index == 0 ? 8 : 2),
               child: MouseRegion(
                 cursor: isEnabled
                     ? SystemMouseCursors.click
@@ -44,34 +42,24 @@ class PrimaryTabBar extends StatelessWidget {
                         ? () => controller.activePrimaryTab.value = index
                         : null,
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
+                      duration: const Duration(milliseconds: 180),
                       curve: Curves.easeInOut,
                       alignment: Alignment.center,
+                      height: 44,
+                      constraints: const BoxConstraints(minWidth: 106),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 8,
+                        horizontal: 18,
                       ),
                       decoration: BoxDecoration(
-                        gradient: isEnabled && isActive
-                            ? AppTheme.primaryGradient
-                            : null,
-                        color: isEnabled
-                            ? (isActive ? null : Colors.transparent)
-                            : Colors.grey.withValues(alpha: 0.08),
-                        border: Border(
-                          bottom: BorderSide(
-                            color: isEnabled && isActive
-                                ? AppTheme.primaryColor
-                                : Colors.transparent,
-                            width: 3,
-                          ),
-                        ),
+                        color: isEnabled && isActive
+                            ? AppTheme.primaryColor
+                            : Colors.transparent,
                         boxShadow: isEnabled && isActive
                             ? [
                                 BoxShadow(
-                                  color: AppTheme.primaryColor.withOpacity(0.2),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
+                                  color: AppTheme.primaryColor.withOpacity(0.18),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 1),
                                 ),
                               ]
                             : null,
@@ -96,16 +84,14 @@ class PrimaryTabBar extends StatelessWidget {
                           Text(
                             tabs[index],
                             style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: isActive
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
                               color: !isEnabled
                                   ? Colors.grey.shade400
                                   : isActive
                                   ? Colors.white
                                   : AppTheme.textPrimary,
-                              letterSpacing: 0.3,
+                              letterSpacing: 0,
                             ),
                           ),
                         ],

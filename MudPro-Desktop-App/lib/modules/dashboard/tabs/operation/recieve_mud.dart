@@ -107,64 +107,75 @@ class ReceiveMudView extends StatelessWidget {
 
   Widget _buildBolSection() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 100,
-            child: Text(
-              'BOL No.',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Colors.black,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Obx(
-              () => TextField(
-                controller: controller.bolNoController,
-                enabled: !dashboardController.isLocked.value,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 100,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              alignment: Alignment.centerLeft,
+              color: AppTheme.primaryColor,
+              child: const Text(
+                'BOL No.',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-                decoration: InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide(color: AppTheme.tableGridBlue),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: AppTheme.tableGridBlue),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                      color: AppTheme.primaryColor,
-                      width: 1.5,
-                    ),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  filled: true,
-                  fillColor: dashboardController.isLocked.value
-                      ? operationLockedEditableColor
-                      : Colors.white,
+                  color: Colors.white,
                 ),
               ),
             ),
-          ),
-        ],
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Obx(
+                  () => TextField(
+                    controller: controller.bolNoController,
+                    enabled: !dashboardController.isLocked.value,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 8,
+                      ),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: AppTheme.tableGridBlue),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: AppTheme.tableGridBlue),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: AppTheme.primaryColor,
+                          width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      filled: true,
+                      fillColor: dashboardController.isLocked.value
+                          ? operationLockedEditableColor
+                          : Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -599,15 +610,19 @@ class ReceiveMudView extends StatelessWidget {
   }
 
   Widget _buildLabelCell(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      color: AppTheme.primaryColor,
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
+    return TableCell(
+      verticalAlignment: TableCellVerticalAlignment.fill,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        alignment: Alignment.centerLeft,
+        color: AppTheme.primaryColor,
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
       ),
     );

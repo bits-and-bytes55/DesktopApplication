@@ -399,6 +399,7 @@ const calculateCombinedHoleVolumeResult = ({
   const holeSpace = casedHole + openHole;
   const pipeSteel = drillString.pipeSteel;
   const pipeInside = drillString.pipeInside;
+  const displacement = Math.max(0, pipeSteel - pipeInside);
   const hole = round2(holeSpace - pipeSteel + pipeInside);
 
   return {
@@ -408,6 +409,7 @@ const calculateCombinedHoleVolumeResult = ({
     holeSpace: round2(holeSpace),
     pipeSteel: round2(pipeSteel),
     pipeInside: round2(pipeInside),
+    displacement: round2(displacement),
     drillString: round2(pipeInside),
     drillStringCountedLength: round2(drillString.countedLength),
     hasData:
@@ -2429,7 +2431,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     const drillstringVolume = holeVolumeResult.pipeInside;
     const annulus = Number(Math.max(0, hole - drillstringVolume).toFixed(2));
     const belowBit = 0;
-    const displacement = 0;
+    const displacement = holeVolumeResult.displacement;
 
     const activePitsList = pits.filter((pit) => pit.initialActive === true);
     const storagePitsList = pits.filter((pit) => pit.initialActive === false);

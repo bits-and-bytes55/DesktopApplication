@@ -168,21 +168,17 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 48,
+      height: 52,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Colors.white, Color(0xffF8FAFC)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
+        color: const Color(0xFFF9FBFD),
         border: Border(
-          bottom: BorderSide(color: Colors.black.withOpacity(0.08)),
+          bottom: const BorderSide(color: Color(0xFFD9E3EE)),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -211,8 +207,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                             : _disabledReason(index),
                         waitDuration: const Duration(milliseconds: 300),
                         decoration: BoxDecoration(
-                          gradient: AppTheme.primaryGradient,
-                          borderRadius: BorderRadius.circular(6),
+                          color: AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(4),
                         ),
                         textStyle: const TextStyle(
                           color: Colors.white,
@@ -226,39 +222,26 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 250),
                             curve: Curves.easeInOut,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
-                            ),
-                            margin: const EdgeInsets.only(left: 2),
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            margin: const EdgeInsets.only(left: 3),
                             decoration: BoxDecoration(
-                              gradient: !isEnabled
-                                  ? null
-                                  : isActive
-                                  ? AppTheme.primaryGradient
-                                  : _hoveredIndex == index
-                                  ? LinearGradient(
-                                      colors: [
-                                        AppTheme.primaryColor.withOpacity(0.15),
-                                        AppTheme.primaryColor.withOpacity(0.08),
-                                      ],
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                    )
-                                  : null,
                               color: !isEnabled
-                                  ? Colors.grey.withValues(alpha: 0.08)
-                                  : isActive || _hoveredIndex == index
-                                  ? null
+                                  ? Colors.transparent
+                                  : isActive
+                                  ? AppTheme.primaryColor
+                                  : _hoveredIndex == index
+                                  ? AppTheme.primaryColor.withOpacity(0.10)
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
                                 color: !isEnabled
-                                    ? Colors.grey.withValues(alpha: 0.15)
+                                    ? Colors.transparent
                                     : isActive
-                                    ? AppTheme.primaryColor.withOpacity(0.3)
+                                    ? AppTheme.primaryColor
                                     : _hoveredIndex == index
-                                    ? AppTheme.primaryColor.withOpacity(0.15)
+                                    ? AppTheme.primaryColor.withOpacity(0.18)
                                     : Colors.transparent,
                                 width: 1,
                               ),
@@ -268,9 +251,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                                   ? [
                                       BoxShadow(
                                         color: AppTheme.primaryColor
-                                            .withOpacity(0.25),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
+                                            .withOpacity(0.24),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 2),
                                       ),
                                     ]
                                   : _hoveredIndex == index
@@ -284,27 +267,18 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                                     ]
                                   : null,
                             ),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              transform: Matrix4.identity()
-                                ..scale(
-                                  _hoveredIndex == index && isEnabled
-                                      ? 1.15
-                                      : 1.0,
-                                ),
-                              child: Icon(
-                                index == 7
-                                    ? (controller.isLocked.value
-                                          ? Icons.lock
-                                          : Icons.lock_open)
-                                    : tabs[index]["icon"] as IconData,
-                                size: 16,
-                                color: !isEnabled
-                                    ? Colors.grey.shade400
-                                    : isActive
-                                    ? Colors.white
-                                    : AppTheme.primaryColor,
-                              ),
+                            child: Icon(
+                              index == 7
+                                  ? (controller.isLocked.value
+                                        ? Icons.lock
+                                        : Icons.lock_open)
+                                  : tabs[index]["icon"] as IconData,
+                              size: 18,
+                              color: !isEnabled
+                                  ? const Color(0xFFB7C4D3)
+                                  : isActive
+                                  ? Colors.white
+                                  : AppTheme.primaryColor,
                             ),
                           ),
                         ),
@@ -318,7 +292,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
 
           // Right info fields
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            height: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
               border: Border(
                 left: BorderSide(
@@ -326,11 +301,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                   width: 1,
                 ),
               ),
-              gradient: const LinearGradient(
-                colors: [Color(0xffF1F5F9), Color(0xffE2E8F0)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
+              color: const Color(0xFFEEF3F8),
             ),
             child: Row(
               children: [
@@ -343,9 +314,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                     Icons.location_on,
                   ),
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: 10),
                 _buildInfoFieldWithDatePicker("Date", Icons.calendar_today),
-                const SizedBox(width: 20),
+                const SizedBox(width: 10),
                 Obx(
                   () => _buildInfoField(
                     "Report #",
@@ -355,7 +326,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                     Icons.numbers,
                   ),
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: 10),
                 Obx(() {
                   AppUnits.signature;
                   return _buildInfoField(
@@ -935,14 +906,14 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               label,
               style: TextStyle(
                 fontSize: 10,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: AppTheme.textSecondary,
-                letterSpacing: 0.5,
+                letterSpacing: 0,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Obx(
           () => MouseRegion(
             cursor: SystemMouseCursors.click,
@@ -955,8 +926,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
+                  horizontal: 9,
+                  vertical: 5,
                 ),
                 decoration: BoxDecoration(
                   gradient: AppTheme.secondaryGradient,
@@ -966,7 +937,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                         : AppTheme.primaryColor.withOpacity(0.3),
                     width: controller.isLocked.value ? 0.5 : 1,
                   ),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(7),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -1013,14 +984,14 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               label,
               style: TextStyle(
                 fontSize: 10,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: AppTheme.textSecondary,
-                letterSpacing: 0.5,
+                letterSpacing: 0,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Obx(
           () => MouseRegion(
             cursor: SystemMouseCursors.click,
@@ -1033,8 +1004,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
+                  horizontal: 9,
+                  vertical: 5,
                 ),
                 decoration: BoxDecoration(
                   gradient: AppTheme.secondaryGradient,
@@ -1044,7 +1015,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                         : AppTheme.primaryColor.withOpacity(0.3),
                     width: controller.isLocked.value ? 0.5 : 1,
                   ),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(7),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),

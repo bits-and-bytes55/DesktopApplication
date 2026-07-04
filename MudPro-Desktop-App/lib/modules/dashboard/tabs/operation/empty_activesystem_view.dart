@@ -18,8 +18,6 @@ class EmptyActiveSystemView extends StatefulWidget {
 
 class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
   late final EmptyActiveSystemController controller;
-  final ScrollController _verticalScrollController = ScrollController();
-  final ScrollController _horizontalScrollController = ScrollController();
 
   @override
   void initState() {
@@ -32,8 +30,6 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
 
   @override
   void dispose() {
-    _verticalScrollController.dispose();
-    _horizontalScrollController.dispose();
     if (Get.isRegistered<EmptyActiveSystemController>(
       tag: widget.instanceKey,
     )) {
@@ -105,45 +101,32 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final contentWidth = constraints.maxWidth > 1000
-            ? constraints.maxWidth
-            : 1000.0;
-        return Scrollbar(
-          controller: _verticalScrollController,
-          thumbVisibility: true,
-          trackVisibility: true,
-          notificationPredicate: (notification) =>
-              notification.metrics.axis == Axis.vertical,
-          child: SingleChildScrollView(
-            controller: _verticalScrollController,
-            child: Scrollbar(
-              controller: _horizontalScrollController,
-              thumbVisibility: true,
-              trackVisibility: true,
-              notificationPredicate: (notification) =>
-                  notification.metrics.axis == Axis.horizontal,
-              child: SingleChildScrollView(
-                controller: _horizontalScrollController,
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: contentWidth,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
+    return SingleChildScrollView(
+      child: SizedBox(
+        width: 680,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // ================= HEADER =================
-                        Text(
-                          "Empty Fluid in Active System",
-                          style: AppTheme.titleMedium.copyWith(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          color: AppTheme.primaryColor,
+                          child: const Text(
+                            "Empty Fluid in Active System",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
 
                         // ================= RADIO BUTTONS + TABLE =================
                         SizedBox(
@@ -160,9 +143,10 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 12,
-                                    vertical: 8,
+                                    vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
+                                    color: AppTheme.primaryColor,
                                     border: Border(
                                       bottom: BorderSide(
                                         color: AppTheme.tableGridBlue,
@@ -189,8 +173,8 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                         controller
                                                             .isDumpSelected
                                                             .value
-                                                        ? AppTheme.primaryColor
-                                                        : Colors.grey.shade400,
+                                                        ? Colors.white
+                                                        : Colors.white70,
                                                     width: 2,
                                                   ),
                                                 ),
@@ -206,8 +190,8 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                               BoxDecoration(
                                                                 shape: BoxShape
                                                                     .circle,
-                                                                color: AppTheme
-                                                                    .primaryColor,
+                                                                color:
+                                                                    Colors.white,
                                                               ),
                                                         ),
                                                       )
@@ -221,7 +205,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                        fontSize: 12,
                                                        fontWeight:
                                                            FontWeight.w700,
-                                                       color: Colors.black,
+                                                       color: Colors.white,
                                                      ),
                                                ),
                                             ],
@@ -245,8 +229,8 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                         !controller
                                                             .isDumpSelected
                                                             .value
-                                                        ? AppTheme.primaryColor
-                                                        : Colors.grey.shade400,
+                                                        ? Colors.white
+                                                        : Colors.white70,
                                                     width: 2,
                                                   ),
                                                 ),
@@ -262,8 +246,8 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                               BoxDecoration(
                                                                 shape: BoxShape
                                                                     .circle,
-                                                                color: AppTheme
-                                                                    .primaryColor,
+                                                                color:
+                                                                    Colors.white,
                                                               ),
                                                         ),
                                                       )
@@ -277,7 +261,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                        fontSize: 12,
                                                        fontWeight:
                                                            FontWeight.w700,
-                                                       color: Colors.black,
+                                                       color: Colors.white,
                                                      ),
                                                ),
                                             ],
@@ -387,7 +371,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
 
                                         // Table Body - Fixed Height with Scroll
                                         SizedBox(
-                                          height: 200, // Fixed height
+                                          height: 140,
                                           child: SingleChildScrollView(
                                             child: Column(
                                               children: List.generate(
@@ -408,7 +392,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                         }
                                                       : null,
                                                   child: Container(
-                                                    height: 36,
+                                                    height: 30,
                                                     decoration: BoxDecoration(
                                                       border: Border(
                                                         bottom: BorderSide(
@@ -508,7 +492,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                                               String
                                                                             >(
                                                                               value: pit.pitName,
-                                                                              height: 32,
+                                                                              height: 28,
                                                                               child: Text(
                                                                                 pit.pitName,
                                                                                 style: AppTheme.bodySmall.copyWith(
@@ -547,7 +531,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                         // Vertical Divider
                                                         Container(
                                                           width: 1,
-                                                          height: 36,
+                                                          height: 30,
                                                           color: Colors
                                                               .grey
                                                               .shade200,
@@ -640,7 +624,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                           ),
                         ),
 
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
 
                         // ================= ACTION BUTTONS =================
                         Row(
@@ -710,11 +694,6 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                     ),
                   ),
                 ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
+              );
   }
 }

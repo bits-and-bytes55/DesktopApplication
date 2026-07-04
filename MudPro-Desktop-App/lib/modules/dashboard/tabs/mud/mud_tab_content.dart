@@ -218,23 +218,26 @@ class _MudViewState extends State<MudView> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTextStyle.merge(
-      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isSmallScreen = constraints.maxWidth < 1024;
-          return Column(
-            children: [
-              _topControls(),
-              Divider(height: 1, color: Colors.grey.shade300),
-              Expanded(
-                child: isSmallScreen
-                    ? _buildMobileLayout()
-                    : _buildDesktopLayout(),
-              ),
-            ],
-          );
-        },
+    return ColoredBox(
+      color: const Color(0xFFEAF3FC),
+      child: DefaultTextStyle.merge(
+        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isSmallScreen = constraints.maxWidth < 1024;
+            return Column(
+              children: [
+                _topControls(),
+                Divider(height: 1, color: Colors.grey.shade300),
+                Expanded(
+                  child: isSmallScreen
+                      ? _buildMobileLayout()
+                      : _buildDesktopLayout(),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -304,6 +307,8 @@ class _MudViewState extends State<MudView> {
                 child: TextField(
                   controller: c.fluidnameController,
                   style: _kMudInputTextStyle,
+                  textAlign: TextAlign.left,
+                  textAlignVertical: TextAlignVertical.center,
                   decoration: const InputDecoration(
                     isDense: true,
                     border: InputBorder.none,
@@ -1195,7 +1200,8 @@ class _MudViewState extends State<MudView> {
                   child: isGreyReadOnly
                       // ── READ-ONLY: auto-calculated value ──────────────────
                       ? Obx(
-                          () => Center(
+                          () => Align(
+                            alignment: Alignment.centerLeft,
                             child: Text(
                               cell.value.value.isEmpty ? '-' : cell.value.value,
                               style: AppTheme.caption.copyWith(
@@ -1205,7 +1211,7 @@ class _MudViewState extends State<MudView> {
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
-                              textAlign: TextAlign.center,
+                              textAlign: TextAlign.left,
                             ),
                           ),
                         )
@@ -1236,7 +1242,8 @@ class _MudViewState extends State<MudView> {
                                   vertical: 5,
                                 ),
                               ),
-                              textAlign: TextAlign.center,
+                              textAlign: TextAlign.left,
+                              textAlignVertical: TextAlignVertical.center,
                             ),
                           ),
                         ),
@@ -1458,7 +1465,9 @@ class _MudViewState extends State<MudView> {
                                           ),
                                           child: isCalc
                                               ? Obx(
-                                                  () => Center(
+                                                  () => Align(
+                                                    alignment:
+                                                        Alignment.centerLeft,
                                                     child: Text(
                                                       cell.value.value.isEmpty
                                                           ? '-'
@@ -1479,7 +1488,7 @@ class _MudViewState extends State<MudView> {
                                                                 FontWeight.w700,
                                                           ),
                                                       textAlign:
-                                                          TextAlign.center,
+                                                          TextAlign.left,
                                                     ),
                                                   ),
                                                 )
@@ -1539,7 +1548,10 @@ class _MudViewState extends State<MudView> {
                                                                 ),
                                                           ),
                                                       textAlign:
-                                                          TextAlign.center,
+                                                          TextAlign.left,
+                                                      textAlignVertical:
+                                                          TextAlignVertical
+                                                              .center,
                                                       keyboardType:
                                                           TextInputType.number,
                                                     ),
@@ -1654,18 +1666,30 @@ class _MudViewState extends State<MudView> {
 
           // Bottom small tables — unchanged
           Expanded(
-            flex: 2,
-            child: Row(
-              children: [
-                Expanded(
-                  child: _smallTable(
-                    'Specific Gravity',
-                    isSpecificGravity: true,
+            flex: 5,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compactWidth = constraints.maxWidth < 344
+                    ? constraints.maxWidth
+                    : 344.0;
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                    width: compactWidth,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _smallTable(
+                          'Specific Gravity',
+                          isSpecificGravity: true,
+                        ),
+                        const SizedBox(height: 8),
+                        _smallTable('Solids', isSolids: true),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(child: _smallTable('Solids', isSolids: true)),
-              ],
+                );
+              },
             ),
           ),
         ],
@@ -1749,7 +1773,7 @@ class _MudViewState extends State<MudView> {
 
   Widget _sgRow(String label, TextEditingController controller) {
     return Container(
-      height: 32,
+      height: 28,
       decoration: BoxDecoration(
         border: const Border(bottom: BorderSide(color: Color(0xFFCFE0F2))),
       ),
@@ -1775,11 +1799,12 @@ class _MudViewState extends State<MudView> {
                   width: 70,
                   height: 22,
                   color: _kMudLockedEditableColor,
-                  alignment: Alignment.centerRight,
+                  alignment: Alignment.centerLeft,
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: Text(
                     controller.text.isEmpty ? '-' : controller.text,
                     style: _kMudInputTextStyle,
+                    textAlign: TextAlign.left,
                   ),
                 );
               }
@@ -1810,7 +1835,8 @@ class _MudViewState extends State<MudView> {
                       ),
                     ),
                     style: _kMudInputTextStyle,
-                    textAlign: TextAlign.right,
+                    textAlign: TextAlign.left,
+                    textAlignVertical: TextAlignVertical.center,
                   ),
                 ),
               );

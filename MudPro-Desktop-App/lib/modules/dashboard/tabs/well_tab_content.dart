@@ -22,7 +22,7 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_controller.dart';
 
 const double _kRowH = 20.0;
-const double _kHeaderH = 22.0;
+const double _kHeaderH = 26.0;
 const double _kTableHeaderH = 36.0;
 const double _kFooterH = 18.0;
 const double _kSectionGap = 3.0;
@@ -336,7 +336,7 @@ class WellTabContent extends StatelessWidget {
         builder: (context, constraints) {
           if (constraints.maxWidth < 900) {
             return Container(
-              color: AppTheme.backgroundColor,
+              color: const Color(0xFFEAF3FC),
               child: SingleChildScrollView(
                 child: Padding(
                   padding: const EdgeInsets.all(6),
@@ -361,7 +361,7 @@ class WellTabContent extends StatelessWidget {
           final double leftWidth = (usableWidth * 0.228).clamp(296.0, 352.0);
           final double rightWidth = (usableWidth * 0.238).clamp(304.0, 362.0);
           return Container(
-            color: Colors.white,
+            color: const Color(0xFFEAF3FC),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(1, 1, 1, 1),
               child: Row(
@@ -940,11 +940,12 @@ class _GeneralSectionState extends State<GeneralSection> {
     height: _kRowH,
     child: Container(
       color: _cellFillColor(isLocked: true, editableWhenUnlocked: false),
-      alignment: Alignment.center,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Text(
         text,
         style: _kWellInputTextStyle,
-        textAlign: TextAlign.center,
+        textAlign: TextAlign.left,
         overflow: TextOverflow.ellipsis,
       ),
     ),
@@ -973,7 +974,8 @@ class _GeneralSectionState extends State<GeneralSection> {
                   controller: ctrl,
                   onChanged: (val) => _sync(),
                   style: _kWellInputTextStyle,
-                  textAlign: TextAlign.center,
+                  textAlign: TextAlign.left,
+                  textAlignVertical: TextAlignVertical.center,
                   decoration: const InputDecoration(
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
@@ -1019,7 +1021,8 @@ class _GeneralSectionState extends State<GeneralSection> {
                   controller: ctrl,
                   onChanged: (val) => _sync(),
                   style: _kWellInputTextStyle,
-                  textAlign: TextAlign.center,
+                  textAlign: TextAlign.left,
+                  textAlignVertical: TextAlignVertical.center,
                   decoration: const InputDecoration(
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
@@ -1092,7 +1095,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                                 color: Colors.black,
                               ),
                               overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
+                              textAlign: TextAlign.left,
                             ),
                           ),
                           const Icon(
@@ -1148,7 +1151,8 @@ class _GeneralSectionState extends State<GeneralSection> {
                             .map(
                               (t) => DropdownMenuItem(
                                 value: t,
-                                child: Center(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
                                   child: Text(t, style: _kWellInputTextStyle),
                                 ),
                               ),
@@ -1201,7 +1205,8 @@ class _GeneralSectionState extends State<GeneralSection> {
                             .map(
                               (o) => DropdownMenuItem(
                                 value: o,
-                                child: Center(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
                                   child: Text(
                                     o,
                                     style: _kWellInputTextStyle,
@@ -1266,7 +1271,8 @@ class _GeneralSectionState extends State<GeneralSection> {
                             .map(
                               (Engineer e) => DropdownMenuItem(
                                 value: e.id,
-                                child: Center(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
                                   child: Text(
                                     "${e.firstName} ${e.lastName}",
                                     style: _kWellInputTextStyle,
@@ -1370,13 +1376,14 @@ Widget _eCell(
             ),
             child: SizedBox(
               height: _kRowH,
-              child: Center(
+              child: Align(
+                alignment: Alignment.centerLeft,
                 child: ValueListenableBuilder<TextEditingValue>(
                   valueListenable: ctrl,
                   builder: (context, value, _) => Text(
                     value.text,
                     style: _kWellSmallInputTextStyle,
-                    textAlign: TextAlign.center,
+                    textAlign: TextAlign.left,
                   ),
                 ),
               ),
@@ -1392,7 +1399,8 @@ Widget _eCell(
               child: TextField(
                 controller: ctrl,
                 style: _kWellSmallInputTextStyle,
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.left,
+                textAlignVertical: TextAlignVertical.center,
                 readOnly: readOnly,
                 onChanged: onChanged,
                 decoration: InputDecoration(
@@ -1706,13 +1714,22 @@ class _MiddlePortionState extends State<MiddlePortion> {
         ),
       ),
       child: c.isLocked.value
-          ? Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-              child: Text(ctrl.text, style: _kWellInputTextStyle),
+          ? Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                child: Text(
+                  ctrl.text,
+                  style: _kWellInputTextStyle,
+                  textAlign: TextAlign.left,
+                ),
+              ),
             )
           : TextField(
               controller: ctrl,
               style: _kWellInputTextStyle,
+              textAlign: TextAlign.left,
+              textAlignVertical: TextAlignVertical.center,
               decoration: const InputDecoration(
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(
@@ -1876,6 +1893,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                             child: DropdownButton<CasingRow>(
                               value: _selectedCasing,
                               hint: const SizedBox.shrink(),
+                              alignment: Alignment.centerLeft,
                               icon: const Icon(Icons.arrow_drop_down, size: 13),
                               style: const TextStyle(
                                 fontSize: 11,
@@ -1900,10 +1918,14 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                                   .map(
                                     (csg) => DropdownMenuItem<CasingRow>(
                                       value: csg,
-                                      child: Text(
-                                        csg.description.value,
-                                        style: _kWellSmallInputTextStyle,
-                                        overflow: TextOverflow.ellipsis,
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          csg.description.value,
+                                          style: _kWellSmallInputTextStyle,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.left,
+                                        ),
                                       ),
                                     ),
                                   )
@@ -2437,7 +2459,8 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
           keyboardType: keyboardType,
           textInputAction: TextInputAction.done,
           selectAllOnFocus: false,
-          textAlign: TextAlign.center,
+          textAlign: TextAlign.left,
+          textAlignVertical: TextAlignVertical.center,
           onChanged: onChanged,
           onTap: () => _collapseFullSelectionToEnd(controller),
           decoration: InputDecoration(
@@ -3043,7 +3066,7 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                       Container(
                         width: 126,
                         height: 24,
-                        alignment: Alignment.centerRight,
+                        alignment: Alignment.centerLeft,
                         decoration: BoxDecoration(
                           border: Border.all(color: _kWellPanelBorder),
                           color: _kEditableCellColor,
@@ -3052,7 +3075,7 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                           padding: const EdgeInsets.symmetric(horizontal: 6),
                           child: Text(
                             ds.totalLength.value.toStringAsFixed(1),
-                            textAlign: TextAlign.right,
+                            textAlign: TextAlign.left,
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -3117,11 +3140,12 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                 ),
                 child: SizedBox(
                   height: _kRowH,
-                  child: Center(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
                     child: Text(
                       ctrl.text,
                       style: _kWellInputTextStyle,
-                      textAlign: TextAlign.center,
+                      textAlign: TextAlign.left,
                     ),
                   ),
                 ),
@@ -3134,7 +3158,8 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                 child: TextField(
                   controller: ctrl,
                   style: _kWellSmallInputTextStyle,
-                  textAlign: TextAlign.center,
+                  textAlign: TextAlign.left,
+                  textAlignVertical: TextAlignVertical.center,
                   onTap: () => _selectDrillStringRow(rowIdx),
                   onChanged: (_) {
                     _selectDrillStringRow(rowIdx);
@@ -3458,6 +3483,7 @@ class _BitSectionState extends State<BitSection> {
       children: [
         Container(
           height: _kRowH,
+          color: AppTheme.readOnlyCell,
           padding: const EdgeInsets.symmetric(horizontal: 6),
           alignment: Alignment.centerLeft,
           child: Text(
@@ -3480,11 +3506,12 @@ class _BitSectionState extends State<BitSection> {
                     isLocked: true,
                     editableWhenUnlocked: true,
                   ),
-                  alignment: Alignment.center,
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Text(
                     ctrl.text,
                     style: _kWellSmallInputTextStyle,
-                    textAlign: TextAlign.center,
+                    textAlign: TextAlign.left,
                   ),
                 ),
               );
@@ -3496,7 +3523,8 @@ class _BitSectionState extends State<BitSection> {
                 child: TextField(
                   controller: ctrl,
                   style: _kWellSmallInputTextStyle,
-                  textAlign: TextAlign.center,
+                  textAlign: TextAlign.left,
+                  textAlignVertical: TextAlignVertical.center,
                   onChanged: (value) => _syncBitField(key, value),
                   decoration: const InputDecoration(
                     isDense: true,
@@ -3517,6 +3545,7 @@ class _BitSectionState extends State<BitSection> {
         ),
         Container(
           height: _kRowH,
+          color: AppTheme.readOnlyCell,
           padding: const EdgeInsets.symmetric(horizontal: 4),
           alignment: Alignment.center,
           child: Text(
@@ -3783,7 +3812,7 @@ class _NozzleSectionState extends State<NozzleSection> {
                     Container(
                       width: 126,
                       height: 24,
-                      alignment: Alignment.centerRight,
+                      alignment: Alignment.centerLeft,
                       decoration: BoxDecoration(
                         border: Border.all(color: _kWellPanelBorder),
                         color: _kEditableCellColor,
@@ -3794,7 +3823,7 @@ class _NozzleSectionState extends State<NozzleSection> {
                           nc.tfa.value == 0
                               ? ''
                               : nc.tfa.value.toStringAsFixed(3),
-                          textAlign: TextAlign.right,
+                          textAlign: TextAlign.left,
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -3825,11 +3854,12 @@ class _NozzleSectionState extends State<NozzleSection> {
               color: _cellFillColor(isLocked: true, editableWhenUnlocked: true),
               child: SizedBox(
                 height: _kRowH,
-                child: Center(
+                child: Align(
+                  alignment: Alignment.centerLeft,
                   child: Text(
                     ctrl.text,
                     style: _kWellSmallInputTextStyle,
-                    textAlign: TextAlign.center,
+                    textAlign: TextAlign.left,
                   ),
                 ),
               ),
@@ -3842,7 +3872,8 @@ class _NozzleSectionState extends State<NozzleSection> {
                   controller: ctrl,
                   focusNode: focusNode,
                   style: _kWellInputTextStyle,
-                  textAlign: TextAlign.center,
+                  textAlign: TextAlign.left,
+                  textAlignVertical: TextAlignVertical.center,
                   keyboardType: TextInputType.number,
                   onChanged: onChanged,
                   decoration: const InputDecoration(
@@ -4210,6 +4241,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                           child: Text(
                                             currentActivity,
                                             style: _kWellSmallInputTextStyle,
+                                            textAlign: TextAlign.left,
                                           ),
                                         ),
                                       )
@@ -4262,18 +4294,26 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                                       .map(
                                                         (o) => DropdownMenuItem(
                                                           value: o,
-                                                          child: Padding(
-                                                            padding:
-                                                                const EdgeInsets.symmetric(
-                                                                  horizontal: 4,
-                                                                ),
-                                                            child: Text(
-                                                              o,
-                                                              style:
-                                                                  _kWellSmallInputTextStyle,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
+                                                          child: Align(
+                                                            alignment: Alignment
+                                                                .centerRight,
+                                                            child: Padding(
+                                                              padding:
+                                                                  const EdgeInsets.symmetric(
+                                                                    horizontal:
+                                                                        4,
+                                                                  ),
+                                                              child: Text(
+                                                                o,
+                                                                style:
+                                                                    _kWellSmallInputTextStyle,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
+                                                                textAlign:
+                                                                    TextAlign
+                                                                        .right,
+                                                              ),
                                                             ),
                                                           ),
                                                         ),
@@ -4294,11 +4334,12 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                     ? Container(
                                         color: _kEditableCellColor,
                                         height: _kRowH,
-                                        child: Center(
+                                        child: Align(
+                                          alignment: Alignment.centerLeft,
                                           child: Text(
                                             timeCtrl.text,
                                             style: _kWellSmallInputTextStyle,
-                                            textAlign: TextAlign.center,
+                                            textAlign: TextAlign.left,
                                           ),
                                         ),
                                       )
@@ -4309,7 +4350,9 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                           child: TextField(
                                             controller: timeCtrl,
                                             style: _kWellSmallInputTextStyle,
-                                            textAlign: TextAlign.center,
+                                            textAlign: TextAlign.left,
+                                            textAlignVertical:
+                                                TextAlignVertical.center,
                                             keyboardType: TextInputType.number,
                                             onChanged: (v) {
                                               _validateTotalTime(idx);

@@ -23,9 +23,9 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
   final ScrollController _horizontalScrollController = ScrollController();
 
   static const Color _gridColor = Color(0xFFE2E2E2);
-  static const double _sectionWidth = 960;
-  static const double _tableWidth = 440;
-  static const double _singleTableWidth = 920;
+  static const double _sectionWidth = 760;
+  static const double _tableWidth = 360;
+  static const double _singleTableWidth = 732;
 
   @override
   void initState() {
@@ -80,7 +80,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                         leftList: controller.section1Left,
                         rightList: controller.section1Right,
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 10),
                       _twoTableSection(
                         title: '2. Fill Active Pits',
                         selected: controller.section2Selected,
@@ -89,7 +89,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                         leftList: controller.section2Left,
                         rightList: controller.section2Right,
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 10),
                       _singleTableSection(
                         title: '3. Displace Fluid in Hole to Storage',
                         list: controller.section3,
@@ -119,7 +119,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _sectionTitle(title),
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -130,7 +130,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                   list: leftList,
                   enabled: selected.value == 0,
                 ),
-                const SizedBox(width: 28),
+                const SizedBox(width: 12),
                 _radioTable(
                   label: rightLabel,
                   active: selected.value == 1,
@@ -156,7 +156,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _sectionTitle(title),
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
             _dataTable(list: list, enabled: true, width: _singleTableWidth),
           ],
         ),
@@ -167,7 +167,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
   Widget _sectionShell({required Widget child}) {
     return Container(
       width: _sectionWidth,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
@@ -178,12 +178,17 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
   }
 
   Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: Colors.black,
-        fontSize: 15,
-        fontWeight: FontWeight.w700,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      color: AppTheme.primaryColor,
+      child: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -196,7 +201,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: active ? AppTheme.primaryColor : Colors.grey.shade500,
+          color: active ? Colors.white : Colors.white70,
         ),
       ),
       child: active
@@ -205,7 +210,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
               height: 8,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.primaryColor,
+                color: Colors.white,
               ),
             )
           : null,
@@ -227,12 +232,12 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
           InkWell(
             onTap: dashboardController.isLocked.value ? null : onTap,
             child: Container(
-              height: 38,
+              height: 30,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: active
-                    ? AppTheme.primaryColor.withOpacity(0.12)
-                    : Colors.white,
+                    ? AppTheme.primaryColor
+                    : AppTheme.primaryColor.withOpacity(0.78),
                 border: Border.all(
                   color: active ? AppTheme.primaryColor : _gridColor,
                 ),
@@ -241,7 +246,10 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                 children: [
                   _selectionDot(active),
                   const SizedBox(width: 10),
-                  Text(label, style: _inputTextStyle),
+                  Text(
+                    label,
+                    style: _inputTextStyle.copyWith(color: Colors.white),
+                  ),
                 ],
               ),
             ),
@@ -264,14 +272,14 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
       ),
       child: Column(
         children: [
-          _tableHeader(width),
+          _tableHeader(width - 2),
           ...List.generate(
             list.length,
             (index) => _tableRow(
               list: list,
               index: index,
               enabled: enabled,
-              width: width,
+              width: width - 2,
             ),
           ),
         ],
@@ -281,7 +289,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
 
   Widget _tableHeader(double width) {
     return Container(
-      height: 42,
+      height: 30,
       color: AppTheme.tableHeaderBlue,
       child: Row(
         children: [
@@ -313,7 +321,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
     final isLocked = dashboardController.isLocked.value;
     final canEdit = enabled && !isLocked;
     return Container(
-      height: 48,
+      height: 34,
       decoration: BoxDecoration(
         color: isLocked ? operationLockedEditableColor : Colors.white,
         border: const Border(top: BorderSide(color: _gridColor)),

@@ -37,15 +37,17 @@ class ReturnLostMudView extends StatelessWidget {
               behavior: HitTestBehavior.translucent,
               onSecondaryTapDown: (details) =>
                   _showReturnLostMudMenu(context, details),
-              child: _ReturnLostMudScrollArea(
-                minWidth: 1000,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildPremixedMudSection(),
-                    const SizedBox(height: 16),
-                    _buildDataTable(),
-                  ],
+              child: SingleChildScrollView(
+                child: SizedBox(
+                  width: 680,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildPremixedMudSection(),
+                      const SizedBox(height: 8),
+                      _buildDataTable(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -147,141 +149,158 @@ class ReturnLostMudView extends StatelessWidget {
 
   Widget _buildPremixedMudSection() {
     return Container(
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: AppTheme.tableGridBlue),
       ),
-      child: Row(
-        children: [
-          Obx(
-            () => InkWell(
-              onTap: dashboardController.isLocked.value
-                  ? null
-                  : () {
-                      controller.isPremixedMud.value =
-                          !controller.isPremixedMud.value;
-                      if (!controller.isPremixedMud.value) {
-                        controller.selectedPremixedId.value = '';
-                        controller.selectedPremixed.value = null;
-                        controller.mw.value = '';
-                        controller.mudType.value = '';
-                        controller.costOfLostController.clear();
-                      }
-                    },
-              child: Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: controller.isPremixedMud.value
-                        ? AppTheme.primaryColor
-                        : Colors.grey.shade400,
-                    width: 2,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 120,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              color: AppTheme.primaryColor,
+              child: Row(
+                children: [
+                  Obx(
+                    () => InkWell(
+                      onTap: dashboardController.isLocked.value
+                          ? null
+                          : () {
+                              controller.isPremixedMud.value =
+                                  !controller.isPremixedMud.value;
+                              if (!controller.isPremixedMud.value) {
+                                controller.selectedPremixedId.value = '';
+                                controller.selectedPremixed.value = null;
+                                controller.mw.value = '';
+                                controller.mudType.value = '';
+                                controller.costOfLostController.clear();
+                              }
+                            },
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: controller.isPremixedMud.value
+                                ? Colors.white
+                                : Colors.white70,
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(3),
+                          color: controller.isPremixedMud.value
+                              ? Colors.white.withOpacity(0.14)
+                              : Colors.transparent,
+                        ),
+                        child: controller.isPremixedMud.value
+                            ? const Icon(
+                                Icons.check,
+                                size: 14,
+                                color: Colors.white,
+                              )
+                            : null,
+                      ),
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(3),
-                  color: controller.isPremixedMud.value
-                      ? AppTheme.primaryColor.withOpacity(0.1)
-                      : Colors.transparent,
-                ),
-                child: controller.isPremixedMud.value
-                    ? Icon(Icons.check, size: 14, color: AppTheme.primaryColor)
-                    : null,
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Premixed Mud',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-
-          const SizedBox(width: 8),
-
-          Container(
-            width: 90,
-            child: Text(
-              'Premixed Mud',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Colors.black,
-              ),
-            ),
-          ),
-
-          Expanded(
-            child: Obx(
-              () => Container(
-                height: 30,
-                decoration: BoxDecoration(
-                  color: dashboardController.isLocked.value
-                      ? operationLockedEditableColor
-                      : !controller.isPremixedMud.value
-                      ? AppTheme.tableHeaderBlue
-                      : Colors.white,
-                  border: Border.all(color: AppTheme.tableGridBlue),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: controller.isLoading.value
-                    ? Center(
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              AppTheme.primaryColor,
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Obx(
+                  () => Container(
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: dashboardController.isLocked.value
+                          ? operationLockedEditableColor
+                          : !controller.isPremixedMud.value
+                          ? AppTheme.tableHeaderBlue
+                          : Colors.white,
+                      border: Border.all(color: AppTheme.tableGridBlue),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: controller.isLoading.value
+                        ? Center(
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppTheme.primaryColor,
+                                ),
+                              ),
+                            ),
+                          )
+                        : DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value:
+                                  controller.selectedPremixedId.value.isEmpty
+                                  ? null
+                                  : controller.selectedPremixedId.value,
+                              hint: const SizedBox.shrink(),
+                              isExpanded: true,
+                              isDense: true,
+                              icon: Icon(
+                                Icons.arrow_drop_down,
+                                size: 18,
+                                color: Colors.grey.shade700,
+                              ),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black,
+                              ),
+                              dropdownColor: Colors.white,
+                              items: controller.premixedList.map((premixed) {
+                                return DropdownMenuItem<String>(
+                                  value: premixed.id,
+                                  child: Text(
+                                    premixed.description,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged:
+                                  dashboardController.isLocked.value ||
+                                      !controller.isPremixedMud.value
+                                  ? null
+                                  : (value) {
+                                      if (value != null) {
+                                        controller.selectPremixed(value);
+                                      }
+                                    },
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              menuMaxHeight: 200,
                             ),
                           ),
-                        ),
-                      )
-                    : DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: controller.selectedPremixedId.value.isEmpty
-                              ? null
-                              : controller.selectedPremixedId.value,
-                          hint: const SizedBox.shrink(),
-                          isExpanded: true,
-                          isDense: true,
-                          icon: Icon(
-                            Icons.arrow_drop_down,
-                            size: 18,
-                            color: Colors.grey.shade700,
-                          ),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
-                          ),
-                          dropdownColor: Colors.white,
-                          items: controller.premixedList.map((premixed) {
-                            return DropdownMenuItem<String>(
-                              value: premixed.id,
-                              child: Text(
-                                premixed.description,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            );
-                          }).toList(),
-                          onChanged:
-                              dashboardController.isLocked.value ||
-                                  !controller.isPremixedMud.value
-                              ? null
-                              : (value) {
-                                  if (value != null) {
-                                    controller.selectPremixed(value);
-                                  }
-                                },
-                          padding: EdgeInsets.symmetric(horizontal: 8),
-                          menuMaxHeight: 200,
-                        ),
-                      ),
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -368,9 +387,9 @@ class ReturnLostMudView extends StatelessWidget {
 
             return Container(
               color: isLocked ? operationLockedEditableColor : Colors.white,
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(4),
               child: Container(
-                height: 30,
+                height: 26,
                 decoration: BoxDecoration(
                   border: Border.all(color: AppTheme.tableGridBlue),
                   borderRadius: BorderRadius.circular(3),
@@ -450,9 +469,9 @@ class ReturnLostMudView extends StatelessWidget {
 
             return Container(
               color: isLocked ? operationLockedEditableColor : Colors.white,
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(4),
               child: SizedBox(
-                height: 30,
+                height: 26,
                 child: TextField(
                   controller: textController,
                   enabled: !isLocked,
@@ -497,7 +516,7 @@ class ReturnLostMudView extends StatelessWidget {
       children: [
         _buildLabelCell('Leased'),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
           child: Obx(
             () => Row(
               children: [
@@ -543,7 +562,7 @@ class ReturnLostMudView extends StatelessWidget {
 
   Widget _buildLabelCell(String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       color: AppTheme.primaryColor,
       child: Text(
         text,
@@ -558,7 +577,7 @@ class ReturnLostMudView extends StatelessWidget {
 
   Widget _buildValueCell(String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       color: Colors.white,
       child: Text(
         text.isEmpty ? '-' : text,
@@ -573,7 +592,7 @@ class ReturnLostMudView extends StatelessWidget {
 
   Widget _buildUnitCell(String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       color: Colors.grey.shade50,
       child: Text(
         text,
@@ -587,51 +606,3 @@ class ReturnLostMudView extends StatelessWidget {
   }
 }
 
-class _ReturnLostMudScrollArea extends StatefulWidget {
-  const _ReturnLostMudScrollArea({required this.child, required this.minWidth});
-
-  final Widget child;
-  final double minWidth;
-
-  @override
-  State<_ReturnLostMudScrollArea> createState() =>
-      _ReturnLostMudScrollAreaState();
-}
-
-class _ReturnLostMudScrollAreaState extends State<_ReturnLostMudScrollArea> {
-  final ScrollController _horizontalController = ScrollController();
-  final ScrollController _verticalController = ScrollController();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scrollbar(
-      controller: _verticalController,
-      thumbVisibility: true,
-      trackVisibility: true,
-      notificationPredicate: (notification) =>
-          notification.metrics.axis == Axis.vertical,
-      child: Scrollbar(
-        controller: _horizontalController,
-        thumbVisibility: true,
-        trackVisibility: true,
-        notificationPredicate: (notification) =>
-            notification.metrics.axis == Axis.horizontal,
-        child: SingleChildScrollView(
-          controller: _verticalController,
-          child: SingleChildScrollView(
-            controller: _horizontalController,
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(width: widget.minWidth, child: widget.child),
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _horizontalController.dispose();
-    _verticalController.dispose();
-    super.dispose();
-  }
-}
