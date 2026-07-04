@@ -27,6 +27,49 @@ import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
 //   HGS lb/bbl = 3.5 * HGS_SG * HGS%
 // ═══════════════════════════════════════════════════════════════════════════
 
+const SOLIDS_ANALYSIS_KEYS = [
+  "mudWeight",
+  "retortSolids",
+  "bariteLb",
+  "bentoniteLb",
+  "brineSG",
+  "brineVol",
+  "totalSolids",
+  "correctedSolids",
+  "dissolvedSolids",
+  "avgSG",
+  "hgsPercent",
+  "hgsLb",
+  "lgsPercent",
+  "lgsLb",
+  "bentPercent",
+  "drillSolidsPercent",
+  "drillSolidsLb",
+  "dsBentRatio",
+  "obmChemicalsPercent",
+  "obmChemicalsLb",
+];
+
+const toFiniteNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const hasClientComputedSolids = (body = {}) =>
+  ["dissolvedSolids", "correctedSolids", "avgSG", "hgsPercent", "hgsLb", "lgsPercent", "lgsLb", "drillSolidsPercent", "drillSolidsLb"].every(
+    (key) => body[key] !== undefined && body[key] !== null && body[key] !== "",
+  );
+
+const pickClientComputedSolids = (body = {}) => {
+  const computed = {};
+  for (const key of SOLIDS_ANALYSIS_KEYS) {
+    if (body[key] !== undefined && body[key] !== null && body[key] !== "") {
+      computed[key] = toFiniteNumber(body[key]);
+    }
+  }
+  return computed;
+};
+
 function computeSolidsAnalysis({
   mudWeight, retortSolids, oilVol, waterVol,
   bariteLb, bentoniteLb, cacl2Pct,
@@ -121,28 +164,26 @@ function computeSolidsAnalysis({
   // ── 14. Total Solids lb/bbl (for reference) ───────────────────────────────
   const totalSolidsLb = MW * 42 * (totalSolids / 100);
 
-  const fmt = (v) => isNaN(v) || !isFinite(v) ? 0 : +v.toFixed(2);
-
   return {
-    mudWeight:          fmt(MW),
-    retortSolids:       fmt(RS),
-    bariteLb:           fmt(barite),
-    bentoniteLb:        fmt(bent),
-    brineSG:            +(brineSG.toFixed(4)),
-    brineVol:           fmt(brineVol),
-    totalSolids:        fmt(totalSolids),
-    totalSolidsLb:      fmt(totalSolidsLb),
-    correctedSolids:    fmt(CS),
-    dissolvedSolids:    fmt(dissolvedSolids),
-    avgSG:              fmt(avgSG),
-    hgsPercent:         fmt(hgsPercent),
-    hgsLb:              fmt(hgsLb),
-    lgsPercent:         fmt(lgsPercent),
-    lgsLb:              fmt(lgsLb),
-    bentPercent:        fmt(bentPercent),
-    drillSolidsPercent: fmt(drillSolidsPercent),
-    drillSolidsLb:      fmt(drillSolidsLb),
-    dsBentRatio:        fmt(dsBentRatio),
+    mudWeight:          MW,
+    retortSolids:       RS,
+    bariteLb:           barite,
+    bentoniteLb:        bent,
+    brineSG:            brineSG,
+    brineVol:           brineVol,
+    totalSolids:        totalSolids,
+    totalSolidsLb:      totalSolidsLb,
+    correctedSolids:    CS,
+    dissolvedSolids:    dissolvedSolids,
+    avgSG:              avgSG,
+    hgsPercent:         hgsPercent,
+    hgsLb:              hgsLb,
+    lgsPercent:         lgsPercent,
+    lgsLb:              lgsLb,
+    bentPercent:        bentPercent,
+    drillSolidsPercent: drillSolidsPercent,
+    drillSolidsLb:      drillSolidsLb,
+    dsBentRatio:        dsBentRatio,
   };
 }
 
@@ -151,7 +192,9 @@ function computeSolidsAnalysis({
 // ═══════════════════════════════════════════════════════════════════════════
 export const createSolidsAnalysis = async (req, res) => {
   try {
-    const computed = computeSolidsAnalysis(req.body);
+    const computed = hasClientComputedSolids(req.body)
+      ? pickClientComputedSolids(req.body)
+      : computeSolidsAnalysis(req.body);
     if (!computed) {
       return res.status(400).json({ success: false, message: "Mud Weight must be > 0" });
     }
@@ -175,7 +218,9 @@ export const updateSolidsAnalysis = async (req, res) => {
     const { id } = req.params;
     const wellId = String(req.query.wellId ?? req.body.wellId ?? "").trim();
     const reportId = String(req.query.reportId ?? req.body.reportId ?? "").trim();
-    const computed = computeSolidsAnalysis(req.body);
+    const computed = hasClientComputedSolids(req.body)
+      ? pickClientComputedSolids(req.body)
+      : computeSolidsAnalysis(req.body);
     if (!computed) {
       return res.status(400).json({ success: false, message: "Mud Weight must be > 0" });
     }
@@ -224,7 +269,9 @@ export const getLatestSolidsAnalysis = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 export const calculateOnly = async (req, res) => {
   try {
-    const computed = computeSolidsAnalysis(req.body);
+    const computed = hasClientComputedSolids(req.body)
+      ? pickClientComputedSolids(req.body)
+      : computeSolidsAnalysis(req.body);
     if (!computed) {
       return res.status(400).json({ success: false, message: "Mud Weight must be > 0" });
     }
