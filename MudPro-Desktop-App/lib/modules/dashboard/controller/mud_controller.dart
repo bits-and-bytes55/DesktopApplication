@@ -2649,16 +2649,14 @@ class MudController extends GetxController {
     final dissolvedSolids = isOilMud
         ? (brineVol - waterVol)
         : waterVol * wbmSaltMassFraction * (1.0 / 2.16);
-    final roundedDissolvedSolids = double.parse(
-      dissolvedSolids.toStringAsFixed(1),
-    );
+    final safeDissolvedSolids = dissolvedSolids < 0 ? 0.0 : dissolvedSolids;
     final corrSolidsPct = vals['corrSolidsPct'] ?? 0;
     final rawCorrectedSolids = isOilMud
         ? (oilSalt?.correctedSolidsPct ??
               (corrSolidsPct > 0
                   ? corrSolidsPct
-                  : (retortSolids - roundedDissolvedSolids)))
-        : (retortSolids - roundedDissolvedSolids);
+                  : (retortSolids - safeDissolvedSolids)))
+        : (retortSolids - safeDissolvedSolids);
     final correctedSolids = rawCorrectedSolids;
     final safeCorrected = correctedSolids < 0 ? 0 : correctedSolids;
     final totalSolids = retortSolids > 0
@@ -2700,36 +2698,28 @@ class MudController extends GetxController {
     final obmChemicalsLb = isOilMud ? 0.0 : null;
     final dsBentRatio = bentoniteLb != 0 ? drillSolidsLb / bentoniteLb : null;
 
-    double fmt(num v, [int digits = 2]) {
-      final value = v.toDouble();
-      if (value.isNaN || value.isInfinite) return 0;
-      return double.parse(value.toStringAsFixed(digits));
-    }
-
     return {
-      'mudWeight': fmt(mw),
-      'retortSolids': fmt(totalSolids < 0 ? 0 : totalSolids),
-      'bariteLb': fmt(bariteLb),
-      'bentoniteLb': fmt(bentoniteLb),
-      'brineSG': fmt(brineSG, 4),
-      'brineVol': fmt(brineVol),
-      'totalSolids': fmt(totalSolids < 0 ? 0 : totalSolids),
-      'correctedSolids': fmt(safeCorrected, isOilMud ? 1 : 2),
-      'dissolvedSolids': fmt(
-        roundedDissolvedSolids < 0 ? 0 : roundedDissolvedSolids,
-      ),
-      'avgSG': fmt(avgSG),
-      'hgsPercent': fmt(hgsPercent),
-      'hgsLb': fmt(hgsLb),
-      'lgsPercent': fmt(lgsPercent),
-      'lgsLb': fmt(lgsLb),
-      'bentPercent': fmt(bentPercent),
-      'drillSolidsPercent': fmt(drillSolidsPercent),
-      'drillSolidsLb': fmt(drillSolidsLb),
+      'mudWeight': mw,
+      'retortSolids': totalSolids < 0 ? 0 : totalSolids,
+      'bariteLb': bariteLb,
+      'bentoniteLb': bentoniteLb,
+      'brineSG': brineSG,
+      'brineVol': brineVol,
+      'totalSolids': totalSolids < 0 ? 0 : totalSolids,
+      'correctedSolids': safeCorrected,
+      'dissolvedSolids': safeDissolvedSolids,
+      'avgSG': avgSG,
+      'hgsPercent': hgsPercent,
+      'hgsLb': hgsLb,
+      'lgsPercent': lgsPercent,
+      'lgsLb': lgsLb,
+      'bentPercent': bentPercent,
+      'drillSolidsPercent': drillSolidsPercent,
+      'drillSolidsLb': drillSolidsLb,
       if (obmChemicalsPercent != null)
-        'obmChemicalsPercent': fmt(obmChemicalsPercent),
-      if (obmChemicalsLb != null) 'obmChemicalsLb': fmt(obmChemicalsLb),
-      'dsBentRatio': dsBentRatio == null ? null : fmt(dsBentRatio),
+        'obmChemicalsPercent': obmChemicalsPercent,
+      if (obmChemicalsLb != null) 'obmChemicalsLb': obmChemicalsLb,
+      'dsBentRatio': dsBentRatio,
     };
   }
 

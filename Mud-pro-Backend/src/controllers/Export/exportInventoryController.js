@@ -1679,12 +1679,12 @@ const fillDmrSolidsAnalysisRows = (ws, solidsAnalysisRows = []) => {
     80: "avgSG",
   };
   const rowFormats = {
-    73: "0.0000",
-    74: "0.00",
-    75: "0.00",
-    76: "0.00",
+    73: "0.00",
+    74: "0.0",
+    75: "0.0",
+    76: "0.0",
     77: "0.00",
-    78: "0.00",
+    78: "0.0",
     79: "0.00",
     80: "0.00",
   };
@@ -1697,7 +1697,10 @@ const fillDmrSolidsAnalysisRows = (ws, solidsAnalysisRows = []) => {
 
   Object.entries(rowMap).forEach(([row, key]) => {
     columns.forEach(([start, end], index) => {
-      const value = formatSolidsValue(samples[index]?.[key], key === "brineSG" ? 4 : 2);
+      const value = formatSolidsValue(
+        samples[index]?.[key],
+        key === "brineSG" ? 2 : [74, 75, 76, 78].includes(Number(row)) ? 1 : 2,
+      );
       fillRowRange(ws, Number(row), start, end, value);
       for (let col = columnToNumber(start); col <= columnToNumber(end); col += 1) {
         ws.getRow(Number(row)).getCell(col).numFmt = rowFormats[row];
