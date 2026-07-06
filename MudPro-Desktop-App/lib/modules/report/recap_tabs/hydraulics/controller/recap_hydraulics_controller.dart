@@ -890,25 +890,13 @@ class RecapHydraulicsController extends GetxController {
   }
 
   double _drillStringPressureDenominator(double pipeId) {
-    const points = <List<double>>[
-      [2.75, 3990.51],
-      [2.81, 4010.09],
-      [4, 5485.23],
-      [4.5, 5908.27],
-      [4.67, 6350],
-    ];
-    if (pipeId <= points.first[0]) return points.first[1];
-    if (pipeId >= points.last[0]) return points.last[1];
-
-    for (var index = 1; index < points.length; index += 1) {
-      final right = points[index];
-      final left = points[index - 1];
-      if (pipeId <= right[0]) {
-        final ratio = (pipeId - left[0]) / (right[0] - left[0]);
-        return left[1] + ratio * (right[1] - left[1]);
-      }
-    }
-    return points.last[1];
+    if (pipeId <= 0) return 0;
+    return (((1084.3208295319607 * pipeId - 15796.11321549673) * pipeId +
+            85135.86672286998) *
+        pipeId -
+        199976.00080323248) *
+            pipeId +
+        176580.47907861945;
   }
 
   double _drillStringPressureWeight({

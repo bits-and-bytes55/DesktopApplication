@@ -1798,28 +1798,6 @@ const calculateEcd = (mw, pressureLoss, depth) => {
   if (loss <= 0 || depthFt <= 0) return round(baseMw, 2);
   return round(baseMw + loss / (HYDRAULIC_CONSTANTS.hydrostatic * depthFt), 2);
 };
-const criticalVelocityFieldScale = (gap) => {
-  const points = [
-    [7.75, 51.5758585466],
-    [8, 51.2959547547],
-    [9.375, 49.8563546924],
-    [10.5, 48.8059883654],
-    [11.739, 47.7335495216],
-  ];
-  const value = toNumber(gap);
-  if (value <= points[0][0]) return points[0][1];
-  if (value >= points[points.length - 1][0]) return points[points.length - 1][1];
-
-  for (let index = 1; index < points.length; index += 1) {
-    const [rightGap, rightScale] = points[index];
-    const [leftGap, leftScale] = points[index - 1];
-    if (value <= rightGap) {
-      const ratio = (value - leftGap) / (rightGap - leftGap);
-      return leftScale + ratio * (rightScale - leftScale);
-    }
-  }
-  return points[points.length - 1][1];
-};
 const hydraulicCriticalVelocity = ({ mw, pv, yp, holeSize, pipeOd }) => {
   const density = toNumber(mw);
   const plasticViscosity = toNumber(pv);
@@ -1830,11 +1808,7 @@ const hydraulicCriticalVelocity = ({ mw, pv, yp, holeSize, pipeOd }) => {
     plasticViscosity * plasticViscosity +
       12.34 * gap * gap * yieldPoint * density
   );
-  const fieldScale = criticalVelocityFieldScale(gap);
-  return round(
-    ((1.08 * plasticViscosity + 1.08 * root) / (density * gap)) * fieldScale,
-    1
-  );
+  return round((1.08 * plasticViscosity + 1.08 * root) / (density * gap), 1);
 };
 const hydraulicAnnularVelocity = ({ pumpRate, holeSize, pipeOd }) => {
   const q = toNumber(pumpRate);
@@ -1889,26 +1863,16 @@ const hydraulicDrillStringPressureWeight = ({ pv, yp, length, pipeId, pumpRate }
   );
 };
 const hydraulicPipePressureDenominator = (pipeId) => {
-  const points = [
-    [2.75, 3990.51],
-    [2.81, 4010.09],
-    [4, 5485.23],
-    [4.5, 5908.27],
-    [4.67, 6350],
-  ];
   const value = toNumber(pipeId);
-  if (value <= points[0][0]) return points[0][1];
-  if (value >= points[points.length - 1][0]) return points[points.length - 1][1];
-
-  for (let index = 1; index < points.length; index += 1) {
-    const [rightId, rightValue] = points[index];
-    const [leftId, leftValue] = points[index - 1];
-    if (value <= rightId) {
-      const ratio = (value - leftId) / (rightId - leftId);
-      return leftValue + ratio * (rightValue - leftValue);
-    }
-  }
-  return points[points.length - 1][1];
+  if (value <= 0) return 0;
+  return (
+    (((1084.3208295319607 * value - 15796.11321549673) * value +
+      85135.86672286998) *
+      value -
+      199976.00080323248) *
+      value +
+    176580.47907861945
+  );
 };
 const hydraulicDrillStringSegmentLoss = ({
   pv,
