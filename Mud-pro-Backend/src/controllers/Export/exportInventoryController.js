@@ -2206,14 +2206,7 @@ const fillDmrHydraulicsRows = (ws, {
     cumulativeDsLosses[index] = cumulative;
     return cumulative;
   }, 0);
-  const calculatedDsLossTotal = sumBy(dsSegmentLosses, (value) => value);
-  const surfaceLineLoss = hydraulicDrillStringSegmentLoss({
-    ...mud,
-    length: pumpFlow.surfaceLineLength,
-    pipeId: pumpFlow.surfaceLineId,
-    pumpRate,
-  });
-  const dsLossTotal = calculatedDsLossTotal + surfaceLineLoss;
+  const dsLossTotal = sumBy(dsSegmentLosses, (value) => value);
   const calculatedPressureLoss =
     bitLoss + dsLossTotal + annLossTotal + dhToolsLoss + motorLoss;
   const totalPressureLoss = calculatedPressureLoss;
