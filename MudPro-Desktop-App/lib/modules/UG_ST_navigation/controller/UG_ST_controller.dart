@@ -14,6 +14,7 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 const int _planColumnCount = 31;
 const int _planMinimumRows = 18;
+const Duration _casingAutoSaveDelay = Duration(milliseconds: 300);
 
 List<Map<String, String>> _defaultPlanSummary() => [
   {'type': 'TD', 'amount': '', 'unit': '(ft)'},
@@ -167,7 +168,7 @@ class UgStController extends GetxController {
     }
     _pendingCasingAutoSave = row;
     _casingAutoSaveTimer?.cancel();
-    _casingAutoSaveTimer = Timer(const Duration(milliseconds: 850), () async {
+    _casingAutoSaveTimer = Timer(_casingAutoSaveDelay, () async {
       final pending = _pendingCasingAutoSave;
       if (pending == null ||
           isLocked.value ||

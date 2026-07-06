@@ -28,6 +28,14 @@ class PadView extends StatefulWidget {
     return state._savePad(silent: true);
   }
 
+  static bool get isCreatingFirstPad {
+    final state = _activeState;
+    return state != null &&
+        state.mounted &&
+        state._isCreatingNewPad &&
+        state.padWellC.pads.isEmpty;
+  }
+
   @override
   State<PadView> createState() => _PadViewState();
 }
@@ -118,6 +126,9 @@ class _PadViewState extends State<PadView> {
   }
 
   AppPad? get _activePad => _isCreatingNewPad ? null : padWellC.selectedPad;
+
+  bool get _isCreatingFirstPad =>
+      _isCreatingNewPad && padWellC.pads.isEmpty;
 
   void _loadSelectedPad() {
     final pad = padWellC.selectedPad;
@@ -430,7 +441,7 @@ class _PadViewState extends State<PadView> {
   }
 
   Future<bool> _ensureLogoChangeAllowed() async {
-    if (ugController.isLocked.value) return false;
+    if (ugController.isLocked.value && !_isCreatingFirstPad) return false;
     final activePad = _activePad;
     final savedPin = activePad?.clientLogoPin ?? '';
 
@@ -488,7 +499,8 @@ class _PadViewState extends State<PadView> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final isLocked = ugController.isLocked.value;
+      final isLocked =
+          ugController.isLocked.value && !_isCreatingFirstPad;
       final activePad = _activePad;
       final wells = activePad == null
           ? const <AppWell>[]

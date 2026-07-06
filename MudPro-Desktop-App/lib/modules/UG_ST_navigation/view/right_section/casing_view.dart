@@ -891,7 +891,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow>
   void _scheduleSave() {
     if (widget.locked || !_hasData || _isSaving) return;
     _timer?.cancel();
-    _timer = Timer(const Duration(milliseconds: 850), _save);
+    _timer = Timer(const Duration(milliseconds: 300), _save);
   }
 
   Future<void> _save() async {

@@ -190,7 +190,9 @@ class VolumeSnapshotController extends GetxController {
       (item) => _boolValue(item['leased']),
     );
 
-    final water = _sum(addWaterItems, 'volume');
+    final water = _round2(
+      _sum(addWaterItems, 'volume') + _consumeProductAddWaterTotal(payload),
+    );
 
     final formation = _sum(otherVolItems, 'formation');
     final cuttings = _sum(otherVolItems, 'cuttings');
@@ -356,6 +358,35 @@ class VolumeSnapshotController extends GetxController {
     } catch (_) {
       return const <Map<String, dynamic>>[];
     }
+  }
+
+  double _consumeProductAddWaterTotal(Map<String, dynamic> payload) {
+    final primaryState = _asMap(payload['consumeProductDistribution']);
+    final stateItems = _extractList(payload['consumeProductDistributionStates']);
+    final seenOperationKeys = <String>{};
+    var total = 0.0;
+
+    void addState(Map<String, dynamic> state) {
+      final operationKey = (state['operationInstanceKey'] ?? '').toString().trim();
+      if (operationKey.isNotEmpty && !seenOperationKeys.add(operationKey)) {
+        return;
+      }
+      final addWaterEnabled = _boolValue(state['addWaterEnabled']);
+      final addWaterVolume = _number(state['addWaterVolume']);
+      if (addWaterEnabled && addWaterVolume > 0) {
+        total += addWaterVolume;
+      }
+    }
+
+    if (primaryState.isNotEmpty) {
+      addState(primaryState);
+    }
+
+    for (final item in stateItems) {
+      addState(item);
+    }
+
+    return _round2(total);
   }
 
   List<Map<String, dynamic>> _extractList(dynamic raw) {

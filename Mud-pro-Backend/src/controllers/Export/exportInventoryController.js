@@ -17,6 +17,7 @@ import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
 import Service from "../../modules/ConsumeServices/Services/Service.js";
 import Engineering from "../../modules/ConsumeServices/Engineers/Engineering.js";
 import AddWater from "../../modules/addwater/AddWater.js";
+import ConsumeProductDistributionState from "../../modules/Consumeproduct/ConsumeProductDistributionState.js";
 import ReceiveMud from "../../modules/receivemud/ReceiveMud.js";
 import ReturnLostMud from "../../modules/returnlostmud/ReturnLostMud.js";
 import TransferMud from "../../modules/transfermud/TransferMud.js";
@@ -771,6 +772,8 @@ const summarizePumpFlow = (pumps = []) => {
     displacementBblPerStroke: strokeDisplacement,
     strokePumpSpm,
     surfaceLineVolume: operatingSurfaceLineVolume,
+    surfaceLineId: strokePump ? toNumber(strokePump.surfaceId) : 0,
+    surfaceLineLength: strokePump ? toNumber(strokePump.surfaceLen) : 0,
   };
 };
 const calculateCirculationTiming = (volumeBbl, pumpFlow = {}) => {
@@ -1031,6 +1034,7 @@ const computeVolumeSummary = ({
   wellGeneral,
   productsUsed = [],
   addWaterRows = [],
+  consumeProductDistributionStates = [],
   receiveMudRows = [],
   transferRows = [],
   returnLostRows = [],
@@ -1058,7 +1062,12 @@ const computeVolumeSummary = ({
     receiveMudRows.filter((item) => !isActiveSystemTarget(item.to)),
     (item) => item.netVolume || item.volume
   );
-  const totalWaterAddition = sumBy(addWaterRows, (item) => item.volume);
+  const consumeProductWaterAddition = sumBy(
+    consumeProductDistributionStates.filter((item) => item.addWaterEnabled),
+    (item) => item.addWaterVolume
+  );
+  const totalWaterAddition =
+    sumBy(addWaterRows, (item) => item.volume) + consumeProductWaterAddition;
   const totalReceived = sumBy(receiveMudRows, (item) => item.netVolume || item.volume);
   const baseOilAddition = sumBy(
     productsUsed.filter((item) => isBaseOilProduct(item, productMetadataMap)),
@@ -1184,6 +1193,7 @@ const computeVolumeSummary = ({
   const subsurfaceLoss = lossBreakdown.formation + lossBreakdown.others;
   const activeBuilt =
     activeWaterAddition +
+    consumeProductWaterAddition +
     activeReceived +
     totalProductAddition +
     weightMaterialAddition +
@@ -1784,6 +1794,8 @@ const HYDRAULIC_CONSTANTS = {
   hydrostatic: 0.052,
   horsepower: 1714,
   hsi: 4 / Math.PI,
+  secondsPerMinute: 60,
+  turbulentPressureDrop: 8.91e-5,
 };
 const hydraulicAnnularPressureDenominator = () => 60000;
 const hydraulicDepthValue = (...values) => {
@@ -1808,7 +1820,12 @@ const hydraulicCriticalVelocity = ({ mw, pv, yp, holeSize, pipeOd }) => {
     plasticViscosity * plasticViscosity +
       12.34 * gap * gap * yieldPoint * density
   );
-  return round((1.08 * plasticViscosity + 1.08 * root) / (density * gap), 1);
+  const velocityFeetPerSecond =
+    (1.08 * plasticViscosity + 1.08 * root) / (density * gap);
+  return round(
+    velocityFeetPerSecond * HYDRAULIC_CONSTANTS.secondsPerMinute,
+    1
+  );
 };
 const hydraulicAnnularVelocity = ({ pumpRate, holeSize, pipeOd }) => {
   const q = toNumber(pumpRate);
@@ -1823,25 +1840,98 @@ const hydraulicPipeVelocity = ({ pumpRate, pipeId }) => {
   return q > 0 && id > 0 ? (HYDRAULIC_CONSTANTS.velocity * q) / (id * id) : 0;
 };
 const hydraulicDrillStringVelocity = ({ pumpRate, pipeId }) =>
-  hydraulicPipeVelocity({ pumpRate, pipeId }) / 60;
-const hydraulicAnnularPressureLoss = ({ pv, yp, length, annVel, holeSize, pipeOd }) => {
-  const gap = Math.max(0, toNumber(holeSize) - toNumber(pipeOd));
+  hydraulicPipeVelocity({ pumpRate, pipeId }) /
+  HYDRAULIC_CONSTANTS.secondsPerMinute;
+const hydraulicTurbulentPipePressureLoss = ({
+  mw,
+  pv,
+  length,
+  pipeId,
+  pumpRate,
+}) => {
+  const density = toNumber(mw);
+  const plasticViscosity = toNumber(pv);
   const l = toNumber(length);
-  if (gap <= 0 || l <= 0) return 0;
+  const id = toNumber(pipeId);
+  const q = toNumber(pumpRate);
+  if (
+    density <= 0 ||
+    plasticViscosity <= 0 ||
+    l <= 0 ||
+    id <= 0 ||
+    q <= 0
+  ) {
+    return 0;
+  }
   return (
-    (toNumber(pv) * l * toNumber(annVel)) /
-      (hydraulicAnnularPressureDenominator() * gap * gap) +
-    (toNumber(yp) * l) / (225 * gap)
+    (HYDRAULIC_CONSTANTS.turbulentPressureDrop *
+      Math.pow(density, 0.8) *
+      Math.pow(q, 1.8) *
+      Math.pow(plasticViscosity, 0.2) *
+      l) /
+    Math.pow(id, 4.8)
+  );
+};
+const hydraulicTurbulentAnnularPressureLoss = ({
+  mw,
+  pv,
+  length,
+  holeSize,
+  pipeOd,
+  pumpRate,
+}) => {
+  const density = toNumber(mw);
+  const plasticViscosity = toNumber(pv);
+  const l = toNumber(length);
+  const dh = toNumber(holeSize);
+  const od = toNumber(pipeOd);
+  const q = toNumber(pumpRate);
+  const gap = dh - od;
+  if (
+    density <= 0 ||
+    plasticViscosity <= 0 ||
+    l <= 0 ||
+    gap <= 0 ||
+    q <= 0
+  ) {
+    return 0;
+  }
+  return (
+    (HYDRAULIC_CONSTANTS.turbulentPressureDrop *
+      Math.pow(density, 0.8) *
+      Math.pow(q, 1.8) *
+      Math.pow(plasticViscosity, 0.2) *
+      l) /
+    (Math.pow(gap, 3) * Math.pow(dh + od, 1.8))
   );
 };
 const hydraulicAnnularSegmentPressureLoss = ({
+  mw,
   pv,
   yp,
   length,
   annVel,
   holeSize,
   pipeOd,
+  pumpRate,
 }) => {
+  const criticalVelocity = hydraulicCriticalVelocity({
+    mw,
+    pv,
+    yp,
+    holeSize,
+    pipeOd,
+  });
+  if (toNumber(annVel) >= toNumber(criticalVelocity) && criticalVelocity > 0) {
+    return hydraulicTurbulentAnnularPressureLoss({
+      mw,
+      pv,
+      length,
+      holeSize,
+      pipeOd,
+      pumpRate,
+    });
+  }
   const gap = Math.max(0, toNumber(holeSize) - toNumber(pipeOd));
   const l = toNumber(length);
   if (gap <= 0 || l <= 0) return 0;
@@ -1851,30 +1941,8 @@ const hydraulicAnnularSegmentPressureLoss = ({
     (toNumber(yp) * l) / (225 * gap)
   );
 };
-const hydraulicDrillStringPressureWeight = ({ pv, yp, length, pipeId, pumpRate }) => {
-  const id = toNumber(pipeId);
-  const l = toNumber(length);
-  if (id <= 0 || l <= 0) return 0;
-  const pipeVel = hydraulicPipeVelocity({ pumpRate, pipeId: id });
-  const pipeDenominator = hydraulicPipePressureDenominator(id);
-  return (
-    (toNumber(pv) * l * pipeVel) / (pipeDenominator * id * id) +
-    (toNumber(yp) * l) / (225 * id)
-  );
-};
-const hydraulicPipePressureDenominator = (pipeId) => {
-  const value = toNumber(pipeId);
-  if (value <= 0) return 0;
-  return (
-    (((1084.3208295319607 * value - 15796.11321549673) * value +
-      85135.86672286998) *
-      value -
-      199976.00080323248) *
-      value +
-    176580.47907861945
-  );
-};
 const hydraulicDrillStringSegmentLoss = ({
+  mw,
   pv,
   yp,
   length,
@@ -1885,9 +1953,24 @@ const hydraulicDrillStringSegmentLoss = ({
   const l = toNumber(length);
   if (id <= 0 || l <= 0) return 0;
   const pipeVel = hydraulicPipeVelocity({ pumpRate, pipeId: id });
+  const criticalVelocity = hydraulicCriticalVelocity({
+    mw,
+    pv,
+    yp,
+    holeSize: id,
+    pipeOd: 0,
+  });
+  if (pipeVel >= toNumber(criticalVelocity) && criticalVelocity > 0) {
+    return hydraulicTurbulentPipePressureLoss({
+      mw,
+      pv,
+      length,
+      pipeId,
+      pumpRate,
+    });
+  }
   return (
-    (toNumber(pv) * l * pipeVel) /
-      (hydraulicPipePressureDenominator(id) * id * id) +
+    (toNumber(pv) * l * pipeVel) / (90000 * id * id) +
     (toNumber(yp) * l) / (225 * id)
   );
 };
@@ -2081,7 +2164,6 @@ const fillDmrHydraulicsRows = (ws, {
   const pumpFlow = summarizePumpFlow(pumps);
   const pumpRateAndPressure = report?.pumpRateAndPressure || {};
   const pumpRate = firstHydraulicNumber(pumpRateAndPressure.pumpRate, pumpFlow.rateGpm);
-  const enteredPressureLoss = firstHydraulicNumber(pumpRateAndPressure.pumpPressure, pumpFlow.maxPumpP);
   const dhToolsLoss = firstHydraulicNumber(pumpRateAndPressure.dhToolsPressureLoss);
   const motorLoss = firstHydraulicNumber(pumpRateAndPressure.motorPressureLoss);
   const segments = buildHydraulicSegments({ drillStrings, casings, intervals, wellGeneral });
@@ -2094,20 +2176,6 @@ const fillDmrHydraulicsRows = (ws, {
     segments[0]?.holeSize
   );
   const bitLoss = hydraulicBitPressureLoss({ mw: mud.mw, pumpRate, tfa });
-  const annLosses = segments.map((item) => {
-    const annVel = hydraulicAnnularVelocity({
-      pumpRate,
-      holeSize: item.holeSize,
-      pipeOd: item.pipeOd,
-    });
-    return hydraulicAnnularPressureLoss({
-      ...mud,
-      length: item.length,
-      annVel,
-      holeSize: item.holeSize,
-      pipeOd: item.pipeOd,
-    });
-  });
   const annSegmentLosses = segments.map((item) => {
     const annVel = hydraulicAnnularVelocity({
       pumpRate,
@@ -2120,17 +2188,10 @@ const fillDmrHydraulicsRows = (ws, {
       annVel,
       holeSize: item.holeSize,
       pipeOd: item.pipeOd,
+      pumpRate,
     });
   });
-  const annLossTotal = sumBy(annLosses, (value) => value);
-  const dsWeights = segments.map((item) =>
-    hydraulicDrillStringPressureWeight({
-      ...mud,
-      length: item.length,
-      pipeId: item.pipeId,
-      pumpRate,
-    })
-  );
+  const annLossTotal = sumBy(annSegmentLosses, (value) => value);
   const dsSegmentLosses = segments.map((item) =>
     hydraulicDrillStringSegmentLoss({
       ...mud,
@@ -2145,15 +2206,17 @@ const fillDmrHydraulicsRows = (ws, {
     cumulativeDsLosses[index] = cumulative;
     return cumulative;
   }, 0);
-  const calculatedDsLossTotal = sumBy(dsWeights, (value) => value);
+  const calculatedDsLossTotal = sumBy(dsSegmentLosses, (value) => value);
+  const surfaceLineLoss = hydraulicDrillStringSegmentLoss({
+    ...mud,
+    length: pumpFlow.surfaceLineLength,
+    pipeId: pumpFlow.surfaceLineId,
+    pumpRate,
+  });
+  const dsLossTotal = calculatedDsLossTotal + surfaceLineLoss;
   const calculatedPressureLoss =
-    bitLoss + calculatedDsLossTotal + annLossTotal + dhToolsLoss + motorLoss;
-  const totalPressureLoss =
-    enteredPressureLoss > 0 ? enteredPressureLoss : calculatedPressureLoss;
-  const dsLossTotal =
-    enteredPressureLoss > 0
-      ? Math.max(0, enteredPressureLoss - bitLoss - annLossTotal - dhToolsLoss - motorLoss)
-      : calculatedDsLossTotal;
+    bitLoss + dsLossTotal + annLossTotal + dhToolsLoss + motorLoss;
+  const totalPressureLoss = calculatedPressureLoss;
   const bitJetVelocity = hydraulicBitJetVelocity({ pumpRate, tfa });
   const bitHhp =
     bitLoss > 0 && pumpRate > 0
@@ -3483,7 +3546,7 @@ export const exportInventoryReport = async (req, res) => {
     const report = reportId ? await Report.findById(reportId).lean().catch(() => null) : null;
     const [
       inventoryData, well, drillStrings, casings, pumps, consumeProducts,
-      liveServices, liveEngineering, addWaterRows, receiveMudRows, returnLostRows, transferRows, otherVolRows, mudLossRows, mudLossStorageRows,
+      liveServices, liveEngineering, addWaterRows, consumeProductDistributionStates, receiveMudRows, returnLostRows, transferRows, otherVolRows, mudLossRows, mudLossStorageRows,
       allOtherVolRows, intervals, mudReportState, solidsAnalysisRows, shakers, otherSceRows, emptyFluidRows, nozzleData, inventoryConfig,
     ] = await Promise.all([
       loadInventorySnapshot({ wellId, reportId }),
@@ -3495,6 +3558,7 @@ export const exportInventoryReport = async (req, res) => {
       loadReportScopedList(Service, { wellId, reportId, sort: { createdAt: 1, _id: 1 } }),
       loadReportScopedList(Engineering, { wellId, reportId, sort: { createdAt: 1, _id: 1 } }),
       loadReportScopedList(AddWater, { wellId, reportId }),
+      loadReportScopedList(ConsumeProductDistributionState, { wellId, reportId }),
       loadReportScopedList(ReceiveMud, { wellId, reportId }),
       loadReportScopedList(ReturnLostMud, { wellId, reportId }),
       loadReportScopedList(TransferMud, { wellId, reportId }),
@@ -3564,6 +3628,7 @@ export const exportInventoryReport = async (req, res) => {
       wellGeneral,
       productsUsed: consumeProducts,
       addWaterRows,
+      consumeProductDistributionStates,
       receiveMudRows,
       transferRows,
       returnLostRows,
