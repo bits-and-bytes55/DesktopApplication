@@ -12,7 +12,16 @@ const toText = (value) => String(value ?? "").trim();
 
 const buildFilter = ({ wellId, reportId }) => {
   if (!wellId) return null;
-  if (reportId) return { wellId, reportId };
+  if (reportId) {
+    return {
+      wellId,
+      $or: [
+        { toc: CASED_HOLE_TOC_MARKER, reportId },
+        { toc: { $ne: CASED_HOLE_TOC_MARKER }, reportId: "" },
+        { toc: { $ne: CASED_HOLE_TOC_MARKER }, reportId: { $exists: false } },
+      ],
+    };
+  }
   return { wellId, toc: { $ne: CASED_HOLE_TOC_MARKER } };
 };
 
@@ -62,6 +71,7 @@ export const addCasing = async (req, res) => {
       ...req.body,
       wellId,
       reportId: isCasedHole ? reportId : "",
+      toc: isCasedHole ? CASED_HOLE_TOC_MARKER : req.body.toc,
       sortOrder: toSortOrder(req.body.sortOrder),
     });
 
@@ -94,6 +104,7 @@ export const updateCasing = async (req, res) => {
         ...req.body,
         wellId,
         reportId: isCasedHole ? reportId : "",
+        toc: isCasedHole ? CASED_HOLE_TOC_MARKER : req.body.toc,
         sortOrder: toSortOrder(req.body.sortOrder),
       },
       { returnDocument: "after" }
@@ -125,7 +136,14 @@ export const deleteCasing = async (req, res) => {
     const filter = {
       _id: req.params.id,
       wellId,
-      ...(reportId ? { reportId } : {}),
+      ...(reportId
+        ? {
+            $or: [
+              { toc: CASED_HOLE_TOC_MARKER, reportId },
+              { toc: { $ne: CASED_HOLE_TOC_MARKER } },
+            ],
+          }
+        : {}),
     };
 
     const deletedCasing = await Casing.findOneAndDelete(filter);

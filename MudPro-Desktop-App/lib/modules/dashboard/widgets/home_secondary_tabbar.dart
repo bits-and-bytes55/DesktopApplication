@@ -136,6 +136,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     switch (index) {
       case 0:
         return padWellC.isSelectedPadReadyForWellCreation;
+      case 2:
+        return reportC.hasSelectedReport || _isFirstPadBootstrap;
       case 5:
         return padWellC.isSelectedWellReadyForReportCreation &&
             !_isCreatingReport;
@@ -143,6 +145,10 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         return reportC.hasSelectedReport;
     }
   }
+
+  bool get _isFirstPadBootstrap =>
+      padWellC.pads.isEmpty &&
+      controller.selectedNodeId.value == 'pads';
 
   String _disabledReason(int index) {
     switch (index) {
@@ -347,7 +353,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
   //  SAVE — hits all APIs in sequence
   // ══════════════════════════════════════════════════════════════════════════
   Future<void> _saveAll(BuildContext context) async {
-    if (controller.isLocked.value) {
+    final canSaveFirstPad =
+        _isFirstPadBootstrap && PadView.isCreatingFirstPad;
+    if (controller.isLocked.value && !canSaveFirstPad) {
       _showDesktopAlert(
         context,
         "Report is locked. Unlock to save.",
