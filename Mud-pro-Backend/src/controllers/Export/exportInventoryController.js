@@ -1752,16 +1752,24 @@ const loadMudHydraulicValues = ({ mudReportState, activePits = [] }) => {
   };
 };
 const nozzleTotalArea = (nozzleData = {}) => {
-  const saved = toNumber(nozzleData?.tfa);
-  if (saved > 0) return saved;
-
   const nozzles = Array.isArray(nozzleData?.nozzles) ? nozzleData.nozzles : [];
-  return sumBy(nozzles, (nozzle) => {
+  const computed = sumBy(nozzles, (nozzle) => {
     const count = toNumber(nozzle.count);
     const size32 = firstHydraulicNumber(nozzle.size32, nozzle.size, nozzle.diameterInch);
     const diameterIn = toNumber(nozzle.diameterInch) > 0 ? toNumber(nozzle.diameterInch) : size32 / 32;
     return count > 0 && diameterIn > 0 ? count * 0.785 * diameterIn * diameterIn : 0;
   });
+
+  const hasRowData = nozzles.some((nozzle) => {
+    const count = toNumber(nozzle.count);
+    const size32 = firstHydraulicNumber(nozzle.size32, nozzle.size, nozzle.diameterInch);
+    return count > 0 && size32 > 0;
+  });
+
+  if (hasRowData) return computed;
+
+  const saved = toNumber(nozzleData?.tfa);
+  return saved > 0 ? saved : computed;
 };
 const pressurePercentText = (loss, total) => {
   const cleanLoss = Math.max(0, toNumber(loss));
@@ -1791,28 +1799,6 @@ const calculateEcd = (mw, pressureLoss, depth) => {
   if (loss <= 0 || depthFt <= 0) return round(baseMw, 2);
   return round(baseMw + loss / (HYDRAULIC_CONSTANTS.hydrostatic * depthFt), 2);
 };
-const criticalVelocityFieldScale = (gap) => {
-  const points = [
-    [7.75, 51.5758585466],
-    [8, 51.2959547547],
-    [9.375, 49.8563546924],
-    [10.5, 48.8059883654],
-    [11.739, 47.7335495216],
-  ];
-  const value = toNumber(gap);
-  if (value <= points[0][0]) return points[0][1];
-  if (value >= points[points.length - 1][0]) return points[points.length - 1][1];
-
-  for (let index = 1; index < points.length; index += 1) {
-    const [rightGap, rightScale] = points[index];
-    const [leftGap, leftScale] = points[index - 1];
-    if (value <= rightGap) {
-      const ratio = (value - leftGap) / (rightGap - leftGap);
-      return leftScale + ratio * (rightScale - leftScale);
-    }
-  }
-  return points[points.length - 1][1];
-};
 const hydraulicCriticalVelocity = ({ mw, pv, yp, holeSize, pipeOd }) => {
   const density = toNumber(mw);
   const plasticViscosity = toNumber(pv);
@@ -1823,11 +1809,7 @@ const hydraulicCriticalVelocity = ({ mw, pv, yp, holeSize, pipeOd }) => {
     plasticViscosity * plasticViscosity +
       12.34 * gap * gap * yieldPoint * density
   );
-  const fieldScale = criticalVelocityFieldScale(gap);
-  return round(
-    ((1.08 * plasticViscosity + 1.08 * root) / (density * gap)) * fieldScale,
-    1
-  );
+  return round((1.08 * plasticViscosity + 1.08 * root) / (density * gap), 1);
 };
 const hydraulicAnnularVelocity = ({ pumpRate, holeSize, pipeOd }) => {
   const q = toNumber(pumpRate);
@@ -2530,7 +2512,7 @@ const fillDmrBitInformation = (ws, { casings = [], intervals = [], wellGeneral, 
   });
 
   fillRowRange(ws, 21, "BE", "BK", "TFA (in2)");
-  fillRowRange(ws, 21, "BL", "BS", roundOrBlank(nozzleData?.tfa, 3));
+  fillRowRange(ws, 21, "BL", "BS", roundOrBlank(nozzleTotalArea(nozzleData), 3));
 };
 
 const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts, mudReportState, solidsAnalysisRows, intervals, reportFormat, nozzleData }) => {

@@ -926,11 +926,9 @@ class RecapHydraulicsController extends GetxController {
   }
 
   double _nozzleTotalArea(Map<String, dynamic> nozzleData) {
-    final saved = _number(nozzleData['tfa']);
-    if (saved > 0) return saved;
-
     final nozzles = _listFromDynamic(nozzleData['nozzles']);
     var total = 0.0;
+    var hasRowData = false;
     for (final nozzle in nozzles) {
       final nozzleMap = _mapFromDynamic(nozzle);
       final count = _number(nozzleMap['count']);
@@ -943,9 +941,14 @@ class RecapHydraulicsController extends GetxController {
           ? _number(nozzleMap['diameterInch'])
           : size32 / 32;
       if (count <= 0 || diameter <= 0) continue;
+      hasRowData = true;
       total += count * 0.785 * diameter * diameter;
     }
-    return total;
+
+    if (hasRowData) return total;
+
+    final saved = _number(nozzleData['tfa']);
+    return saved > 0 ? saved : total;
   }
 
   double? _calculateEcd(
