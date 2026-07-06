@@ -1781,12 +1781,11 @@ const HYDRAULIC_CONSTANTS = {
   velocity: 24.51,
   jetVelocity: 0.32086,
   bitPressureDrop: 10858,
-  annularPressureDenominator: 1029.4,
-  annularSegmentPressureDenominator: 15690.54,
   hydrostatic: 0.052,
   horsepower: 1714,
   hsi: 4 / Math.PI,
 };
+const hydraulicAnnularPressureDenominator = () => 60000;
 const hydraulicDepthValue = (...values) => {
   const parsed = firstHydraulicNumber(...values);
   return parsed > 0 ? parsed : 0;
@@ -1857,7 +1856,7 @@ const hydraulicAnnularPressureLoss = ({ pv, yp, length, annVel, holeSize, pipeOd
   if (gap <= 0 || l <= 0) return 0;
   return (
     (toNumber(pv) * l * toNumber(annVel)) /
-      (HYDRAULIC_CONSTANTS.annularPressureDenominator * gap * gap) +
+      (hydraulicAnnularPressureDenominator() * gap * gap) +
     (toNumber(yp) * l) / (225 * gap)
   );
 };
@@ -1874,7 +1873,7 @@ const hydraulicAnnularSegmentPressureLoss = ({
   if (gap <= 0 || l <= 0) return 0;
   return (
     (toNumber(pv) * l * toNumber(annVel)) /
-      (HYDRAULIC_CONSTANTS.annularSegmentPressureDenominator * gap * gap) +
+      (hydraulicAnnularPressureDenominator() * gap * gap) +
     (toNumber(yp) * l) / (225 * gap)
   );
 };
@@ -1883,8 +1882,9 @@ const hydraulicDrillStringPressureWeight = ({ pv, yp, length, pipeId, pumpRate }
   const l = toNumber(length);
   if (id <= 0 || l <= 0) return 0;
   const pipeVel = hydraulicPipeVelocity({ pumpRate, pipeId: id });
+  const pipeDenominator = hydraulicPipePressureDenominator(id);
   return (
-    (toNumber(pv) * l * pipeVel) / (3792 * id * id) +
+    (toNumber(pv) * l * pipeVel) / (pipeDenominator * id * id) +
     (toNumber(yp) * l) / (225 * id)
   );
 };

@@ -885,8 +885,30 @@ class RecapHydraulicsController extends GetxController {
     final gap = segment.holeSize - segment.pipeOd;
     if (gap <= 0 || segment.length <= 0) return 0;
     final velocity = _annularVelocity(segment, pumpRate);
-    return (pv * segment.length * velocity) / (1000 * gap * gap) +
+    return (pv * segment.length * velocity) / (60000 * gap * gap) +
         (yp * segment.length) / (225 * gap);
+  }
+
+  double _drillStringPressureDenominator(double pipeId) {
+    const points = <List<double>>[
+      [2.75, 3990.51],
+      [2.81, 4010.09],
+      [4, 5485.23],
+      [4.5, 5908.27],
+      [4.67, 6350],
+    ];
+    if (pipeId <= points.first[0]) return points.first[1];
+    if (pipeId >= points.last[0]) return points.last[1];
+
+    for (var index = 1; index < points.length; index += 1) {
+      final right = points[index];
+      final left = points[index - 1];
+      if (pipeId <= right[0]) {
+        final ratio = (pipeId - left[0]) / (right[0] - left[0]);
+        return left[1] + ratio * (right[1] - left[1]);
+      }
+    }
+    return points.last[1];
   }
 
   double _drillStringPressureWeight({
@@ -899,8 +921,9 @@ class RecapHydraulicsController extends GetxController {
     final pipeVelocity = pumpRate > 0
         ? 24.51 * pumpRate / (segment.pipeId * segment.pipeId)
         : 0;
+    final denominator = _drillStringPressureDenominator(segment.pipeId);
     return (pv * segment.length * pipeVelocity) /
-            (3792 * segment.pipeId * segment.pipeId) +
+            (denominator * segment.pipeId * segment.pipeId) +
         (yp * segment.length) / (225 * segment.pipeId);
   }
 
