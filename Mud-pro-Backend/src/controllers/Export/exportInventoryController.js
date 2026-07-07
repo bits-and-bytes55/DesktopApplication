@@ -25,13 +25,13 @@ import OtherVolAddition from "../../modules/othervol/OtherVolAddition.js";
 import MudLoss from "../../modules/mudloss/MudLoss.js";
 import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
 import { Interval } from "../../modules/wellInterval/intervalModel.js";
-import { loadMergedPits } from "../../utils/pitReportState.js";
 import MudReportState from "../../modules/mudReport/MudReportState.js";
 import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
 import { Shaker, OtherSce } from "../../modules/sce/sce.model.js";
 import EmptyFluidActiveSystem from "../../modules/emptyfluidactivesystem/EmptyFluidActiveSystem.js";
 import Nozzle from "../../modules/nozzle/nozzle.model.js";
 import UgInventorySnapshot from "../../modules/ugInventory/ugInventoryProductModel.js";
+import { calculateCombinedHoleVolumeResult } from "../pitvolumename/volumeName.controller.js";
 
 const TEMPLATE_PATH = fileURLToPath(
   new URL("../../../assets/template.xlsx", import.meta.url)
@@ -160,6 +160,31 @@ const roundOrZero = (value, digits = 2) => {
 const text = (value, fallback = "") => {
   const parsed = value?.toString().trim();
   return parsed ? parsed : fallback;
+};
+const rowTimestamp = (item = {}) =>
+  new Date(item.updatedAt || item.createdAt || 0).getTime();
+const latestPitsByNameForExport = (items = []) => {
+  const latestByName = new Map();
+  for (const item of items) {
+    const key = text(item?.pitName).toLowerCase();
+    if (!key) continue;
+    const existing = latestByName.get(key);
+    if (!existing || rowTimestamp(item) >= rowTimestamp(existing)) {
+      latestByName.set(key, item);
+    }
+  }
+  return [...latestByName.values()].sort((left, right) => {
+    const leftOrder = Number(left?.sortOrder);
+    const rightOrder = Number(right?.sortOrder);
+    if (
+      Number.isFinite(leftOrder) &&
+      Number.isFinite(rightOrder) &&
+      leftOrder !== rightOrder
+    ) {
+      return leftOrder - rightOrder;
+    }
+    return rowTimestamp(left) - rowTimestamp(right);
+  });
 };
 const displayText = (value, fallback = "-") => text(value, fallback);
 const firstText = (...values) => {
@@ -1120,6 +1145,11 @@ const computeVolumeSummary = ({
     0,
     currentActiveVolume - totalAdditions + totalTransfersOut + totalLoss
   );
+  const holeVolumeResult = calculateCombinedHoleVolumeResult({
+    casings,
+    wellGeneral,
+    drillStrings,
+  });
   const volumeSegments = buildHydraulicSegments({
     drillStrings,
     casings,
@@ -1155,9 +1185,17 @@ const computeVolumeSummary = ({
   const downholeVolume =
     geometryDownholeVolume > 0 ? geometryDownholeVolume : fallbackDownholeVolume;
   const annularVolume =
-    geometryAnnularVolume > 0
+    holeVolumeResult.hasData
+      ? Math.max(0, holeVolumeResult.hole - holeVolumeResult.drillString)
+      : geometryAnnularVolume > 0
       ? geometryAnnularVolume
       : Math.max(0, downholeVolume - drillstringVolume);
+  const correctedDrillstringVolume = holeVolumeResult.hasData
+    ? holeVolumeResult.drillString
+    : drillstringVolume;
+  const correctedDownholeVolume = holeVolumeResult.hasData
+    ? holeVolumeResult.hole
+    : downholeVolume;
   const lossBreakdown = {
     shakersHydroclones: sumBy(mudLossRows, (item) => item.shakers),
     cuttingsRetention: sumBy(mudLossRows, (item) => item.cuttingsRetention),
@@ -1230,9 +1268,9 @@ const computeVolumeSummary = ({
     reserveVolume: round(reserveVolume),
     annularVolume: round(annularVolume),
     circulationAnnularVolume: round(circulationAnnularVolume),
-    drillstringVolume: round(drillstringVolume),
-    downholeVolume: round(downholeVolume),
-    totalCircVolume: round(currentActiveVolume + downholeVolume),
+    drillstringVolume: round(correctedDrillstringVolume),
+    downholeVolume: round(correctedDownholeVolume),
+    totalCircVolume: round(currentActiveVolume + correctedDownholeVolume),
     volumeBelowBit: 0,
     dailyVolBuilt: activeReserveText(activeBuilt, reserveBuilt),
     dailyVolLost: activeReserveText(activeMudLoss + totalReturnLost + emptyDumpLoss, reserveMudLoss),
@@ -1789,6 +1827,7 @@ const pressurePercentText = (loss, total) => {
 };
 const HYDRAULIC_CONSTANTS = {
   velocity: 24.51,
+  annularVelocity: 25.165,
   jetVelocity: 0.32086,
   bitPressureDrop: 10858,
   hydrostatic: 0.052,
@@ -1796,6 +1835,7 @@ const HYDRAULIC_CONSTANTS = {
   hsi: 4 / Math.PI,
   secondsPerMinute: 60,
   turbulentPressureDrop: 8.91e-5,
+  annularYieldDenominator: 200,
 };
 const hydraulicAnnularPressureDenominator = () => 60000;
 const hydraulicDepthValue = (...values) => {
@@ -1832,7 +1872,7 @@ const hydraulicAnnularVelocity = ({ pumpRate, holeSize, pipeOd }) => {
   const dh = toNumber(holeSize);
   const od = toNumber(pipeOd);
   const area = dh * dh - od * od;
-  return q > 0 && area > 0 ? (HYDRAULIC_CONSTANTS.velocity * q) / area : 0;
+  return q > 0 && area > 0 ? (HYDRAULIC_CONSTANTS.annularVelocity * q) / area : 0;
 };
 const hydraulicPipeVelocity = ({ pumpRate, pipeId }) => {
   const q = toNumber(pumpRate);
@@ -1938,7 +1978,7 @@ const hydraulicAnnularSegmentPressureLoss = ({
   return (
     (toNumber(pv) * l * toNumber(annVel)) /
       (hydraulicAnnularPressureDenominator() * gap * gap) +
-    (toNumber(yp) * l) / (225 * gap)
+    (toNumber(yp) * l) / (HYDRAULIC_CONSTANTS.annularYieldDenominator * gap)
   );
 };
 const hydraulicDrillStringSegmentLoss = ({
@@ -2206,7 +2246,13 @@ const fillDmrHydraulicsRows = (ws, {
     cumulativeDsLosses[index] = cumulative;
     return cumulative;
   }, 0);
-  const dsLossTotal = sumBy(dsSegmentLosses, (value) => value);
+  const surfaceLineLoss = hydraulicTurbulentPipePressureLoss({
+    ...mud,
+    length: pumpFlow.surfaceLineLength,
+    pipeId: pumpFlow.surfaceLineId,
+    pumpRate,
+  });
+  const dsLossTotal = sumBy(dsSegmentLosses, (value) => value) + surfaceLineLoss;
   const calculatedPressureLoss =
     bitLoss + dsLossTotal + annLossTotal + dhToolsLoss + motorLoss;
   const totalPressureLoss = calculatedPressureLoss;
@@ -3165,6 +3211,19 @@ const loadExportCasings = async ({ wellId, reportId }) => {
   return Casing.find(filter).sort({ sortOrder: 1, createdAt: 1, _id: 1 }).lean();
 };
 
+const loadExportMasterPits = async ({ wellId }) => {
+  if (!wellId) return [];
+
+  return Pit.find({
+    wellId,
+    $or: [
+      { reportId: { $exists: false } },
+      { reportId: null },
+      { reportId: "" },
+    ],
+  }).sort({ createdAt: 1, _id: 1 }).lean();
+};
+
 const loadInventorySnapshot = async ({ wellId, reportId }) => {
   if (!wellId) return [];
 
@@ -3576,14 +3635,13 @@ export const exportInventoryReport = async (req, res) => {
       well?.padId ? Pad.findById(well.padId).lean() : null,
       Company.findOne().sort({ updatedAt: -1, createdAt: -1 }).lean(),
       loadExportWellGeneral({ wellId, reportId, report }),
-      reportId
-        ? loadMergedPits({ wellId, reportId })
-        : Pit.find({ wellId }).sort({ createdAt: 1, _id: 1 }).lean(),
+      loadExportMasterPits({ wellId }),
     ]);
     const fluidEngineers = await loadExportFluidEngineers(wellGeneral);
 
-    const activePits = pits.filter((pit) => pit.initialActive === true);
-    const reservePits = pits.filter((pit) => pit.initialActive === false);
+    const exportPits = latestPitsByNameForExport(pits);
+    const activePits = exportPits.filter((pit) => pit.initialActive === true);
+    const reservePits = exportPits.filter((pit) => pit.initialActive === false);
     const fluidName =
       text(mudReportState?.fluidName) ||
       text(mudReportState?.fluidType) ||

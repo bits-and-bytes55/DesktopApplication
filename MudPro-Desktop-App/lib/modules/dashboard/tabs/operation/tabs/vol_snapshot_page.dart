@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -240,9 +241,13 @@ class VolumeSnapshotController extends GetxController {
           ),
     );
 
-    final baseFluid = 0.0;
-    final weightMaterial = 0.0;
-    final products = _number(totals['consumeProductTotal']);
+    final consumeProductGroupTotals = await _consumeProductGroupTotals(
+      payload,
+      wellId,
+    );
+    final baseFluid = consumeProductGroupTotals.baseFluid;
+    final weightMaterial = consumeProductGroupTotals.weightMaterial;
+    final products = consumeProductGroupTotals.products;
 
     final additionTotal = _round2(
       receiveMud +
@@ -388,6 +393,71 @@ class VolumeSnapshotController extends GetxController {
 
     return _round2(total);
   }
+
+  Future<_ConsumeProductGroupTotals> _consumeProductGroupTotals(
+    Map<String, dynamic> payload,
+    String wellId,
+  ) async {
+    final consumeRows = _extractList(payload['consumeProductMassSources']);
+    if (consumeRows.isEmpty) {
+      final total = _number(_asMap(payload['totalsBreakdown'])['consumeProductTotal']);
+      return _ConsumeProductGroupTotals(products: total);
+    }
+
+    final groupByProductKey = <String, String>{};
+    try {
+      final products = await InventoryProductsService.fetchProducts(wellId);
+      for (final product in products) {
+        final keys = [
+          product.code,
+          product.product,
+          '${product.code}|${product.product}',
+        ];
+        for (final key in keys) {
+          final normalized = _normalizeLookupKey(key);
+          if (normalized.isNotEmpty) {
+            groupByProductKey[normalized] = product.group.toLowerCase();
+          }
+        }
+      }
+    } catch (_) {
+      // Keep Vol. Snapshot usable even if inventory lookup is unavailable.
+    }
+
+    var baseFluid = 0.0;
+    var weightMaterial = 0.0;
+    var products = 0.0;
+
+    for (final row in consumeRows) {
+      final volume = _number(row['volumeBbl']);
+      if (volume <= 0) continue;
+
+      final code = (row['code'] ?? '').toString();
+      final product = (row['product'] ?? '').toString();
+      final group =
+          groupByProductKey[_normalizeLookupKey('$code|$product')] ??
+          groupByProductKey[_normalizeLookupKey(code)] ??
+          groupByProductKey[_normalizeLookupKey(product)] ??
+          '';
+
+      if (group.contains('base fluid')) {
+        baseFluid += volume;
+      } else if (group.contains('weight')) {
+        weightMaterial += volume;
+      } else {
+        products += volume;
+      }
+    }
+
+    return _ConsumeProductGroupTotals(
+      baseFluid: _round2(baseFluid),
+      weightMaterial: _round2(weightMaterial),
+      products: _round2(products),
+    );
+  }
+
+  String _normalizeLookupKey(String value) =>
+      value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
 
   List<Map<String, dynamic>> _extractList(dynamic raw) {
     if (raw is List) {
@@ -1088,6 +1158,18 @@ class _ErrorState extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ConsumeProductGroupTotals {
+  const _ConsumeProductGroupTotals({
+    this.baseFluid = 0.0,
+    this.weightMaterial = 0.0,
+    this.products = 0.0,
+  });
+
+  final double baseFluid;
+  final double weightMaterial;
+  final double products;
 }
 
 const List<String> _snapshotKeys = [

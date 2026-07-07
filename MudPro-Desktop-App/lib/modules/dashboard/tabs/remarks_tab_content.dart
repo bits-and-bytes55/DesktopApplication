@@ -267,11 +267,11 @@ class _RemarksViewState extends State<RemarksView> {
               const SizedBox(height: 12),
               Expanded(
                 child: _buildMemoPanel(
-                  title: 'Operational Comments',
+                  title: 'Recap Remarks',
                   controller: remarksCtrl,
                   icon: Icons.forum_outlined,
                   isLocked: isLocked,
-                  hintText: 'Operational comments',
+                  hintText: 'Recap remarks',
                 ),
               ),
             ],
@@ -284,11 +284,11 @@ class _RemarksViewState extends State<RemarksView> {
             children: [
               Expanded(
                 child: _buildMemoPanel(
-                  title: 'Remarks',
+                  title: 'Operational Comments',
                   controller: recapCtrl,
                   icon: Icons.summarize_outlined,
                   isLocked: isLocked,
-                  hintText: 'Recap remarks',
+                  hintText: 'Operational comments',
                 ),
               ),
               const SizedBox(height: 12),
@@ -338,22 +338,22 @@ class _RemarksViewState extends State<RemarksView> {
           SizedBox(
             height: 250,
             child: _buildMemoPanel(
-              title: 'Operational Comments',
+              title: 'Recap Remarks',
               controller: remarksCtrl,
               icon: Icons.forum_outlined,
               isLocked: isLocked,
-              hintText: 'Operational comments',
+              hintText: 'Recap remarks',
             ),
           ),
           const SizedBox(height: 12),
           SizedBox(
             height: 250,
             child: _buildMemoPanel(
-              title: 'Remarks',
+              title: 'Operational Comments',
               controller: recapCtrl,
               icon: Icons.summarize_outlined,
               isLocked: isLocked,
-              hintText: 'Recap remarks',
+              hintText: 'Operational comments',
             ),
           ),
           const SizedBox(height: 12),
