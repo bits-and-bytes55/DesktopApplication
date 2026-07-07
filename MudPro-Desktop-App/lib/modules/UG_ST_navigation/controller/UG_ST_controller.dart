@@ -258,11 +258,7 @@ class UgStController extends GetxController {
           final List<dynamic> data = body['data'];
           casings.assignAll(
             data
-                .where(
-                  (e) =>
-                      e is Map &&
-                      (e['toc'] ?? '').toString() != kCasedHoleTocMarker,
-                )
+                .where((e) => e is Map)
                 .map((e) => CasingRow.fromJson(Map<String, dynamic>.from(e)))
                 .toList(),
           );

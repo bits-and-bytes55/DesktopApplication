@@ -254,6 +254,8 @@ class PitSnapshotController extends GetxController {
     var selectedRows = const <_ComputedConcentrationRow>[];
     var selectedRowsBySystem =
         const <String, List<_ComputedConcentrationRow>>{};
+    var previousRowsBySystem =
+        const <String, List<_ComputedConcentrationRow>>{};
 
     for (final report in reports) {
       final source = report.id == currentReportId
@@ -301,13 +303,20 @@ class PitSnapshotController extends GetxController {
             ? reportProductKeys
             : const <String>{},
       );
+      final displayRowsBySystem = report.id == currentReportId
+          ? _carryPreviousEndConcentrationToStart(
+              currentRowsBySystem: rowsBySystem,
+              previousRowsBySystem: previousRowsBySystem,
+            )
+          : rowsBySystem;
 
       if (report.id == currentReportId) {
-        selectedRowsBySystem = rowsBySystem;
+        selectedRowsBySystem = displayRowsBySystem;
         selectedRows =
-            rowsBySystem['Active System'] ??
+            displayRowsBySystem['Active System'] ??
             const <_ComputedConcentrationRow>[];
       }
+      previousRowsBySystem = rowsBySystem;
     }
 
     _computedConcentrationRowsBySystem = selectedRowsBySystem;
@@ -322,6 +331,38 @@ class PitSnapshotController extends GetxController {
       for (final entry in source.entries)
         entry.key: Map<String, double>.from(entry.value),
     };
+  }
+
+  Map<String, List<_ComputedConcentrationRow>>
+  _carryPreviousEndConcentrationToStart({
+    required Map<String, List<_ComputedConcentrationRow>> currentRowsBySystem,
+    required Map<String, List<_ComputedConcentrationRow>> previousRowsBySystem,
+  }) {
+    if (previousRowsBySystem.isEmpty) return currentRowsBySystem;
+
+    final adjusted = <String, List<_ComputedConcentrationRow>>{};
+    for (final entry in currentRowsBySystem.entries) {
+      final previousByKey = {
+        for (final row in previousRowsBySystem[entry.key] ??
+            const <_ComputedConcentrationRow>[])
+          row.key: row,
+      };
+
+      adjusted[entry.key] = entry.value.map((row) {
+        final previous = previousByKey[row.key];
+        if (previous == null) return row;
+        return _ComputedConcentrationRow(
+          key: row.key,
+          itemName: row.itemName,
+          unitDisplay: row.unitDisplay,
+          concentrationUnit: row.concentrationUnit,
+          startConcentration: previous.endConcentration,
+          endConcentration: row.endConcentration,
+        );
+      }).toList(growable: false);
+    }
+
+    return adjusted;
   }
 
   List<String> _sortedProductKeys({

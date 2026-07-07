@@ -5,7 +5,7 @@ const CASED_HOLE_TOC_MARKER = "__cased_hole__";
 const getWellId = (req) =>
   String(req.params.wellId ?? req.body.wellId ?? req.query.wellId ?? "").trim();
 const getReportId = (req) =>
-  String(req.query.reportId ?? req.body.reportId ?? "").trim();
+  String(req.query.reportId ?? req.body?.reportId ?? "").trim();
 const toText = (value) => String(value ?? "").trim();
 
 
@@ -22,12 +22,53 @@ const buildFilter = ({ wellId, reportId }) => {
       ],
     };
   }
-  return { wellId, toc: { $ne: CASED_HOLE_TOC_MARKER } };
+  return {
+    wellId,
+    $or: [
+      { toc: { $ne: CASED_HOLE_TOC_MARKER }, reportId: "" },
+      { toc: { $ne: CASED_HOLE_TOC_MARKER }, reportId: { $exists: false } },
+    ],
+  };
 };
 
 const toSortOrder = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeCasingKey = (casing) =>
+  [
+    casing?.description,
+    casing?.type,
+    casing?.shoe,
+  ]
+    .map((value) => String(value ?? "").trim().toLowerCase())
+    .join("|");
+
+const dedupeGlobalCasings = (casings = []) => {
+  const byKey = new Map();
+  for (const casing of casings) {
+    const key = normalizeCasingKey(casing);
+    if (!key.replaceAll("|", "")) continue;
+
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, casing);
+      continue;
+    }
+
+    const currentTime = new Date(casing?.createdAt ?? 0).getTime();
+    const existingTime = new Date(existing?.createdAt ?? 0).getTime();
+    if (currentTime < existingTime) {
+      byKey.set(key, casing);
+    }
+  }
+
+  return [...byKey.values()].sort((left, right) => {
+    const orderDiff = toSortOrder(left?.sortOrder) - toSortOrder(right?.sortOrder);
+    if (orderDiff !== 0) return orderDiff;
+    return new Date(left?.createdAt ?? 0).getTime() - new Date(right?.createdAt ?? 0).getTime();
+  });
 };
 
 export const getAllCasings = async (req, res) => {
@@ -48,7 +89,10 @@ export const getAllCasings = async (req, res) => {
       createdAt: 1,
       _id: 1,
     });
-    res.status(200).json({ success: true, data: casings });
+    res.status(200).json({
+      success: true,
+      data: reportId ? casings : dedupeGlobalCasings(casings),
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -380,7 +380,7 @@ const calculateDrillStringGuideVolumes = (drillStrings = [], depthLimit) => {
   };
 };
 
-const calculateCombinedHoleVolumeResult = ({
+export const calculateCombinedHoleVolumeResult = ({
   casings = [],
   wellGeneral,
   drillStrings = [],
@@ -790,12 +790,25 @@ const findScopedWellGeneral = async ({ wellId, reportId, reportNo }) => {
 };
 
 const findScopedCasings = async ({ wellId, reportId, strictScope = false }) => {
+  const globalCasings = await Casing.find({
+    wellId,
+    $or: [
+      { toc: { $ne: CASED_HOLE_TOC_MARKER }, reportId: "" },
+      { toc: { $ne: CASED_HOLE_TOC_MARKER }, reportId: { $exists: false } },
+    ],
+  }).sort({ sortOrder: 1, createdAt: 1, _id: 1 });
+
+  if (globalCasings.length > 0) {
+    return globalCasings;
+  }
+
   if (reportId) {
     const scopedCasings = await Casing.find({
       wellId,
       reportId,
       toc: CASED_HOLE_TOC_MARKER,
     }).sort({
+      sortOrder: 1,
       createdAt: 1,
       _id: 1,
     });
@@ -816,7 +829,6 @@ const findScopedDrillStrings = async ({ wellId, reportId, strictScope = false })
   if (reportId) {
     const scopedDrillStrings = await DrillString.find({ wellId, reportId })
       .sort({ createdAt: 1, _id: 1 })
-      .limit(8)
       .lean();
 
     if (scopedDrillStrings.length > 0) {
@@ -829,13 +841,11 @@ const findScopedDrillStrings = async ({ wellId, reportId, strictScope = false })
 
     return DrillString.find(legacyObjectIdScopeFilter(wellId))
       .sort({ createdAt: 1, _id: 1 })
-      .limit(8)
       .lean();
   }
 
   return DrillString.find({ wellId })
     .sort({ createdAt: 1, _id: 1 })
-    .limit(8)
     .lean();
 };
 
