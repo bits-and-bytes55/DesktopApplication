@@ -40,35 +40,40 @@ class AdminControlView extends StatelessWidget {
                 if (c.message.value.isNotEmpty) _messageBox(),
                 if (c.passwordExpired.value) _expiryWarning(),
                 Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 430,
-                        child: SingleChildScrollView(
-                          child: Column(
-                            children: [
-                              _currentDeviceCard(),
-                              const SizedBox(height: 10),
-                              _adminAccessCard(),
-                              const SizedBox(height: 10),
-                              _passwordCard(),
-                            ],
+                  child: c.isAdminLoggedIn.value
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: 430,
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  children: [
+                                    _currentDeviceCard(),
+                                    const SizedBox(height: 10),
+                                    _passwordCard(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Expanded(child: _devicesCard()),
+                                  const SizedBox(height: 10),
+                                  Expanded(child: _logsCard()),
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      : Center(
+                          child: SizedBox(
+                            width: 560,
+                            child: _adminAccessCard(),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Expanded(child: _devicesCard()),
-                            const SizedBox(height: 10),
-                            Expanded(child: _logsCard()),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),
@@ -387,17 +392,15 @@ class AdminControlView extends StatelessWidget {
                     _statusBadge(status),
                     TextButton(
                       onPressed: c.isAdminLoggedIn.value && id.isNotEmpty
-                          ? () => c
-                              .updateDeviceStatus(id: id, status: 'allowed')
-                              .then((_) => c.refreshDevices())
+                          ? () =>
+                              c.updateDeviceStatus(id: id, status: 'allowed')
                           : null,
                       child: const Text('Allow'),
                     ),
                     TextButton(
                       onPressed: c.isAdminLoggedIn.value && id.isNotEmpty
-                          ? () => c
-                              .updateDeviceStatus(id: id, status: 'blocked')
-                              .then((_) => c.refreshDevices())
+                          ? () =>
+                              c.updateDeviceStatus(id: id, status: 'blocked')
                           : null,
                       child: const Text('Block'),
                     ),

@@ -55,11 +55,21 @@ class AdminControlController extends GetxController {
 
   Future<void> setupPassword(String password, String confirmPassword) async {
     await _run(() async {
-      await AdminControlApiService.setupPassword(
-        password: password,
-        confirmPassword: confirmPassword,
-      );
-      message.value = 'Admin password configured';
+      try {
+        await AdminControlApiService.setupPassword(
+          password: password,
+          confirmPassword: confirmPassword,
+        );
+        message.value = 'Admin password configured';
+      } catch (error) {
+        final text = error.toString().replaceFirst('Exception: ', '');
+        if (text == 'Admin password is already configured') {
+          isPasswordSetup.value = true;
+          message.value = 'Admin password already configured. Please login.';
+        } else {
+          rethrow;
+        }
+      }
       await refreshStatus();
     });
   }
@@ -73,8 +83,8 @@ class AdminControlController extends GetxController {
       message.value = 'Admin login successful';
       _startSessionTimer();
       await refreshStatus();
-      await refreshDevices();
-      await refreshLogs();
+      await _refreshDevices();
+      await _refreshLogs();
     });
   }
 
@@ -133,11 +143,15 @@ class AdminControlController extends GetxController {
       }
       message.value = 'Current device approved';
       await refreshCurrentDevice();
-      await refreshDevices();
+      await _refreshDevices();
     });
   }
 
   Future<void> refreshDevices() async {
+    await _run(_refreshDevices);
+  }
+
+  Future<void> _refreshDevices() async {
     final response = await AdminControlApiService.getDevices(adminToken.value);
     devices.value = (response['data'] as List? ?? const [])
         .whereType<Map>()
@@ -149,14 +163,23 @@ class AdminControlController extends GetxController {
     required String id,
     required String status,
   }) async {
-    await AdminControlApiService.updateDeviceStatus(
-      id: id,
-      status: status,
-      adminToken: adminToken.value,
-    );
+    await _run(() async {
+      await AdminControlApiService.updateDeviceStatus(
+        id: id,
+        status: status,
+        adminToken: adminToken.value,
+      );
+      await _refreshDevices();
+      await refreshCurrentDevice();
+      message.value = 'Device ${status == 'allowed' ? 'allowed' : 'blocked'}';
+    });
   }
 
   Future<void> refreshLogs() async {
+    await _run(_refreshLogs);
+  }
+
+  Future<void> _refreshLogs() async {
     final response = await AdminControlApiService.getLogs(adminToken.value);
     logs.value = (response['data'] as List? ?? const [])
         .whereType<Map>()
