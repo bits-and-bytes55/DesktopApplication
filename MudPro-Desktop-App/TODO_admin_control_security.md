@@ -103,6 +103,10 @@
 6. Done - App access gate that blocks normal pages but leaves Admin Control open.
 7. Done - Backend middleware for real API protection.
 8. Done - Security logs and 30-day password warning.
+9. Done - 30-minute admin session timeout with clear session expired message.
+10. Done - Admin logout action.
+11. Done - Reset password UI/API flow with maximum 2 reset attempts.
+12. Done - Unauthorized screen message and Pending/Allowed/Blocked status badges.
 
 ## Remaining verification
 
