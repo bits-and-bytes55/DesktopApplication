@@ -52,6 +52,7 @@ class AlertView extends StatelessWidget {
                       const SizedBox(width: 8),
                       const Text(
                         'Safety Configuration',
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -152,7 +153,7 @@ class AlertView extends StatelessWidget {
                                 ),
                                 onChanged: (v) => c.safetyMargin.value = v,
                                 style: TextStyle(fontSize: 12, color: AppTheme.textPrimary),
-                                textAlign: TextAlign.center,
+                                textAlign: TextAlign.left,
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
                                   isDense: true,
@@ -208,6 +209,7 @@ class AlertView extends StatelessWidget {
                         ),
                         child: const Text(
                           'Safety Status Indicator',
+                          textAlign: TextAlign.left,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -404,6 +406,7 @@ class AlertView extends StatelessWidget {
                           const SizedBox(width: 6),
                           const Text(
                             'Safety Levels',
+                            textAlign: TextAlign.left,
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -447,6 +450,7 @@ class AlertView extends StatelessWidget {
                           SizedBox(width: 6),
                           Text(
                             'Save Settings',
+                            textAlign: TextAlign.left,
                             style: TextStyle(fontSize: 12),
                           ),
                         ],
@@ -468,6 +472,7 @@ class AlertView extends StatelessWidget {
                       ),
                       child: const Text(
                         'Reset',
+                        textAlign: TextAlign.left,
                         style: TextStyle(fontSize: 12),
                       ),
                     ),
@@ -506,6 +511,7 @@ class AlertView extends StatelessWidget {
             children: [
               Text(
                 title,
+                textAlign: TextAlign.left,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -515,6 +521,7 @@ class AlertView extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 description,
+                textAlign: TextAlign.left,
                 style: TextStyle(
                   fontSize: 10,
                   color: AppTheme.textSecondary,

@@ -678,7 +678,7 @@ class _PitPageState extends State<PitPage> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               child: Text(
                 value,
-                textAlign: TextAlign.right,
+                textAlign: TextAlign.left,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -825,7 +825,7 @@ class _PitPageState extends State<PitPage> {
                       fontWeight: FontWeight.w700,
                       color: Colors.black,
                     ),
-                    textAlign: TextAlign.right,
+                    textAlign: TextAlign.left,
                   )
                 : TextFormField(
                     initialValue: value,
@@ -834,7 +834,7 @@ class _PitPageState extends State<PitPage> {
                       fontWeight: FontWeight.w700,
                       color: Colors.black,
                     ),
-                    textAlign: TextAlign.right,
+                    textAlign: TextAlign.left,
                     decoration: const InputDecoration(
                       isDense: true,
                       contentPadding: EdgeInsets.zero,
@@ -893,7 +893,7 @@ class _PitPageState extends State<PitPage> {
           fontWeight: FontWeight.w700,
           color: Colors.black,
         ),
-        textAlign: TextAlign.center,
+        textAlign: TextAlign.left,
       ),
     );
   }
@@ -908,7 +908,7 @@ class _PitPageState extends State<PitPage> {
           fontWeight: FontWeight.w700,
           color: Colors.black,
         ),
-        textAlign: TextAlign.center,
+        textAlign: TextAlign.left,
       ),
     );
   }
@@ -933,7 +933,7 @@ class _PitPageState extends State<PitPage> {
                   color: Colors.black,
                   fontWeight: FontWeight.w700,
                 ),
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.left,
               )
             : TextFormField(
                 controller: ctrl,
@@ -942,7 +942,7 @@ class _PitPageState extends State<PitPage> {
                   color: Colors.black,
                   fontWeight: FontWeight.w700,
                 ),
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.left,
                 decoration: const InputDecoration(
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(
@@ -1004,7 +1004,7 @@ class _PitPageState extends State<PitPage> {
                   color: Colors.black,
                   fontWeight: FontWeight.w700,
                 ),
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.left,
               )
             : TextFormField(
                 controller: ctrl,
@@ -1013,7 +1013,7 @@ class _PitPageState extends State<PitPage> {
                   color: Colors.black,
                   fontWeight: FontWeight.w700,
                 ),
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.left,
                 keyboardType: field == 'fluidType'
                     ? TextInputType.text
                     : const TextInputType.numberWithOptions(decimal: true),

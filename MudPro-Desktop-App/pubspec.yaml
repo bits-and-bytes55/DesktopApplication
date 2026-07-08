@@ -19,8 +19,8 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 msix_config:
-  display_name: MudPro
-  publisher_display_name: MudPro Pvt Ltd
+  display_name: MSR2 Software
+  publisher_display_name: MSR2 Software
   identity_name: com.mudpro.desktop
   version: 1.0.0.0
 
