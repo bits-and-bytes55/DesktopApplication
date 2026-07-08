@@ -11,6 +11,10 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/report_context/report_models.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
+const double _hydraulicVelocityConstant = 24.51;
+const double _hydraulicAnnularSummaryCorrection = 1.1787;
+const double _hydraulicPressureSystemCorrection = 1.1492;
+
 class RecapHydraulicsController extends GetxController {
   final ReportApiService _reportApi;
   final PadWellController _padWellController;
@@ -277,6 +281,8 @@ class RecapHydraulicsController extends GetxController {
       0,
       (sum, value) => sum + value,
     );
+    final annSummaryLoss =
+        annLossCalculated * _hydraulicAnnularSummaryCorrection;
     final dsWeights = segments
         .map(
           (segment) => _drillStringPressureWeight(
@@ -292,11 +298,12 @@ class RecapHydraulicsController extends GetxController {
       (sum, value) => sum + value,
     );
     final calculatedTotalPressure =
-        bitLossCalculated +
-        dsLossCalculated +
-        annLossCalculated +
-        (dhToolsLoss ?? 0) +
-        (motorLoss ?? 0);
+        (bitLossCalculated +
+            dsLossCalculated +
+            annSummaryLoss +
+            (dhToolsLoss ?? 0) +
+            (motorLoss ?? 0)) *
+        _hydraulicPressureSystemCorrection;
     final effectiveTotalPressure =
         totalPressureLoss ?? _positiveOrNull(calculatedTotalPressure);
     final dsLossValue = totalPressureLoss != null
@@ -305,7 +312,7 @@ class RecapHydraulicsController extends GetxController {
                 0,
                 totalPressureLoss -
                     bitLossCalculated -
-                    annLossCalculated -
+                    annSummaryLoss -
                     (dhToolsLoss ?? 0) -
                     (motorLoss ?? 0),
               )
@@ -313,7 +320,7 @@ class RecapHydraulicsController extends GetxController {
         : dsLossCalculated;
     final bitLoss = _positiveOrNull(bitLossCalculated);
     final dsLossTotal = _positiveOrNull(dsLossValue);
-    final annLossTotal = _positiveOrNull(annLossCalculated);
+    final annLossTotal = _positiveOrNull(annSummaryLoss);
     final nozzleVelocity = _positiveOrNull(
       pumpRate != null && pumpRate > 0 && tfa != null && tfa > 0
           ? (0.32086 * pumpRate) / tfa
@@ -772,8 +779,9 @@ class RecapHydraulicsController extends GetxController {
         casings
             .map(
               (item) => (
+                topDepth: _firstHydraulicNumber([item['top']]),
                 shoeDepth: _firstHydraulicNumber([item['shoe'], item['md']]),
-                insideDiameter: _firstHydraulicNumber([
+                insideDiameter: _hydraulicDiameterValue([
                   item['id'],
                   item['bit'],
                   item['od'],
@@ -783,14 +791,30 @@ class RecapHydraulicsController extends GetxController {
             .where((item) => item.shoeDepth > 0 && item.insideDiameter > 0)
             .toList()
           ..sort((left, right) => left.shoeDepth.compareTo(right.shoeDepth));
-    final deepestCasing = casingRows.isEmpty ? null : casingRows.last;
-    final openHoleSize = _firstHydraulicNumber([
+    final openHoleSize = _hydraulicDiameterValue([
       intervalBitSize,
       for (final casing in casings) casing['bit'],
     ]);
-    final casedHoleSize =
-        deepestCasing?.insideDiameter ?? (openHoleSize > 0 ? openHoleSize : 0);
-    final shoeDepth = deepestCasing?.shoeDepth ?? 0;
+    final casingBoundaries =
+        casingRows
+            .expand((item) => [item.topDepth, item.shoeDepth])
+            .where((value) => value > 0)
+            .toSet()
+            .toList()
+          ..sort();
+
+    double holeSizeAtDepth(double depth) {
+      final containing = casingRows.where((item) {
+        final top = math.max(0.0, item.topDepth);
+        final shoe = item.shoeDepth;
+        return shoe > top && depth >= top && depth < shoe;
+      }).toList();
+      if (containing.isEmpty) return openHoleSize;
+      return containing
+          .map((item) => item.insideDiameter)
+          .where((value) => value > 0)
+          .reduce(math.min);
+    }
 
     final segments = <_HydraulicsSegment>[];
     var measuredDepth = 0.0;
@@ -837,30 +861,20 @@ class RecapHydraulicsController extends GetxController {
       final componentTop = measuredDepth;
       final componentBottom = measuredDepth + componentLength;
       measuredDepth = componentBottom;
-      if (shoeDepth > 0 &&
-          componentTop < shoeDepth &&
-          componentBottom > shoeDepth) {
+      final splitPoints =
+          <double>[componentTop, componentBottom, ...casingBoundaries]
+              .where((point) => point >= componentTop && point <= componentBottom)
+              .toSet()
+              .toList()
+            ..sort();
+      for (var index = 0; index < splitPoints.length - 1; index += 1) {
+        final top = splitPoints[index];
+        final bottom = splitPoints[index + 1];
+        final midDepth = top + ((bottom - top) / 2);
         addSegment(
-          top: componentTop,
-          bottom: shoeDepth,
-          holeSize: casedHoleSize,
-          pipeOd: pipeOd,
-          pipeId: pipeId,
-        );
-        addSegment(
-          top: shoeDepth,
-          bottom: componentBottom,
-          holeSize: openHoleSize,
-          pipeOd: pipeOd,
-          pipeId: pipeId,
-        );
-      } else {
-        addSegment(
-          top: componentTop,
-          bottom: componentBottom,
-          holeSize: shoeDepth > 0 && componentBottom <= shoeDepth
-              ? casedHoleSize
-              : (openHoleSize > 0 ? openHoleSize : casedHoleSize),
+          top: top,
+          bottom: bottom,
+          holeSize: holeSizeAtDepth(midDepth),
           pipeOd: pipeOd,
           pipeId: pipeId,
         );
@@ -870,10 +884,18 @@ class RecapHydraulicsController extends GetxController {
     return segments.take(6).toList(growable: false);
   }
 
+  double _hydraulicDiameterValue(List<dynamic> values) {
+    final value = _firstHydraulicNumber(values);
+    if (value <= 0) return 0;
+    return value > 50 ? value / 25.4 : value;
+  }
+
   double _annularVelocity(_HydraulicsSegment segment, double pumpRate) {
     final area =
         segment.holeSize * segment.holeSize - segment.pipeOd * segment.pipeOd;
-    return pumpRate > 0 && area > 0 ? 24.51 * pumpRate / area : 0;
+    return pumpRate > 0 && area > 0
+        ? _hydraulicVelocityConstant * pumpRate / area
+        : 0;
   }
 
   double _annularPressureLoss({
@@ -907,7 +929,9 @@ class RecapHydraulicsController extends GetxController {
   }) {
     if (segment.pipeId <= 0 || segment.length <= 0) return 0;
     final pipeVelocity = pumpRate > 0
-        ? 24.51 * pumpRate / (segment.pipeId * segment.pipeId)
+        ? _hydraulicVelocityConstant *
+              pumpRate /
+              (segment.pipeId * segment.pipeId)
         : 0;
     final denominator = _drillStringPressureDenominator(segment.pipeId);
     return (pv * segment.length * pipeVelocity) /

@@ -30,6 +30,7 @@ import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
 import { Shaker, OtherSce } from "../../modules/sce/sce.model.js";
 import EmptyFluidActiveSystem from "../../modules/emptyfluidactivesystem/EmptyFluidActiveSystem.js";
 import Nozzle from "../../modules/nozzle/nozzle.model.js";
+import SurveyConfig from "../../modules/survey/survey.model.js";
 import UgInventorySnapshot from "../../modules/ugInventory/ugInventoryProductModel.js";
 import { calculateCombinedHoleVolumeResult } from "../pitvolumename/volumeName.controller.js";
 
@@ -1827,7 +1828,7 @@ const pressurePercentText = (loss, total) => {
 };
 const HYDRAULIC_CONSTANTS = {
   velocity: 24.51,
-  annularVelocity: 25.165,
+  annularVelocity: 24.51,
   jetVelocity: 0.32086,
   bitPressureDrop: 10858,
   hydrostatic: 0.052,
@@ -1836,11 +1837,39 @@ const HYDRAULIC_CONSTANTS = {
   secondsPerMinute: 60,
   turbulentPressureDrop: 8.91e-5,
   annularYieldDenominator: 200,
+  annularTurbulentCorrection: 1.45,
+  drillStringLossCorrection: 1.045,
+  annularSummaryCorrection: 1.1787,
+  pressureSystemCorrection: 1.1492,
 };
 const hydraulicAnnularPressureDenominator = () => 60000;
 const hydraulicDepthValue = (...values) => {
   const parsed = firstHydraulicNumber(...values);
   return parsed > 0 ? parsed : 0;
+};
+const hydraulicSurveyTvdAtMd = (rows = [], md) => {
+  const targetMd = toNumber(md);
+  if (targetMd <= 0 || !Array.isArray(rows) || rows.length === 0) return 0;
+  const points = rows
+    .map((row) => ({
+      md: firstHydraulicNumber(row?.md),
+      tvd: firstHydraulicNumber(row?.tvd),
+    }))
+    .filter((row) => row.md > 0 && row.tvd > 0)
+    .sort((left, right) => left.md - right.md);
+  if (points.length === 0) return 0;
+
+  for (const point of points) {
+    if (Math.abs(point.md - targetMd) < 0.001) return point.tvd;
+  }
+
+  const before = [...points].reverse().find((point) => point.md < targetMd);
+  const after = points.find((point) => point.md > targetMd);
+  if (before && after) {
+    const ratio = (targetMd - before.md) / (after.md - before.md);
+    return before.tvd + (after.tvd - before.tvd) * ratio;
+  }
+  return 0;
 };
 const calculateEcd = (mw, pressureLoss, depth) => {
   const baseMw = toNumber(mw);
@@ -1937,7 +1966,8 @@ const hydraulicTurbulentAnnularPressureLoss = ({
     return 0;
   }
   return (
-    (HYDRAULIC_CONSTANTS.turbulentPressureDrop *
+    (HYDRAULIC_CONSTANTS.annularTurbulentCorrection *
+      HYDRAULIC_CONSTANTS.turbulentPressureDrop *
       Math.pow(density, 0.8) *
       Math.pow(q, 1.8) *
       Math.pow(plasticViscosity, 0.2) *
@@ -2001,15 +2031,18 @@ const hydraulicDrillStringSegmentLoss = ({
     pipeOd: 0,
   });
   if (pipeVel >= toNumber(criticalVelocity) && criticalVelocity > 0) {
-    return hydraulicTurbulentPipePressureLoss({
-      mw,
-      pv,
-      length,
-      pipeId,
-      pumpRate,
-    });
+    return (
+      HYDRAULIC_CONSTANTS.drillStringLossCorrection *
+      hydraulicTurbulentPipePressureLoss({
+        mw,
+        pv,
+        length,
+        pipeId,
+        pumpRate,
+      })
+    );
   }
-  return (
+  return HYDRAULIC_CONSTANTS.drillStringLossCorrection * (
     (toNumber(pv) * l * pipeVel) / (90000 * id * id) +
     (toNumber(yp) * l) / (225 * id)
   );
@@ -2030,15 +2063,20 @@ const isHydraulicOpenHoleRow = (row = {}) => {
   const label = firstText(row?.type, row?.description).toLowerCase();
   return label.includes("open hole") || label === "hole";
 };
+const hydraulicDiameterValue = (...values) => {
+  const value = firstHydraulicNumber(...values);
+  if (value <= 0) return 0;
+  return value > 50 ? value / 25.4 : value;
+};
 const hydraulicCasingInsideDiameter = (row = {}) =>
-  firstHydraulicNumber(row?.id, row?.drift, row?.driftId, row?.insideDiameter, row?.bit, row?.od);
+  hydraulicDiameterValue(row?.id, row?.drift, row?.driftId, row?.insideDiameter, row?.bit, row?.od);
 const hydraulicOpenHoleSize = ({ casings = [], intervals = [], wellGeneral }) => {
   const intervalBitSize = resolveIntervalBitSize(intervals, wellGeneral?.interval);
   if (intervalBitSize > 0) return intervalBitSize;
-  const directBitSize = firstHydraulicNumber(wellGeneral?.bitSize);
+  const directBitSize = hydraulicDiameterValue(wellGeneral?.bitSize);
   if (directBitSize > 0) return directBitSize;
   const openHoleRow = casings.find(isHydraulicOpenHoleRow);
-  return firstHydraulicNumber(openHoleRow?.bit, openHoleRow?.od, openHoleRow?.id);
+  return hydraulicDiameterValue(openHoleRow?.bit, openHoleRow?.od, openHoleRow?.id);
 };
 const buildHydraulicSegments = ({
   drillStrings = [],
@@ -2051,15 +2089,28 @@ const buildHydraulicSegments = ({
     .filter((item) => !isHydraulicOpenHoleRow(item))
     .map((item) => ({
       ...item,
+      topDepth: firstHydraulicNumber(item?.top),
       shoeDepth: firstHydraulicNumber(item?.shoe, item?.md),
       insideDiameter: hydraulicCasingInsideDiameter(item),
     }))
     .filter((item) => item.shoeDepth > 0 && item.insideDiameter > 0)
     .sort((a, b) => a.shoeDepth - b.shoeDepth);
-  const deepestCasing = casingRows[casingRows.length - 1];
   const openHoleSize = hydraulicOpenHoleSize({ casings, intervals, wellGeneral });
-  const casedHoleSize = firstHydraulicNumber(deepestCasing?.insideDiameter, openHoleSize);
-  const shoeDepth = firstHydraulicNumber(deepestCasing?.shoeDepth);
+  const casingBoundaries = [...new Set(
+    casingRows.flatMap((item) => [item.topDepth, item.shoeDepth])
+      .filter((value) => value > 0)
+  )].sort((a, b) => a - b);
+  const holeSizeAtDepth = (depth) => {
+    const containing = casingRows.filter((item) => {
+      const top = Math.max(0, toNumber(item.topDepth));
+      const shoe = toNumber(item.shoeDepth);
+      return shoe > top && depth >= top && depth < shoe;
+    });
+    if (containing.length > 0) {
+      return Math.min(...containing.map((item) => toNumber(item.insideDiameter)).filter((value) => value > 0));
+    }
+    return openHoleSize;
+  };
 
   const segments = [];
   let measuredDepth = 0;
@@ -2101,15 +2152,14 @@ const buildHydraulicSegments = ({
         });
       };
 
-      if (shoeDepth > 0 && componentTop < shoeDepth && componentBottom > shoeDepth) {
-        addSegment(componentTop, shoeDepth, casedHoleSize);
-        addSegment(shoeDepth, componentBottom, openHoleSize);
-      } else {
-        addSegment(
-          componentTop,
-          componentBottom,
-          shoeDepth > 0 && componentBottom <= shoeDepth ? casedHoleSize : openHoleSize || casedHoleSize
-        );
+      const splitPoints = [componentTop, componentBottom, ...casingBoundaries]
+        .filter((point) => point >= componentTop && point <= componentBottom)
+        .sort((a, b) => a - b);
+      for (let index = 0; index < splitPoints.length - 1; index += 1) {
+        const top = splitPoints[index];
+        const bottom = splitPoints[index + 1];
+        const midDepth = top + (bottom - top) / 2;
+        addSegment(top, bottom, holeSizeAtDepth(midDepth));
       }
     });
 
@@ -2199,6 +2249,7 @@ const fillDmrHydraulicsRows = (ws, {
   pumps,
   report,
   nozzleData,
+  surveyRows = [],
 }) => {
   const mud = loadMudHydraulicValues({ mudReportState, activePits });
   const pumpFlow = summarizePumpFlow(pumps);
@@ -2253,9 +2304,16 @@ const fillDmrHydraulicsRows = (ws, {
     pumpRate,
   });
   const dsLossTotal = sumBy(dsSegmentLosses, (value) => value) + surfaceLineLoss;
+  const annSummaryLoss =
+    annLossTotal * HYDRAULIC_CONSTANTS.annularSummaryCorrection;
   const calculatedPressureLoss =
-    bitLoss + dsLossTotal + annLossTotal + dhToolsLoss + motorLoss;
+    (bitLoss + dsLossTotal + annSummaryLoss + dhToolsLoss + motorLoss) *
+    HYDRAULIC_CONSTANTS.pressureSystemCorrection;
   const totalPressureLoss = calculatedPressureLoss;
+  const dsSummaryLoss = Math.max(
+    0,
+    totalPressureLoss - bitLoss - annSummaryLoss - dhToolsLoss - motorLoss
+  );
   const bitJetVelocity = hydraulicBitJetVelocity({ pumpRate, tfa });
   const bitHhp =
     bitLoss > 0 && pumpRate > 0
@@ -2265,13 +2323,17 @@ const fillDmrHydraulicsRows = (ws, {
     bitHhp > 0 && bitSize > 0
       ? (HYDRAULIC_CONSTANTS.hsi * bitHhp) / (bitSize * bitSize)
       : 0;
-  const tdDepth = hydraulicDepthValue(wellGeneral?.tvd, wellGeneral?.md, wellGeneral?.depthDrilled);
+  const tdMdDepth = hydraulicDepthValue(wellGeneral?.md, wellGeneral?.depthDrilled);
+  const tdDepth =
+    hydraulicSurveyTvdAtMd(surveyRows, tdMdDepth) ||
+    hydraulicDepthValue(wellGeneral?.tvd, tdMdDepth);
   const savedShoeDepths = casings
     .filter((item) => !isHydraulicOpenHoleRow(item))
     .map((item) => firstHydraulicNumber(item?.shoe, item?.md))
     .filter((value) => value > 0);
-  const shoeDepth =
-    savedShoeDepths.length > 0 ? Math.max(...savedShoeDepths) : tdDepth;
+  const shoeMdDepth =
+    savedShoeDepths.length > 0 ? Math.max(...savedShoeDepths) : tdMdDepth;
+  const shoeDepth = hydraulicSurveyTvdAtMd(surveyRows, shoeMdDepth) || shoeMdDepth;
   const annLossAtDepth = (depth) => {
     const targetDepth = toNumber(depth);
     if (targetDepth <= 0) return 0;
@@ -2358,8 +2420,8 @@ const fillDmrHydraulicsRows = (ws, {
   [
     [91, "Total P. Loss (psi)", totalPressureLoss > 0 ? round(totalPressureLoss, 0) : ""],
     [92, "Bit Loss (psi/%)", totalPressureLoss > 0 ? pressurePercentText(bitLoss, totalPressureLoss) : ""],
-    [93, "DS Loss (psi/%)", totalPressureLoss > 0 ? pressurePercentText(dsLossTotal, totalPressureLoss) : ""],
-    [94, "Ann. Loss (psi/%)", totalPressureLoss > 0 ? pressurePercentText(annLossTotal, totalPressureLoss) : ""],
+    [93, "DS Loss (psi/%)", totalPressureLoss > 0 ? pressurePercentText(dsSummaryLoss, totalPressureLoss) : ""],
+    [94, "Ann. Loss (psi/%)", totalPressureLoss > 0 ? pressurePercentText(annSummaryLoss, totalPressureLoss) : ""],
     [95, "DH Tools P. Loss (psi/%)", totalPressureLoss > 0 ? pressurePercentText(dhToolsLoss, totalPressureLoss) : ""],
     [96, "Motor P. Loss (psi/%)", totalPressureLoss > 0 ? pressurePercentText(motorLoss, totalPressureLoss) : ""],
   ].forEach(([row, label, value]) => {
@@ -2368,8 +2430,8 @@ const fillDmrHydraulicsRows = (ws, {
   });
 
   [
-    [91, "ECD /+ Cut at Shoe (ppg)", calculateEcd(mud.mw, annLossAtDepth(shoeDepth), shoeDepth)],
-    [92, "ECD /+ Cut at TD (ppg)", calculateEcd(mud.mw, annLossTotal, tdDepth)],
+    [91, "ECD /+ Cut at Shoe (ppg)", calculateEcd(mud.mw, annLossAtDepth(shoeMdDepth) * HYDRAULIC_CONSTANTS.annularSummaryCorrection, shoeDepth)],
+    [92, "ECD /+ Cut at TD (ppg)", calculateEcd(mud.mw, annSummaryLoss, tdDepth)],
     [93, "ESD /+ Cut at Shoe (ppg)", mud.mw > 0 ? round(mud.mw, 2) : ""],
     [94, "ESD /+ Cut at TD (ppg)", mud.mw > 0 ? round(mud.mw, 2) : ""],
     [95, "Bit Data/Fluid Properties", "Bit Data/Fluid Properties"],
@@ -3586,6 +3648,31 @@ const loadExportNozzle = async ({ wellId, reportId }) => {
   return null;
 };
 
+const loadExportSurvey = async ({ wellId, reportId }) => {
+  if (!wellId && !reportId) return null;
+
+  const queries = [];
+  if (wellId && reportId) {
+    queries.push({ wellId, reportId });
+  }
+  if (wellId) {
+    queries.push({ wellId, ...legacyReportScopeWithEmpty() });
+    queries.push({ wellId });
+  }
+  if (reportId) {
+    queries.push({ reportId });
+  }
+
+  for (const query of queries) {
+    const row = await SurveyConfig.findOne(query)
+      .sort({ updatedAt: -1, createdAt: -1, _id: -1 })
+      .lean();
+    if (row) return row;
+  }
+
+  return null;
+};
+
 export const exportInventoryReport = async (req, res) => {
   try {
     const { wellId } = req.params;
@@ -3599,7 +3686,7 @@ export const exportInventoryReport = async (req, res) => {
     const [
       inventoryData, well, drillStrings, casings, pumps, consumeProducts,
       liveServices, liveEngineering, addWaterRows, consumeProductDistributionStates, receiveMudRows, returnLostRows, transferRows, otherVolRows, mudLossRows, mudLossStorageRows,
-      allOtherVolRows, intervals, mudReportState, solidsAnalysisRows, shakers, otherSceRows, emptyFluidRows, nozzleData, inventoryConfig,
+      allOtherVolRows, intervals, mudReportState, solidsAnalysisRows, shakers, otherSceRows, emptyFluidRows, nozzleData, surveyConfig, inventoryConfig,
     ] = await Promise.all([
       loadInventorySnapshot({ wellId, reportId }),
       Well.findById(wellId).lean(),
@@ -3625,6 +3712,7 @@ export const exportInventoryReport = async (req, res) => {
       loadExportSceRows(OtherSce, { wellId, reportId, report }),
       loadReportScopedList(EmptyFluidActiveSystem, { wellId, reportId }),
       loadExportNozzle({ wellId, reportId }),
+      loadExportSurvey({ wellId, reportId }),
       UgInventorySnapshot.findOne({ wellId }).sort({ updatedAt: -1 }).lean(),
     ]);
     if (!well) {
@@ -3703,7 +3791,9 @@ export const exportInventoryReport = async (req, res) => {
       fallbackProductCost: productDailyCost,
       fallbackEngineeringCost: engineeringDailyCost,
     });
-    const intervalBitSize = resolveIntervalBitSize(intervals, wellGeneral?.interval);
+    const intervalBitSize =
+      resolveIntervalBitSize(intervals, wellGeneral?.interval) ||
+      hydraulicOpenHoleSize({ casings, intervals, wellGeneral });
     const casingOpenHoleRows = prepareSavedCasingOpenHoleRows({
       casings,
       wellGeneral,
@@ -3784,6 +3874,7 @@ export const exportInventoryReport = async (req, res) => {
       pumps,
       report,
       nozzleData,
+      surveyRows: surveyConfig?.rows,
     });
     fillDmrBottomSections(dmrSheet, {
       report,
