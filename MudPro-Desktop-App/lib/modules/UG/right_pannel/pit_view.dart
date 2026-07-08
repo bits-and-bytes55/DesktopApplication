@@ -128,12 +128,12 @@ class _PitViewState extends State<PitView> {
   Widget _headerCell(
     String text,
     double width, {
-    TextAlign textAlign = TextAlign.center,
+    TextAlign textAlign = TextAlign.left,
   }) {
     return Container(
       width: width,
       height: 44,
-      alignment: Alignment.center,
+      alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: const BoxDecoration(
         color: _headerColor,
@@ -224,7 +224,7 @@ class _PitViewState extends State<PitView> {
     return _frameCell(
       width: _capacityWidth,
       color: isLocked ? _inputColor : Colors.white,
-      alignment: Alignment.centerRight,
+      alignment: Alignment.centerLeft,
       child: TextFormField(
         key: ValueKey('pit-capacity-${pit.id ?? 'draft-$index'}'),
         initialValue: _capacityText(pit),
@@ -233,7 +233,7 @@ class _PitViewState extends State<PitView> {
         inputFormatters: [
           FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
         ],
-        textAlign: TextAlign.right,
+        textAlign: TextAlign.left,
         style: AppTheme.wellLikeBodyText,
         decoration: const InputDecoration(
           isDense: true,

@@ -149,4 +149,15 @@ static const String deleteOperator = 'operators'; // DELETE /:id
   // ============ NOZZLE ENDPOINTS ============
   static const String nozzle = "nozzle";
 
+  // ============ ADMIN CONTROL ENDPOINTS ============
+  static const String adminStatus = "admin-control/status";
+  static const String adminSetupPassword = "admin-control/setup-password";
+  static const String adminLogin = "admin-control/login";
+  static const String adminChangePassword = "admin-control/change-password";
+  static const String adminResetPassword = "admin-control/reset-password";
+  static const String adminDevices = "admin-control/devices";
+  static const String adminCurrentDevice = "admin-control/devices/current";
+  static const String adminLogs = "admin-control/logs";
+  static const String deviceAuthCheck = "device-auth/check";
+
 }

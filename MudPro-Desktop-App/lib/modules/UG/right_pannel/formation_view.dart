@@ -191,12 +191,12 @@ class _FormationViewState extends State<FormationView> {
     String text, {
     required double width,
     double height = _headerBottomHeight,
-    TextAlign textAlign = TextAlign.center,
+    TextAlign textAlign = TextAlign.left,
   }) {
     return Container(
       width: width,
       height: height,
-      alignment: Alignment.center,
+      alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: const BoxDecoration(
         color: ugColumnHeader,
@@ -686,7 +686,7 @@ class _FormationViewState extends State<FormationView> {
             onChanged: (value) => controller.updateTvd(index, value),
             width: layout.tvdWidth,
             editableWhenUnlocked: true,
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.left,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}$')),
             ],
@@ -697,7 +697,7 @@ class _FormationViewState extends State<FormationView> {
                 controller.updateValue(index, 'porePpg', value),
             width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('porePpg'),
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.left,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
             ],
@@ -708,7 +708,7 @@ class _FormationViewState extends State<FormationView> {
                 controller.updateValue(index, 'poreGrad', value),
             width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('poreGrad'),
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.left,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}$')),
             ],
@@ -719,7 +719,7 @@ class _FormationViewState extends State<FormationView> {
                 controller.updateValue(index, 'porePsi', value),
             width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('porePsi'),
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.left,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}$')),
             ],
@@ -730,7 +730,7 @@ class _FormationViewState extends State<FormationView> {
                 controller.updateValue(index, 'fracPpg', value),
             width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('fracPpg'),
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.left,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
             ],
@@ -741,7 +741,7 @@ class _FormationViewState extends State<FormationView> {
                 controller.updateValue(index, 'fracGrad', value),
             width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('fracGrad'),
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.left,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}$')),
             ],
@@ -752,7 +752,7 @@ class _FormationViewState extends State<FormationView> {
                 controller.updateValue(index, 'fracPsi', value),
             width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('fracPsi'),
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.left,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}$')),
             ],

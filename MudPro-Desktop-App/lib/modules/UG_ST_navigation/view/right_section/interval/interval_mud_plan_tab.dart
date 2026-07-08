@@ -420,7 +420,7 @@ fontSize: 11,
                               child: _RheoCell(
                                 value: entry.value[index],
                                 readOnly: locked || isCalculated,
-                                align: TextAlign.center,
+                                align: TextAlign.left,
                               ),
                             );
                           }),
@@ -552,7 +552,7 @@ class _PropertyRow extends StatelessWidget {
                   child: _MudCell(
                     value: values[index],
                     readOnly: locked,
-                    align: TextAlign.center,
+                    align: TextAlign.left,
                   ),
                 );
               }),
@@ -635,7 +635,7 @@ class _MergedMudCellState extends State<_MergedMudCell> {
         child: TextField(
           controller: _controller,
           readOnly: widget.readOnly,
-          textAlign: TextAlign.center,
+          textAlign: TextAlign.left,
           onChanged: _mirrorValue,
           style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
           decoration: const InputDecoration(

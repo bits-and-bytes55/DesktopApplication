@@ -330,11 +330,11 @@ class _PlanPageViewState extends State<PlanPageView> {
               : BorderSide.none,
         ),
       ),
-      alignment: Alignment.centerRight,
+      alignment: Alignment.centerLeft,
       child: TextField(
         controller: controller,
         readOnly: _locked,
-        textAlign: TextAlign.right,
+        textAlign: TextAlign.left,
         onChanged: (value) =>
             c.updateSummaryData(summaryIndex, 'amount', value),
         decoration: const InputDecoration(
@@ -439,7 +439,7 @@ class _PlanPageViewState extends State<PlanPageView> {
     return Container(
       width: width,
       height: height,
-      alignment: Alignment.center,
+      alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         border: Border(
@@ -450,7 +450,7 @@ class _PlanPageViewState extends State<PlanPageView> {
       ),
       child: Text(
         text,
-        textAlign: TextAlign.center,
+        textAlign: TextAlign.left,
         style: TextStyle(
           fontSize: 11,
           color: Colors.black,
@@ -634,19 +634,19 @@ class _PlanDataRowState extends State<_PlanDataRow> {
             _controllers[0],
             _planFixedColumns[0].width,
             0,
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.left,
           ),
           _fixedEditorCell(
             _controllers[1],
             _planFixedColumns[1].width,
             1,
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.left,
           ),
           _fixedEditorCell(
             _controllers[2],
             _planFixedColumns[2].width,
             2,
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.left,
           ),
           for (var colIndex = 3; colIndex < _controllers.length; colIndex++)
             _groupEditorCell(_controllers[colIndex], colIndex),
@@ -711,7 +711,7 @@ class _PlanDataRowState extends State<_PlanDataRow> {
       controller: controller,
       width: width,
       colIndex: colIndex,
-      textAlign: TextAlign.right,
+      textAlign: TextAlign.left,
     );
   }
 
@@ -725,7 +725,7 @@ class _PlanDataRowState extends State<_PlanDataRow> {
       width: width,
       height: _planRowHeight,
       padding: const EdgeInsets.symmetric(horizontal: 6),
-      alignment: Alignment.center,
+      alignment: Alignment.centerLeft,
       decoration: const BoxDecoration(
         border: Border(
           right: BorderSide(color: _planBorder),

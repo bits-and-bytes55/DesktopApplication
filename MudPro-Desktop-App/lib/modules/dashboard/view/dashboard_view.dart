@@ -13,6 +13,8 @@ import 'package:mudpro_desktop_app/modules/dashboard/widgets/home_secondary_tabb
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/well_tab_content.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/mud_tab_content.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_tab_content.dart';
+import 'package:mudpro_desktop_app/modules/admin_control/admin_control_view.dart';
+import 'package:mudpro_desktop_app/modules/admin_control/admin_control_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/right_pannel_view.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
@@ -29,6 +31,9 @@ class DashboardView extends StatelessWidget {
   final ugStC = Get.put(UgStController());
   final ugC = Get.put(UgController());
   final operationC = Get.put(OperationController());
+  final adminC = Get.isRegistered<AdminControlController>()
+      ? Get.find<AdminControlController>()
+      : Get.put(AdminControlController(), permanent: true);
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +65,8 @@ class DashboardView extends StatelessWidget {
                   return UtilitySecondaryTabbar(); // future
                 case 3:
                   return HelpSecondaryTabbar(); // future
+                case 4:
+                  return const SizedBox();
                 default:
                   return const SizedBox();
               }
@@ -130,8 +137,13 @@ class DashboardView extends StatelessWidget {
   }
 
   Widget _buildMainDashboardContent() {
-    return Row(
-      children: [
+    return Obx(() {
+      if (!adminC.isDeviceAllowed.value || c.activePrimaryTab.value == 4) {
+        return AdminControlView();
+      }
+
+      return Row(
+        children: [
         // Left Sidebar
         Material(
           elevation: 2,
@@ -189,8 +201,9 @@ class DashboardView extends StatelessWidget {
             }),
           ),
         ),
-      ],
-    );
+        ],
+      );
+    });
   }
 
   Widget _buildAnimatedTransition(Widget child) {

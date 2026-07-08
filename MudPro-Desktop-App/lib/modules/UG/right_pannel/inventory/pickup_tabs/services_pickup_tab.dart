@@ -872,9 +872,10 @@ class _ServicesPageState extends State<ServicesPickupPage> {
   Widget _numberCell(int number, double width, bool isLocked, bool isSelected) {
     return SizedBox(
       width: width,
-      child: Center(
+      child: Align(
+        alignment: Alignment.centerLeft,
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             if (isLocked)
               Icon(
@@ -1079,7 +1080,7 @@ class _HeaderCell extends StatelessWidget {
         ),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Expanded(
             child: Text(
@@ -1090,7 +1091,7 @@ class _HeaderCell extends StatelessWidget {
                 fontWeight: FontWeight.w700,
                 color: Colors.black,
               ),
-              textAlign: TextAlign.center,
+              textAlign: TextAlign.left,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -1269,7 +1270,7 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Text(
         text,
-        textAlign: TextAlign.center,
+        textAlign: TextAlign.left,
         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
       ),
     );
@@ -1285,7 +1286,7 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
 	          top: BorderSide(color: AppTheme.tableGridBlue),
 	        ),
 	      ),
-      alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: Alignment.centerLeft,
       child: Text(
         text,
         style: const TextStyle(fontSize: 11),

@@ -613,7 +613,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               width: _cStd,
               readOnly: widget.locked,
               bg: bg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: () =>
                   unawaited(widget.ctrl.flushPendingCasingSave()),
@@ -629,7 +629,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               width: _cStd,
               readOnly: widget.locked,
               bg: bg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: () =>
                   unawaited(widget.ctrl.flushPendingCasingSave()),
@@ -645,7 +645,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               width: _cStd,
               readOnly: widget.locked,
               bg: bg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: () =>
                   unawaited(widget.ctrl.flushPendingCasingSave()),
@@ -661,7 +661,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               width: _cStd,
               readOnly: topReadOnly,
               bg: topBg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: () =>
                   unawaited(widget.ctrl.flushPendingCasingSave()),
@@ -677,7 +677,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               width: _cStd,
               readOnly: widget.locked,
               bg: bg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: () =>
                   unawaited(widget.ctrl.flushPendingCasingSave()),
@@ -693,7 +693,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               width: _cStd,
               readOnly: widget.locked,
               bg: bg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: () =>
                   unawaited(widget.ctrl.flushPendingCasingSave()),
@@ -709,7 +709,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               width: _cStd,
               readOnly: widget.locked,
               bg: bg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: () =>
                   unawaited(widget.ctrl.flushPendingCasingSave()),
@@ -1030,7 +1030,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow>
               focusNode: _odFocus,
               readOnly: widget.locked,
               bg: bg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: _flushPendingSave,
               onSubmitted: (_) => _flushPendingSave(),
@@ -1042,7 +1042,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow>
               focusNode: _wtFocus,
               readOnly: widget.locked,
               bg: bg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: _flushPendingSave,
               onSubmitted: (_) => _flushPendingSave(),
@@ -1054,7 +1054,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow>
               focusNode: _idFocus,
               readOnly: widget.locked,
               bg: bg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: _flushPendingSave,
               onSubmitted: (_) => _flushPendingSave(),
@@ -1066,7 +1066,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow>
               focusNode: _topFocus,
               readOnly: topReadOnly,
               bg: topBg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: _flushPendingSave,
               onSubmitted: (_) => _flushPendingSave(),
@@ -1078,7 +1078,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow>
               focusNode: _shoeFocus,
               readOnly: widget.locked,
               bg: bg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: _flushPendingSave,
               onSubmitted: (_) => _flushPendingSave(),
@@ -1090,7 +1090,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow>
               focusNode: _bitFocus,
               readOnly: widget.locked,
               bg: bg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: _flushPendingSave,
               onSubmitted: (_) => _flushPendingSave(),
@@ -1102,7 +1102,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow>
               focusNode: _tocFocus,
               readOnly: widget.locked,
               bg: bg,
-              align: TextAlign.right,
+
               onTap: widget.onSelected,
               onEditingComplete: _flushPendingSave,
               onSubmitted: (_) => _flushPendingSave(),

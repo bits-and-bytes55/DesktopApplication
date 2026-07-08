@@ -10,6 +10,7 @@ import {
   requireInstallationContext,
 } from "./utils/installationContext.js";
 import { verifyInstallationMachine } from "./middlewares/installationMachine.middleware.js";
+import { requireAuthorizedDevice } from "./middlewares/adminControl/deviceAuthorization.middleware.js";
 
 import operatorRoutes from "./routes/operator/operator.route.js";
 
@@ -87,6 +88,8 @@ import reportRoutes from "./routes/report/report.routes.js";
 import formationRoutes from "./routes/formation/formation.routes.js";
 import wellPlanRoutes from "./routes/wellPlan/wellPlan.routes.js";
 import surveyRoutes from "./routes/survey/survey.routes.js";
+import adminControlRoutes from "./routes/adminControl/adminControl.routes.js";
+import deviceAuthRoutes from "./routes/adminControl/deviceAuth.routes.js";
 
 
 
@@ -132,6 +135,11 @@ app.use("/api", (_req, res, next) => {
 
 app.use("/api", requireInstallationContext);
 app.use("/api", verifyInstallationMachine);
+
+app.use("/api/admin-control", adminControlRoutes);
+app.use("/api/device-auth", deviceAuthRoutes);
+
+app.use("/api", requireAuthorizedDevice);
 
 app.use("/api/engineers", engineerRoutes);
 app.use("/api/company", companyRoutes);

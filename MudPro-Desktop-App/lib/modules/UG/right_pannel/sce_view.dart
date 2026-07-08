@@ -316,13 +316,13 @@ class _SceViewState extends State<SceView> {
   Widget _headerCell(
     String text, {
     required int flex,
-    TextAlign textAlign = TextAlign.center,
+    TextAlign textAlign = TextAlign.left,
   }) {
     return Expanded(
       flex: flex,
       child: Container(
         height: _headerHeight,
-        alignment: Alignment.center,
+        alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: const BoxDecoration(
           color: ugColumnHeader,
@@ -371,14 +371,14 @@ class _SceViewState extends State<SceView> {
     required String value,
     required ValueChanged<String> onChanged,
     required int flex,
-    TextAlign textAlign = TextAlign.center,
+    TextAlign textAlign = TextAlign.left,
     List<TextInputFormatter>? inputFormatters,
   }) {
     return Expanded(
       flex: flex,
       child: Container(
         height: _rowHeight,
-        alignment: Alignment.center,
+        alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
           color: _isLocked ? _editColor : Colors.white,
@@ -454,7 +454,7 @@ class _SceViewState extends State<SceView> {
                           value: value,
                           child: Text(
                             value,
-                            textAlign: TextAlign.center,
+                            textAlign: TextAlign.left,
                             style: AppTheme.wellLikeBodyText,
                           ),
                         ),

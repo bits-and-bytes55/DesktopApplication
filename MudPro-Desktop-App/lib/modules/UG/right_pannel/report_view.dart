@@ -53,6 +53,7 @@ class ReportView extends StatelessWidget {
                           const SizedBox(width: 8),
                           const Text(
                             'Hydraulics Calculation Factors',
+                            textAlign: TextAlign.left,
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -83,6 +84,7 @@ class ReportView extends StatelessWidget {
 
                     const Text(
                       'Factors Considered in Hydraulics Calculation',
+                      textAlign: TextAlign.left,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -118,6 +120,7 @@ class ReportView extends StatelessWidget {
                           Expanded(
                             child: Text(
                               'Selected factors will be included in hydraulic calculations and reports',
+                              textAlign: TextAlign.left,
                               style: TextStyle(
                                 fontSize: 11,
                                 color: AppTheme.textSecondary,
@@ -171,6 +174,7 @@ class ReportView extends StatelessWidget {
                           SizedBox(width: 8),
                           Text(
                             'Rheology Settings',
+                            textAlign: TextAlign.left,
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -185,6 +189,7 @@ class ReportView extends StatelessWidget {
 
                     const Text(
                       'Rheology Model Configuration',
+                      textAlign: TextAlign.left,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -212,6 +217,7 @@ class ReportView extends StatelessWidget {
                         children: [
                           Text(
                             'Advanced Options',
+                            textAlign: TextAlign.left,
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -225,6 +231,7 @@ class ReportView extends StatelessWidget {
                               SizedBox(width: 8),
                               Text(
                                 'Power Law Model',
+                                textAlign: TextAlign.left,
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: AppTheme.textPrimary,
@@ -254,6 +261,7 @@ class ReportView extends StatelessWidget {
                               SizedBox(width: 8),
                               Text(
                                 'Bingham Plastic',
+                                textAlign: TextAlign.left,
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: AppTheme.textPrimary,
@@ -387,6 +395,7 @@ class ReportView extends StatelessWidget {
                   children: [
                     Text(
                       text,
+                      textAlign: TextAlign.left,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -397,6 +406,7 @@ class ReportView extends StatelessWidget {
                       SizedBox(height: 4),
                       Text(
                         description,
+                        textAlign: TextAlign.left,
                         style: TextStyle(
                           fontSize: 10,
                           color: AppTheme.textSecondary,

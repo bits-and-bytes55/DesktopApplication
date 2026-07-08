@@ -491,7 +491,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
               child: TextField(
                 controller: controller.projectAziController,
                 enabled: enabled,
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.left,
                 style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
                 decoration: const InputDecoration(
                   border: InputBorder.none,
@@ -531,7 +531,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
           return Container(
             width: widths[index],
             height: double.infinity,
-            alignment: Alignment.center,
+            alignment: Alignment.centerLeft,
             decoration: const BoxDecoration(
               border: Border(
                 right: BorderSide(color: _gridBorder),
@@ -542,7 +542,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
                 ? cells[index] as Widget
                 : Text(
                     cells[index].toString(),
-                    textAlign: TextAlign.center,
+                    textAlign: TextAlign.left,
                     style: header
                         ? const TextStyle(
                             fontSize: 11,
@@ -559,7 +559,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
 
   Widget _rowIndexCell(int index, bool selected) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
         if (selected)
           const Icon(Icons.play_arrow, size: 10, color: Color(0xFF585858)),
@@ -582,7 +582,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
     TextEditingController controllerField, {
     required bool enabled,
     required ValueChanged<String> onChanged,
-    TextAlign textAlign = TextAlign.center,
+    TextAlign textAlign = TextAlign.left,
     int? stationIndex,
     int? stationColumnIndex,
   }) {
@@ -665,7 +665,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
   Widget _readonlyCell(String value) {
     return Container(
       color: _readOnlyBg,
-      alignment: Alignment.center,
+      alignment: Alignment.centerLeft,
       child: Text(
         value,
         style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/admin_control/admin_control_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 import '../controller/dashboard_controller.dart';
@@ -9,8 +10,11 @@ class PrimaryTabBar extends StatelessWidget {
   PrimaryTabBar({super.key});
 
   final controller = Get.find<DashboardController>();
+  final adminC = Get.isRegistered<AdminControlController>()
+      ? Get.find<AdminControlController>()
+      : Get.put(AdminControlController(), permanent: true);
   final reportC = reportContext;
-  final tabs = const ["Home", "Report", "Utility", "Help"];
+  final tabs = const ["Home", "Report", "Utility", "Help", "Admin Control"];
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +29,9 @@ class PrimaryTabBar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           children: List.generate(tabs.length, (index) {
             final isActive = controller.activePrimaryTab.value == index;
-            final isEnabled = index == 0 || reportC.hasSelectedReport;
+            final isAuthorized = adminC.isDeviceAllowed.value;
+            final isEnabled =
+                index == 4 || (isAuthorized && (index == 0 || reportC.hasSelectedReport));
 
             return Container(
               margin: EdgeInsets.only(left: index == 0 ? 8 : 2),
@@ -36,7 +42,9 @@ class PrimaryTabBar extends StatelessWidget {
                 child: Tooltip(
                   message: isEnabled
                       ? tabs[index]
-                      : 'Create and select a report first.',
+                      : isAuthorized
+                          ? 'Create and select a report first.'
+                          : 'Device authorization required. Open Admin Control.',
                   child: GestureDetector(
                     onTap: isEnabled
                         ? () => controller.activePrimaryTab.value = index
@@ -117,6 +125,8 @@ class PrimaryTabBar extends StatelessWidget {
         return Icons.build;
       case 3:
         return Icons.help;
+      case 4:
+        return Icons.admin_panel_settings;
       default:
         return Icons.circle;
     }

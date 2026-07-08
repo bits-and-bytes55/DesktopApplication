@@ -344,7 +344,7 @@ class _PumpViewState extends State<PumpView> {
                     children: [
                       Container(
                         height: rowH / 2,
-                        alignment: Alignment.center,
+                        alignment: Alignment.centerLeft,
                         decoration: BoxDecoration(
                           border: Border(
                             bottom: BorderSide(
@@ -355,7 +355,7 @@ class _PumpViewState extends State<PumpView> {
                         ),
                         child: const Text(
                           'Surface Line',
-                          textAlign: TextAlign.center,
+                          textAlign: TextAlign.left,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -369,7 +369,7 @@ class _PumpViewState extends State<PumpView> {
                             Expanded(
                               flex: 1,
                               child: Container(
-                                alignment: Alignment.center,
+                                alignment: Alignment.centerLeft,
                                 decoration: BoxDecoration(
                                   border: Border(
                                     right: BorderSide(
@@ -380,7 +380,7 @@ class _PumpViewState extends State<PumpView> {
                                 ),
                                 child: Text(
                                   'Length\n${AppUnits.length}',
-                                  textAlign: TextAlign.center,
+                                  textAlign: TextAlign.left,
                                   style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
@@ -392,10 +392,10 @@ class _PumpViewState extends State<PumpView> {
                             Expanded(
                               flex: 1,
                               child: Container(
-                                alignment: Alignment.center,
+                                alignment: Alignment.centerLeft,
                                 child: Text(
                                   'ID\n${AppUnits.diameter}',
-                                  textAlign: TextAlign.center,
+                                  textAlign: TextAlign.left,
                                   style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
@@ -477,12 +477,12 @@ class _PumpViewState extends State<PumpView> {
                       child: isLocked
                           ? Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
-                              alignment: Alignment.center,
+                              alignment: Alignment.centerLeft,
                               child: Text(
                                 isDuplex
                                     ? p.rodOd.value
                                     : '', // non-Duplex shows empty
-                                textAlign: TextAlign.center,
+                                textAlign: TextAlign.left,
                                 style: AppTheme.wellLikeBodyText,
                               ),
                             )
@@ -499,7 +499,7 @@ class _PumpViewState extends State<PumpView> {
                                 p.recalculateDisplacement(); // always safe, only Duplex reaches here
                                 pumpController.onFieldChanged(i);
                               },
-                              textAlign: TextAlign.center,
+                              textAlign: TextAlign.left,
                               style: AppTheme.wellLikeBodyText,
                               decoration: const InputDecoration(
                                 isDense: true,
@@ -573,10 +573,10 @@ class _PumpViewState extends State<PumpView> {
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 8,
                                       ),
-                                      alignment: Alignment.center,
+                                      alignment: Alignment.centerLeft,
                                       child: Text(
                                         p.surfaceLen.value,
-                                        textAlign: TextAlign.center,
+                                        textAlign: TextAlign.left,
                                         style: AppTheme.wellLikeBodyText,
                                       ),
                                     )
@@ -598,7 +598,7 @@ class _PumpViewState extends State<PumpView> {
                                         p.surfaceLen.value = v;
                                         pumpController.onFieldChanged(i);
                                       },
-                                      textAlign: TextAlign.center,
+                                      textAlign: TextAlign.left,
                                       style: AppTheme.wellLikeBodyText,
                                       decoration: const InputDecoration(
                                         isDense: true,
@@ -625,10 +625,10 @@ class _PumpViewState extends State<PumpView> {
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 8,
                                       ),
-                                      alignment: Alignment.center,
+                                      alignment: Alignment.centerLeft,
                                       child: Text(
                                         p.surfaceId.value,
-                                        textAlign: TextAlign.center,
+                                        textAlign: TextAlign.left,
                                         style: AppTheme.wellLikeBodyText,
                                       ),
                                     )
@@ -650,7 +650,7 @@ class _PumpViewState extends State<PumpView> {
                                         p.surfaceId.value = v;
                                         pumpController.onFieldChanged(i);
                                       },
-                                      textAlign: TextAlign.center,
+                                      textAlign: TextAlign.left,
                                       style: AppTheme.wellLikeBodyText,
                                       decoration: const InputDecoration(
                                         isDense: true,
@@ -689,10 +689,10 @@ class _PumpViewState extends State<PumpView> {
           color: val.isNotEmpty
               ? const Color(0xffe8f5e9)
               : const Color(0xfff5f5f5),
-          alignment: Alignment.center,
+          alignment: Alignment.centerLeft,
           child: Text(
             val.isEmpty ? '-' : val,
-            textAlign: TextAlign.center,
+            textAlign: TextAlign.left,
             style: AppTheme.wellLikeBodyText,
           ),
         );
@@ -724,7 +724,7 @@ class _PumpViewState extends State<PumpView> {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Text(
           t,
-          textAlign: TextAlign.center,
+          textAlign: TextAlign.left,
           style: AppTheme.wellLikeBodyText,
         ),
       ),
@@ -743,10 +743,10 @@ class _PumpViewState extends State<PumpView> {
           () => ugController.isLocked.value
               ? Container(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  alignment: Alignment.center,
+                  alignment: Alignment.centerLeft,
                   child: Text(
                     pump.type.value,
-                    textAlign: TextAlign.center,
+                    textAlign: TextAlign.left,
                     style: AppTheme.wellLikeBodyText,
                   ),
                 )
@@ -767,7 +767,7 @@ class _PumpViewState extends State<PumpView> {
                         value: type,
                         child: Text(
                           type.isEmpty ? 'Select' : type,
-                          textAlign: TextAlign.center,
+                          textAlign: TextAlign.left,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -807,10 +807,10 @@ class _PumpViewState extends State<PumpView> {
           () => ugController.isLocked.value
               ? Container(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  alignment: Alignment.center,
+                  alignment: Alignment.centerLeft,
                   child: Text(
                     value.value,
-                    textAlign: TextAlign.center,
+                    textAlign: TextAlign.left,
                     style: AppTheme.wellLikeBodyText,
                   ),
                 )
@@ -820,7 +820,7 @@ class _PumpViewState extends State<PumpView> {
                       TextPosition(offset: value.value.length),
                     ),
                   onChanged: (v) => onChanged(v),
-                  textAlign: TextAlign.center,
+                  textAlign: TextAlign.left,
                   style: AppTheme.wellLikeBodyText,
                   decoration: const InputDecoration(
                     isDense: true,
@@ -933,7 +933,7 @@ class _HCell extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Text(
           text,
-          textAlign: TextAlign.center,
+          textAlign: TextAlign.left,
           style: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w700,
@@ -944,3 +944,4 @@ class _HCell extends StatelessWidget {
     );
   }
 }
+

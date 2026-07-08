@@ -295,7 +295,7 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
                       value: product.sg,
                       onChanged: (value) => _updateField(index, 'sg', value),
                       isExisting: isExisting,
-                      align: TextAlign.right,
+                      align: TextAlign.left,
                       isNumeric: true,
                     ),
                   ),
@@ -305,7 +305,7 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
                       value: product.unitNum,
                       onChanged: (value) => _updateField(index, 'unitNum', value),
                       isExisting: isExisting,
-                      align: TextAlign.right,
+                      align: TextAlign.left,
                       isNumeric: true,
                     ),
                   ),
@@ -333,7 +333,7 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
                       value: product.retail,
                       onChanged: (value) => _updateField(index, 'retail', value),
                       isExisting: isExisting,
-                      align: TextAlign.right,
+                      align: TextAlign.left,
                     ),
                   ),
                   _dataCell(
@@ -342,7 +342,7 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
                       value: product.a,
                       onChanged: (value) => _updateField(index, 'a', value),
                       isExisting: isExisting,
-                      align: TextAlign.right,
+                      align: TextAlign.left,
                       isNumeric: true,
                     ),
                   ),
@@ -358,8 +358,8 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
   Widget _rowNumberCell(int rowNo) {
     return Container(
       width: _numberWidth,
-      alignment: Alignment.centerRight,
-      padding: const EdgeInsets.only(right: 8),
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.only(left: 8),
       decoration: const BoxDecoration(
         border: Border(
           right: BorderSide(color: Color(0xFFE5E7EB), width: 0.8),
@@ -522,7 +522,8 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
 	    return Container(
       height: 34,
       width: width,
-      alignment: Alignment.center,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: const BoxDecoration(
         border: Border(
           right: BorderSide(color: ugGrid, width: 0.8),
@@ -792,7 +793,7 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Text(
         text,
-        textAlign: TextAlign.center,
+        textAlign: TextAlign.left,
         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
       ),
     );
@@ -808,7 +809,7 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
 	          top: BorderSide(color: AppTheme.tableGridBlue),
 	        ),
 	      ),
-      alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: Alignment.centerLeft,
       child: Text(
         text,
         style: const TextStyle(fontSize: 11),

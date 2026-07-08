@@ -15,6 +15,18 @@ class InstallationIdentity {
   static String get id => _id;
   static String get machineKey => _machineKey;
 
+  static Future<Map<String, dynamic>> currentDevicePayload() async {
+    await ensureInitialized();
+    return {
+      'installationId': _id,
+      'machineKey': _machineKey,
+      'macAddress': (await _macAddresses()).join(', '),
+      'ipAddress': (await _ipAddresses()).join(', '),
+      'hostname': Platform.localHostname,
+      'appVersion': '',
+    };
+  }
+
   static Future<void> ensureInitialized() async {
     if (_id.isNotEmpty) return;
 
@@ -152,6 +164,25 @@ class InstallationIdentity {
         ..sort();
 
       return matches;
+    } catch (_) {
+      return const <String>[];
+    }
+  }
+
+  static Future<List<String>> _ipAddresses() async {
+    try {
+      final interfaces = await NetworkInterface.list(
+        includeLoopback: false,
+        type: InternetAddressType.IPv4,
+      );
+      final addresses = <String>{
+        for (final interface in interfaces)
+          for (final address in interface.addresses)
+            if (!address.isLoopback) address.address,
+      }.toList()
+        ..sort();
+
+      return addresses;
     } catch (_) {
       return const <String>[];
     }
