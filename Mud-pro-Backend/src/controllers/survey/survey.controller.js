@@ -21,6 +21,7 @@ const cleanClone = (doc = {}) => {
   delete clone.updatedAt;
   delete clone.reportId;
   delete clone.reportNo;
+  delete clone.installationId;
   return clone;
 };
 
@@ -80,7 +81,7 @@ const sanitizeRow = (row = {}, index = 0) => ({
 });
 
 const sanitizeRows = (rows = []) =>
-  Array.isArray(rows) ? rows.slice(0, 64).map(sanitizeRow) : [];
+  Array.isArray(rows) ? rows.map(sanitizeRow) : [];
 
 const sanitizeAnnotation = (row = {}, index = 0) => ({
   rowNumber: Number(row.rowNumber) || index + 1,
@@ -90,7 +91,7 @@ const sanitizeAnnotation = (row = {}, index = 0) => ({
 });
 
 const sanitizeAnnotations = (rows = []) =>
-  Array.isArray(rows) ? rows.slice(0, 32).map(sanitizeAnnotation) : [];
+  Array.isArray(rows) ? rows.map(sanitizeAnnotation) : [];
 
 const blankResponse = () => ({
   plannedSurvey: true,

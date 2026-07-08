@@ -21,6 +21,7 @@ class SurveyController extends GetxController {
   final isLoading = false.obs;
   final isSaving = false.obs;
   final selectedTab = 0.obs;
+  final forceEditable = false.obs;
 
   final plannedSurvey = true.obs;
   final annotationEnabled = true.obs;
@@ -59,7 +60,7 @@ class SurveyController extends GetxController {
   String? _currentWellId;
   late String _lengthUnit;
 
-  bool get isLocked => ugStController.isLocked.value;
+  bool get isLocked => !forceEditable.value && ugStController.isLocked.value;
 
   bool get hasStationSelection =>
       selectedStationIndex.value >= 0 &&
