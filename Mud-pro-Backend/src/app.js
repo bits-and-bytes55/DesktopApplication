@@ -88,7 +88,9 @@ import reportRoutes from "./routes/report/report.routes.js";
 import formationRoutes from "./routes/formation/formation.routes.js";
 import wellPlanRoutes from "./routes/wellPlan/wellPlan.routes.js";
 import surveyRoutes from "./routes/survey/survey.routes.js";
-import adminControlRoutes from "./routes/adminControl/adminControl.routes.js";
+import adminControlRoutes, {
+  publicAdminControlRoutes,
+} from "./routes/adminControl/adminControl.routes.js";
 import deviceAuthRoutes from "./routes/adminControl/deviceAuth.routes.js";
 
 
@@ -132,6 +134,8 @@ app.use("/api", (_req, res, next) => {
   });
   next();
 });
+
+app.use("/api/admin-control", publicAdminControlRoutes);
 
 app.use("/api", requireInstallationContext);
 app.use("/api", verifyInstallationMachine);

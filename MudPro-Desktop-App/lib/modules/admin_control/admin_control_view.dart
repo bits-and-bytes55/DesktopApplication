@@ -277,14 +277,17 @@ class AdminControlView extends StatelessWidget {
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            c.isPasswordSetup.value
-                ? 'Enter admin password to manage device access.'
-                : 'No admin password exists. Create it first.',
-            style: AppTheme.wellLikeBodyText,
-          ),
+          Text(_adminLoginMessage(), style: AppTheme.wellLikeBodyText),
           const SizedBox(height: 8),
-          if (!c.isPasswordSetup.value) ...[
+          if (!c.isStatusLoaded.value) ...[
+            const SizedBox(
+              height: 32,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ] else if (!c.isPasswordSetup.value) ...[
             _passwordField(_setupPassword, 'New password'),
             const SizedBox(height: 6),
             _passwordField(_setupConfirm, 'Confirm password'),
@@ -304,6 +307,15 @@ class AdminControlView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _adminLoginMessage() {
+    if (!c.isStatusLoaded.value) {
+      return 'Checking admin password status...';
+    }
+    return c.isPasswordSetup.value
+        ? 'Enter admin password to manage device access.'
+        : 'No admin password exists. Create it first.';
   }
 
   Widget _passwordCard() {

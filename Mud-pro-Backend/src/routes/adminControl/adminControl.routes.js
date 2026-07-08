@@ -13,17 +13,20 @@ import {
   upsertCurrentDevice,
 } from "../../controllers/adminControl/adminControl.controller.js";
 
-const router = express.Router();
+const publicRouter = express.Router();
+const protectedRouter = express.Router();
 
-router.get("/status", getAdminStatus);
-router.post("/setup-password", setupAdminPassword);
-router.post("/login", loginAdmin);
-router.post("/change-password", requireAdminSession, changeAdminPassword);
-router.post("/reset-password", resetAdminPassword);
-router.get("/devices", requireAdminSession, getDevices);
-router.post("/devices/current", requireAdminSession, upsertCurrentDevice);
-router.patch("/devices/:id/status", requireAdminSession, updateDeviceStatus);
-router.delete("/devices/:id", requireAdminSession, deleteDevice);
-router.get("/logs", requireAdminSession, getSecurityLogs);
+publicRouter.get("/status", getAdminStatus);
+publicRouter.post("/setup-password", setupAdminPassword);
+publicRouter.post("/login", loginAdmin);
+publicRouter.post("/reset-password", resetAdminPassword);
 
-export default router;
+protectedRouter.post("/change-password", requireAdminSession, changeAdminPassword);
+protectedRouter.get("/devices", requireAdminSession, getDevices);
+protectedRouter.post("/devices/current", requireAdminSession, upsertCurrentDevice);
+protectedRouter.patch("/devices/:id/status", requireAdminSession, updateDeviceStatus);
+protectedRouter.delete("/devices/:id", requireAdminSession, deleteDevice);
+protectedRouter.get("/logs", requireAdminSession, getSecurityLogs);
+
+export { publicRouter as publicAdminControlRoutes };
+export default protectedRouter;
