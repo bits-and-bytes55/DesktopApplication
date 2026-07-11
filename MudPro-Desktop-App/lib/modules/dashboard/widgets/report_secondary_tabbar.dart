@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/daily_report/home_tabs/dailyreport_options/controller/wbm_report_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/base_secondary_tababr.dart';
-import 'package:mudpro_desktop_app/modules/report/tabs/cost_of_pad_page.dart';
 import 'package:mudpro_desktop_app/modules/report/tabs/recap_home_page.dart';
 import 'package:mudpro_desktop_app/modules/report/tabs/report_manager_view.dart';
 import 'package:mudpro_desktop_app/modules/well_comparision/view/well_comparision_view.dart';
@@ -24,7 +24,7 @@ class ReportSecondaryTabbar extends StatelessWidget {
     return BaseSecondaryTabBar(
       tabs: tabs,
       activeIndex: controller.activeReportTab,
-      onTap: (i) {
+      onTap: (i) async {
         controller.activeReportTab.value = i;
 
         switch (i) {
@@ -38,10 +38,24 @@ class ReportSecondaryTabbar extends StatelessWidget {
             Get.to(() => RecapHomePage());
             break;
           case 3:
-            controller.openOverlay(const CostOfPadPage());
+            controller.closeOverlay();
+            await _openCostOfPadExport();
             break;
         }
       },
     );
+  }
+
+  Future<void> _openCostOfPadExport() async {
+    try {
+      await ExportController.downloadAndOpenCostOfPadReport();
+    } catch (e) {
+      Get.snackbar(
+        'Cost of Pad',
+        e.toString().replaceFirst(RegExp(r'^Exception:\s*'), ''),
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 4),
+      );
+    }
   }
 }

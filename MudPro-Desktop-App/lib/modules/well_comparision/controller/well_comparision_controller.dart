@@ -14,6 +14,7 @@ class WellComparisonController extends GetxController {
 
   final pads = <PadModel>[].obs;
   final comparedReports = <ReportModel>[].obs;
+  final expandedPadIds = <String>{}.obs;
   final isLoading = false.obs;
   final isComparing = false.obs;
   final errorMessage = ''.obs;
@@ -25,6 +26,16 @@ class WellComparisonController extends GetxController {
   }
 
   int get selectedReportCount => _selectedReports.length;
+
+  int get selectedWellCount {
+    var count = 0;
+    for (final pad in pads) {
+      for (final well in pad.wells) {
+        if (isWellSelected(well)) count += 1;
+      }
+    }
+    return count;
+  }
 
   List<ReportModel> get _selectedReports {
     final reports = <ReportModel>[];
@@ -51,6 +62,80 @@ class WellComparisonController extends GetxController {
     isComparing.value = true;
     comparedReports.assignAll(_selectedReports);
     isComparing.value = false;
+  }
+
+  void compareSelectedWells() {
+    isComparing.value = true;
+    final selected = _selectedReports;
+    if (selected.isEmpty) {
+      isComparing.value = false;
+      Get.snackbar(
+        'Well Comparison',
+        'Please select at least one well before compare.',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+      return;
+    }
+    comparedReports.assignAll(selected);
+    isComparing.value = false;
+  }
+
+  bool isPadExpanded(String padId) => expandedPadIds.contains(padId);
+
+  void togglePadExpanded(String padId) {
+    if (expandedPadIds.contains(padId)) {
+      expandedPadIds.remove(padId);
+    } else {
+      expandedPadIds.add(padId);
+    }
+  }
+
+  void expandAllPads() {
+    expandedPadIds
+      ..clear()
+      ..addAll(pads.map((pad) => pad.padId));
+  }
+
+  void collapseAllPads() {
+    expandedPadIds.clear();
+  }
+
+  bool isWellSelected(ComparisonWellModel well) {
+    return well.reports.any((report) => report.isSelected.value);
+  }
+
+  void toggleWell(ComparisonWellModel well, bool selected) {
+    if (well.reports.isEmpty) {
+      Get.snackbar(
+        'Well Comparison',
+        '${well.wellName} has no reports available for comparison.',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+      return;
+    }
+
+    for (final report in well.reports) {
+      report.isSelected.value = false;
+    }
+
+    if (selected) {
+      well.reports.last.isSelected.value = true;
+    } else {
+      comparedReports.removeWhere((item) => item.wellId == well.wellId);
+    }
+  }
+
+  String reportWarning(ReportModel report) {
+    final missing = <String>[];
+    if (report.wellName.trim().isEmpty) missing.add('Well Name');
+    if (report.operatorName.trim().isEmpty) missing.add('Operator');
+    if (report.fieldBlock.trim().isEmpty) missing.add('Field/Block');
+    if (report.rig.trim().isEmpty) missing.add('Rig');
+    if (report.spudDate.trim().isEmpty) missing.add('Spud Date');
+    if (missing.isEmpty) return '';
+    return 'Missing: ${missing.join(', ')}';
   }
 
   void clearComparedReports() {
@@ -122,6 +207,14 @@ class WellComparisonController extends GetxController {
       }).toList();
 
       pads.assignAll(nextPads);
+      if (expandedPadIds.isEmpty) {
+        expandedPadIds
+          ..clear()
+          ..addAll(nextPads.map((pad) => pad.padId));
+      } else {
+        final nextPadIds = nextPads.map((pad) => pad.padId).toSet();
+        expandedPadIds.removeWhere((padId) => !nextPadIds.contains(padId));
+      }
 
       final nextCompared = <ReportModel>[];
       for (final pad in nextPads) {

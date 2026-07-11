@@ -236,10 +236,12 @@ class ProductsPage extends StatelessWidget {
               children: [
                 Expanded(
                   child: Container(
-                    alignment: Alignment.center,
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: Text(
                       'Unit*',
                       style: AppTheme.companySetupHeaderDark,
+                      textAlign: TextAlign.left,
                     ),
                   ),
                 ),
@@ -253,7 +255,8 @@ class ProductsPage extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Container(
-                          alignment: Alignment.center,
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
                           decoration: BoxDecoration(
                             border: Border(
                               right: BorderSide(
@@ -264,15 +267,18 @@ class ProductsPage extends StatelessWidget {
                           child: Text(
                             'Num',
                             style: AppTheme.companySetupHeaderDark,
+                            textAlign: TextAlign.left,
                           ),
                         ),
                       ),
                       Expanded(
                         child: Container(
-                          alignment: Alignment.center,
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
                           child: Text(
                             'Class',
                             style: AppTheme.companySetupHeaderDark,
+                            textAlign: TextAlign.left,
                           ),
                         ),
                       ),
@@ -294,7 +300,8 @@ class ProductsPage extends StatelessWidget {
   Widget _headerCell(String title, double width) {
     return Container(
       width: width,
-      alignment: Alignment.center,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         border: Border(
           left: BorderSide(color: Colors.white.withOpacity(0.2), width: 1),
@@ -303,6 +310,7 @@ class ProductsPage extends StatelessWidget {
       child: Text(
         title,
         style: AppTheme.companySetupHeaderDark,
+        textAlign: TextAlign.left,
       ),
     );
   }
@@ -525,11 +533,11 @@ class ProductsPage extends StatelessWidget {
     if (isLocked && !isEditing) {
       return Container(
         padding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        alignment: Alignment.center,
+        alignment: Alignment.centerLeft,
         child: Text(
           value,
           style: AppTheme.companySetupBodyText,
-          textAlign: TextAlign.center,
+          textAlign: TextAlign.left,
         ),
       );
     }
@@ -727,7 +735,7 @@ class _ProductCellEditorState extends State<_ProductCellEditor> {
       style: AppTheme.companySetupBodyText.copyWith(
         color: widget.isEditing ? AppTheme.companySetupText : null,
       ),
-      textAlign: TextAlign.center,
+      textAlign: TextAlign.left,
       keyboardType: widget.isNumeric ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         border: InputBorder.none,

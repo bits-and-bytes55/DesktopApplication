@@ -263,7 +263,16 @@ class _OthersPageState extends State<OthersPage> {
   }
 
   Widget _headerCell({double? width, int? flex, required String text}) {
-    Widget cell = Container(width: width, alignment: Alignment.center, child: Text(text, style: AppTheme.companySetupBodyBold));
+    Widget cell = Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      alignment: Alignment.centerLeft,
+      child: Text(
+        text,
+        style: AppTheme.companySetupBodyBold,
+        textAlign: TextAlign.left,
+      ),
+    );
     return flex != null ? Expanded(flex: flex, child: cell) : cell;
   }
 
@@ -285,7 +294,11 @@ class _OthersPageState extends State<OthersPage> {
       decoration: BoxDecoration(color: index % 2 == 0 ? Colors.white : AppTheme.cardColor, border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5))),
       child: Row(
         children: [
-          _cell(width: 40, child: Text('${index + 1}', style: AppTheme.companySetupBodyText)),
+          _cell(
+            width: 40,
+            alignment: Alignment.center,
+            child: Text('${index + 1}', style: AppTheme.companySetupBodyText),
+          ),
           _cell(
             flex: 1,
             child: isEditing && editController != null
@@ -299,7 +312,7 @@ class _OthersPageState extends State<OthersPage> {
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(vertical: 8),
                     ),
-                    textAlign: TextAlign.center,
+                    textAlign: TextAlign.left,
                     onSubmitted: (_) => _saveInlineEdit(id, item, type),
                   )
                 : Text(
@@ -308,7 +321,7 @@ class _OthersPageState extends State<OthersPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
           ),
-          _cell(width: 80, child: Row(
+          _cell(width: 80, alignment: Alignment.center, child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (isEditing) ...[
@@ -361,16 +374,24 @@ class _OthersPageState extends State<OthersPage> {
       decoration: BoxDecoration(color: index % 2 == 0 ? Colors.white : AppTheme.cardColor, border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5))),
       child: Row(
         children: [
-          _cell(width: 40, child: Text('${index + 1}', style: AppTheme.companySetupBodyText)),
+          _cell(
+            width: 40,
+            alignment: Alignment.center,
+            child: Text('${index + 1}', style: AppTheme.companySetupBodyText),
+          ),
           _cell(flex: 1, child: TextField(
             controller: ctrl,
             enabled: !globallyLocked,
             style: AppTheme.companySetupBodyText,
             decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.symmetric(vertical: 8)),
-            textAlign: TextAlign.center,
+            textAlign: TextAlign.left,
             onChanged: (_) => Get.find<OthersGetxController>().updateNewRows(rows),
           )),
-          _cell(width: 80, child: const Text('-', style: AppTheme.companySetupBodyText)),
+          _cell(
+            width: 80,
+            alignment: Alignment.center,
+            child: const Text('-', style: AppTheme.companySetupBodyText),
+          ),
         ],
       ),
     );
@@ -412,11 +433,16 @@ class _OthersPageState extends State<OthersPage> {
     setState(() => _editingIds.remove(id));
   }
 
-  Widget _cell({double? width, int? flex, required Widget child}) {
+  Widget _cell({
+    double? width,
+    int? flex,
+    Alignment alignment = Alignment.centerLeft,
+    required Widget child,
+  }) {
     Widget c = Container(
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      alignment: Alignment.center,
+      alignment: alignment,
       decoration: BoxDecoration(border: Border(left: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5))),
       child: child,
     );

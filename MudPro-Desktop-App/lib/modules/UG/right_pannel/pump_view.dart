@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
@@ -27,6 +28,7 @@ class _PumpViewState extends State<PumpView> {
   late String _displacementUnit;
   late String _pressureUnit;
   late String _powerUnit;
+  PumpModel? _pumpClipboard;
 
   @override
   void initState() {
@@ -238,6 +240,177 @@ class _PumpViewState extends State<PumpView> {
     'Quadplex',
   ];
 
+  bool get _canEditPumpRows => !ugController.isLocked.value;
+
+  PopupMenuItem<String> _pumpMenuItem(
+    String value,
+    String label, {
+    required bool enabled,
+  }) {
+    return PopupMenuItem<String>(
+      value: value,
+      enabled: enabled,
+      height: 32,
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          color: enabled ? const Color(0xFF2F2F2F) : const Color(0xFF9EA4AD),
+        ),
+      ),
+    );
+  }
+
+  PumpModel _cloneForClipboard(PumpModel source) {
+    final copy = source.clone();
+    copy.id = null;
+    return copy;
+  }
+
+  void _applyPumpRow(PumpModel target, PumpModel source) {
+    target.type.value = source.type.value;
+    target.model.value = source.model.value;
+    target.linerId.value = source.linerId.value;
+    target.rodOd.value = source.rodOd.value;
+    target.strokeLength.value = source.strokeLength.value;
+    target.efficiency.value = source.efficiency.value;
+    target.spm.value = source.spm.value;
+    target.maxPumpP.value = source.maxPumpP.value;
+    target.maxHp.value = source.maxHp.value;
+    target.surfaceLen.value = source.surfaceLen.value;
+    target.surfaceId.value = source.surfaceId.value;
+    target.recalculateDisplacement();
+  }
+
+  void _clearPumpRowValues(PumpModel pump, {bool clearId = true}) {
+    if (clearId) pump.id = null;
+    pump.type.value = '';
+    pump.model.value = '';
+    pump.linerId.value = '';
+    pump.rodOd.value = '';
+    pump.strokeLength.value = '';
+    pump.efficiency.value = '';
+    pump.spm.value = '';
+    pump.displacement.value = '';
+    pump.rate.value = '';
+    pump.maxPumpP.value = '';
+    pump.maxHp.value = '';
+    pump.surfaceLen.value = '';
+    pump.surfaceId.value = '';
+  }
+
+  void _renumberPumpRows() {
+    for (int i = 0; i < pumpController.pumps.length; i++) {
+      pumpController.pumps[i].rowNumber.value = i + 1;
+    }
+  }
+
+  Future<void> _savePumpRowIfNeeded(int index) async {
+    if (index < 0 || index >= pumpController.pumps.length) return;
+    final pump = pumpController.pumps[index];
+    if (!pump.hasData) return;
+    await pumpController.savePump(index);
+    pumpController.pumps.refresh();
+  }
+
+  Future<void> _clearPumpRow(int index) async {
+    if (index < 0 || index >= pumpController.pumps.length) return;
+    final pump = pumpController.pumps[index];
+    final id = pump.id;
+    if (id != null && id.isNotEmpty) {
+      await pumpController.repository.deletePump(id, includeReportScope: false);
+    }
+    _clearPumpRowValues(pump);
+    pumpController.pumps.refresh();
+  }
+
+  Future<void> _movePumpRow(int index, {required bool toTop}) async {
+    if (index < 0 || index >= pumpController.pumps.length) return;
+    final row = pumpController.pumps.removeAt(index);
+    pumpController.pumps.insert(toTop ? 0 : pumpController.pumps.length, row);
+    _renumberPumpRows();
+    pumpController.pumps.refresh();
+    await pumpController.saveAllPumps();
+  }
+
+  Future<void> _showPumpRowMenu(
+    TapDownDetails details,
+    PumpModel pump,
+    int index,
+  ) async {
+    final hasData = pump.hasData;
+    final canEdit = _canEditPumpRows;
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        _pumpMenuItem('cut', 'Cut', enabled: canEdit && hasData),
+        _pumpMenuItem('copy', 'Copy', enabled: hasData),
+        _pumpMenuItem(
+          'paste',
+          'Paste',
+          enabled: canEdit && _pumpClipboard != null,
+        ),
+        _pumpMenuItem('delete', 'Delete', enabled: canEdit && hasData),
+        _pumpMenuItem('clear', 'Clear', enabled: canEdit && hasData),
+        _pumpMenuItem(
+          'top',
+          'To the Top',
+          enabled: canEdit && hasData && index > 0,
+        ),
+        _pumpMenuItem(
+          'bottom',
+          'To the Bottom',
+          enabled: canEdit && hasData && index < pumpController.pumps.length - 1,
+        ),
+      ],
+    );
+
+    if (!mounted || action == null) return;
+
+    try {
+      switch (action) {
+        case 'cut':
+          _pumpClipboard = _cloneForClipboard(pump);
+          await pumpController.deletePump(index);
+          break;
+        case 'copy':
+          _pumpClipboard = _cloneForClipboard(pump);
+          await Clipboard.setData(ClipboardData(text: pump.model.value));
+          break;
+        case 'paste':
+          final clip = _pumpClipboard;
+          if (clip == null) return;
+          _applyPumpRow(pump, clip);
+          pumpController.checkAndAddNewRow();
+          pumpController.pumps.refresh();
+          await _savePumpRowIfNeeded(index);
+          break;
+        case 'delete':
+          await pumpController.deletePump(index);
+          break;
+        case 'clear':
+          await _clearPumpRow(index);
+          break;
+        case 'top':
+          await _movePumpRow(index, toTop: true);
+          break;
+        case 'bottom':
+          await _movePumpRow(index, toTop: false);
+          break;
+      }
+    } catch (e) {
+      if (mounted) {
+        _showAlert('Pump action failed: $e', isSuccess: false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -429,7 +602,6 @@ class _PumpViewState extends State<PumpView> {
                   ),
                 ),
               ),
-              const _HCell('Actions', flex: 2),
             ]),
           ),
         ),
@@ -448,16 +620,19 @@ class _PumpViewState extends State<PumpView> {
         itemBuilder: (_, i) {
           final p = pumpController.pumps[i];
 
-          return Container(
-            height: rowH,
-            decoration: BoxDecoration(
-              color: i.isEven ? Colors.white : const Color(0xfffafafa),
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade100, width: 1),
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onSecondaryTapDown: (details) => _showPumpRowMenu(details, p, i),
+            child: Container(
+              height: rowH,
+              decoration: BoxDecoration(
+                color: i.isEven ? Colors.white : const Color(0xfffafafa),
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey.shade100, width: 1),
+                ),
               ),
-            ),
-            child: Row(
-              children: _addDividers([
+              child: Row(
+                children: _addDividers([
                 _cellText('${i + 1}', flex: 1),
 
                 // Type dropdown
@@ -664,10 +839,9 @@ class _PumpViewState extends State<PumpView> {
                     ),
                   ),
                 ),
-
-                _actionButtons(p, i, flex: 2),
               ]),
             ),
+          ),
           );
         },
       );
@@ -837,88 +1011,6 @@ class _PumpViewState extends State<PumpView> {
     );
   }
 
-  Widget _actionButtons(PumpModel pump, int index, {required int flex}) {
-    return Expanded(
-      flex: flex,
-      child: Obx(() {
-        if (ugController.isLocked.value) return const SizedBox.shrink();
-
-        final isSyncing = pumpController.updatingRows.contains(index);
-
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // SAVED pump — show sync/check indicator
-            if (pump.id != null)
-              SizedBox(
-                width: 18,
-                height: 18,
-                child: isSyncing
-                    ? const CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.orange,
-                      )
-                    : const Icon(
-                        Icons.check_circle,
-                        size: 16,
-                        color: Colors.green,
-                      ),
-              ),
-
-            const SizedBox(width: 4),
-
-            // Delete button
-            if (pump.hasData)
-              IconButton(
-                icon: const Icon(Icons.delete, size: 16),
-                onPressed: () async {
-                  try {
-                    final confirmed = await Get.dialog<bool>(
-                      AlertDialog(
-                        title: const Text('Delete Pump'),
-                        content: const Text(
-                          'Are you sure you want to delete this pump?',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Get.back(result: false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Get.back(result: true),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
-                            ),
-                            child: const Text('Delete'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirmed == true) {
-                      await pumpController.deletePump(index);
-                      if (mounted) {
-                        _showAlert(
-                          'Pump deleted successfully',
-                          isSuccess: true,
-                        );
-                      }
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      _showAlert('Failed to delete: $e', isSuccess: false);
-                    }
-                  }
-                },
-                tooltip: 'Delete',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                color: Colors.red,
-              ),
-          ],
-        );
-      }),
-    );
-  }
 }
 
 class _HCell extends StatelessWidget {
