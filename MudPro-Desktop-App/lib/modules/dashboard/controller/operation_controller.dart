@@ -7,6 +7,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/empty_Activesyst
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_active_system_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_storage_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/other_vol_addition_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
@@ -66,10 +67,11 @@ class OperationController extends GetxController {
 
   String _formatVolume(double value) {
     if (value <= 0 || value.isNaN) return '';
-    return value
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return formatOperationNumber(
+      value,
+      fallbackDecimals: 4,
+      trimFallback: true,
+    );
   }
 
   double _parseVolume(String value) =>

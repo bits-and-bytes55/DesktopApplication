@@ -7,6 +7,7 @@ import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
@@ -465,10 +466,11 @@ class UgStController extends GetxController {
     if (parsed == null) return value;
     final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
     if (converted == null) return value;
-    return converted
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return formatOperationNumber(
+      converted,
+      fallbackDecimals: 4,
+      trimFallback: true,
+    );
   }
 
   Future<void> fetchPlan() async {

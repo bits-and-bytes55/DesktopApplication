@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class EngineeringToolsController extends GetxController {
@@ -138,12 +139,10 @@ class EngineeringToolsController extends GetxController {
   }
 
   String _format(double value) {
-    if (value == value.truncateToDouble()) {
-      return value.truncate().toString();
-    }
-    return value
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return formatOperationNumber(
+      value,
+      fallbackDecimals: 4,
+      trimFallback: true,
+    );
   }
 }

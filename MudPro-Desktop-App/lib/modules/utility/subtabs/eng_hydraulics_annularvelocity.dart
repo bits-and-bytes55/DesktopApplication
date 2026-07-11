@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/utility/engineering_tools_ui_pattern.dart';
 import '../controller/engineering_tools_controller.dart';
@@ -284,7 +285,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  "${result.toStringAsFixed(2)} ${AppUnits.strip(AppUnits.velocity)}",
+                                  "${formatOperationNumber(result, fallbackDecimals: 2, trimFallback: true)} ${AppUnits.strip(AppUnits.velocity)}",
                                   style: TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.w700,
@@ -537,7 +538,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                "${result.toStringAsFixed(2)} ${AppUnits.strip(AppUnits.velocity)}",
+                                "${formatOperationNumber(result, fallbackDecimals: 2, trimFallback: true)} ${AppUnits.strip(AppUnits.velocity)}",
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.w700,

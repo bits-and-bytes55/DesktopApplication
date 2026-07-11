@@ -15,6 +15,14 @@ const solidsSchema = new mongoose.Schema(
     bariteLb:     { type: Number, default: 0 },
     bentoniteLb:  { type: Number, default: 0 },
     brineSG:      { type: Number, default: 1 },
+    brineDensityPpg: { type: Number, default: 0 },
+    brineVol:        { type: Number, default: 0 },
+    oilSG:           { type: Number, default: 0 },
+    hgsSG:           { type: Number, default: 0 },
+    lgsSG:           { type: Number, default: 0 },
+    isWeightedMud:   { type: Boolean, default: false },
+    fluidType:       { type: String, default: "" },
+    saltType:        { type: String, default: "" },
 
     // ── Calculated outputs ───────────────────────────────────────────────
     totalSolidsLb:      { type: Number, default: 0 },
@@ -29,6 +37,8 @@ const solidsSchema = new mongoose.Schema(
     drillSolidsPercent: { type: Number, default: 0 },
     dsBentRatio:        { type: Number, default: 0 },
     avgSG:              { type: Number, default: 0 },
+    obmChemicalsPercent:{ type: Number, default: 0 },
+    obmChemicalsLb:     { type: Number, default: 0 },
   },
   {
     timestamps: true, // adds createdAt + updatedAt automatically

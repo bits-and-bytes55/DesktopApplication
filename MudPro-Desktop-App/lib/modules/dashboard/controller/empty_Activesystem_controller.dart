@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
@@ -97,10 +98,11 @@ class EmptyActiveSystemController extends GetxController {
   }
 
   String _formatConverted(double value) {
-    return value
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return formatOperationNumber(
+      value,
+      fallbackDecimals: 4,
+      trimFallback: true,
+    );
   }
 
   String _convertText(String value, String fromUnit, String toUnit) {
@@ -164,7 +166,7 @@ class EmptyActiveSystemController extends GetxController {
 
     if (selectedPit != null) {
       volValues[row] = _convertText(
-        selectedPit.capacity.value.toStringAsFixed(2),
+        formatOperationNumber(selectedPit.capacity.value),
         '(bbl)',
         _fluidVolumeUnit,
       );
@@ -423,7 +425,7 @@ class EmptyActiveSystemController extends GetxController {
       return {'success': false, 'message': 'No backend well selected'};
     }
 
-    final dumpVolume = isDumpSelected.value ? await _resolveDumpVolume() : 0;
+    final dumpVolume = isDumpSelected.value ? await _resolveDumpVolume() : 0.0;
     if (isDumpSelected.value && dumpVolume <= 0) {
       await _refreshPitVolumeName();
       return {'success': true, 'message': 'End Vol already 0'};
@@ -466,7 +468,7 @@ class EmptyActiveSystemController extends GetxController {
         return {
           'success': false,
           'message':
-              'Transfer volume cannot exceed End Vol. ${availableEndVol.toStringAsFixed(2)} bbl',
+              'Transfer volume cannot exceed End Vol. ${formatOperationNumber(availableEndVol)} bbl',
         };
       }
     }
@@ -474,7 +476,7 @@ class EmptyActiveSystemController extends GetxController {
     final body = isDumpSelected.value
         ? {
             'actionType': 'Dump',
-            'volume': double.parse(dumpVolume.toStringAsFixed(2)),
+            'volume': roundOperationNumber(dumpVolume),
             'operationInstanceKey': instanceKey,
           }
         : {

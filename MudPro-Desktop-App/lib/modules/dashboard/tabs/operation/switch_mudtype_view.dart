@@ -364,17 +364,17 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                       'switch-mud-volume-${widget.instanceKey}-$index',
                     ),
                     initialValue: '',
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       border: InputBorder.none,
                       isDense: true,
-                      hintText: '0.00',
+                      hintText: formatOperationNumber(0),
                     ),
                     textAlign: TextAlign.right,
                     keyboardType: TextInputType.number,
                     style: _inputTextStyle,
                   )
-                : const Text(
-                    '0.00',
+                : Text(
+                    formatOperationNumber(0),
                     textAlign: TextAlign.right,
                     style: _inputTextStyle,
                   ),

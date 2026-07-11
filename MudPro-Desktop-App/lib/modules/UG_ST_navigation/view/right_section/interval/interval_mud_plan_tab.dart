@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_setup_ui_pattern.dart';
@@ -9,6 +10,18 @@ import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/w
 const Color _impBorder = wellSetupBorder;
 const Color _impHeader = wellSetupReadOnlyFill;
 const Color _impCell = wellSetupLockedEditable;
+
+String _formatIntervalPlanCellText(String value) {
+  final text = value.trim();
+  if (text.isEmpty) return value;
+  final parsed = double.tryParse(text.replaceAll(',', ''));
+  if (parsed == null) return value;
+  return formatOperationNumber(
+    parsed,
+    fallbackDecimals: 4,
+    trimFallback: true,
+  );
+}
 
 class IntervalMudPlanTab extends StatefulWidget {
   const IntervalMudPlanTab({super.key});
@@ -756,41 +769,49 @@ class _MudCell extends StatefulWidget {
 
 class _MudCellState extends State<_MudCell> {
   late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+
+  String get _displayValue => _formatIntervalPlanCellText(widget.value.value);
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.value.value);
+    _controller = TextEditingController(text: _displayValue);
+    _focusNode = FocusNode()
+      ..addListener(() {
+        if (!_focusNode.hasFocus) {
+          _syncControllerText(forceFormatted: true);
+        }
+      });
   }
 
   @override
   void didUpdateWidget(covariant _MudCell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final next = widget.value.value;
-    if (_controller.text != next) {
-      _controller.value = TextEditingValue(
-        text: next,
-        selection: TextSelection.collapsed(offset: next.length),
-      );
-    }
+    _syncControllerText();
   }
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _syncControllerText({bool forceFormatted = false}) {
+    if (_focusNode.hasFocus && !forceFormatted) return;
+    final next = _displayValue;
+    if (_controller.text == next) return;
+    _controller.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: next.length),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final next = widget.value.value;
-      if (_controller.text != next) {
-        _controller.value = TextEditingValue(
-          text: next,
-          selection: TextSelection.collapsed(offset: next.length),
-        );
-      }
+      _syncControllerText();
 
       return Container(
         height: 28,
@@ -801,6 +822,7 @@ class _MudCellState extends State<_MudCell> {
         ),
         child: TextField(
           controller: _controller,
+          focusNode: _focusNode,
           readOnly: widget.readOnly,
           textAlign: widget.align,
           onChanged: (value) => widget.value.value = value,

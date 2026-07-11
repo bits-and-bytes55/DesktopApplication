@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/widgets/wellbore_controller.dart';
 
 const Color _summaryPageBackground = Color(0xFFF4F6FA);
@@ -121,9 +122,9 @@ class RecapSummaryPage extends StatelessWidget {
                   maxValue: controller.maxDepthKPI.value,
                   minLabel: '0ft',
                   maxLabel:
-                      '${controller.maxDepthKPI.value.toStringAsFixed(1)}ft',
+                      '${_formatSummaryNumber(controller.maxDepthKPI.value)}ft',
                   valueLabel:
-                      '${controller.depthKPI.value.toStringAsFixed(1)}ft : ${(controller.depthKPI.value / controller.maxDepthKPI.value * 100).toStringAsFixed(1)}%',
+                      '${_formatSummaryNumber(controller.depthKPI.value)}ft : ${_formatSummaryNumber(controller.depthKPI.value / controller.maxDepthKPI.value * 100)}%',
                   gaugeColor: _summaryDepthColor,
                 ),
               ),
@@ -137,11 +138,11 @@ class RecapSummaryPage extends StatelessWidget {
                   maxValue: controller.maxCostKPI.value,
                   minLabel: 'Kwd0',
                   maxLabel:
-                      'Kwd${controller.maxCostKPI.value.toStringAsFixed(3)}',
+                      'Kwd${_formatSummaryNumber(controller.maxCostKPI.value)}',
                   valueLabel:
-                      'Kwd${controller.costKPI.value.toStringAsFixed(3)} : ${(controller.costKPI.value / controller.maxCostKPI.value * 100).toStringAsFixed(1)}%',
+                      'Kwd${_formatSummaryNumber(controller.costKPI.value)} : ${_formatSummaryNumber(controller.costKPI.value / controller.maxCostKPI.value * 100)}%',
                   gaugeColor: _summaryCostColor,
-                  footer: 'Plan: Kwd1000.000',
+                  footer: 'Plan: Kwd${_formatSummaryNumber(1000.0)}',
                 ),
               ),
             ),
@@ -153,9 +154,9 @@ class RecapSummaryPage extends StatelessWidget {
                   value: controller.dayKPI.value,
                   maxValue: controller.maxDayKPI.value,
                   minLabel: '1',
-                  maxLabel: controller.maxDayKPI.value.toStringAsFixed(0),
+                  maxLabel: _formatSummaryNumber(controller.maxDayKPI.value),
                   valueLabel:
-                      '${controller.dayKPI.value.toStringAsFixed(0)} : ${(controller.dayKPI.value / controller.maxDayKPI.value * 100).toStringAsFixed(1)}%',
+                      '${_formatSummaryNumber(controller.dayKPI.value)} : ${_formatSummaryNumber(controller.dayKPI.value / controller.maxDayKPI.value * 100)}%',
                   gaugeColor: _summaryDayColor,
                 ),
               ),
@@ -165,6 +166,12 @@ class RecapSummaryPage extends StatelessWidget {
       ),
     );
   }
+
+  String _formatSummaryNumber(double value) => formatOperationNumber(
+    value,
+    fallbackDecimals: 1,
+    trimFallback: true,
+  );
 
   Widget _buildCostDistributionSection(WellboreController controller) {
     return _mainPanel(
@@ -470,7 +477,7 @@ class RecapSummaryPage extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: Text(
-                  '${item.label}, ${item.value.toStringAsFixed(1)}%',
+                  '${item.label}, ${_formatSummaryNumber(item.value)}%',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(

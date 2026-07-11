@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/controller/company_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/pump_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/sce_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
@@ -13,6 +14,37 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 const Color _kPumpLockedEditableColor = Color(0xFFFFF7CC);
+
+int? _pumpCompanyFormatDigits() {
+  if (!Get.isRegistered<CompanyController>()) return null;
+  final format = Get.find<CompanyController>().currencyFormat.value.trim();
+  if (format.isEmpty || format == 'Default') return null;
+  final dot = format.indexOf('.');
+  return dot < 0 ? 0 : (format.length - dot - 1).clamp(0, 6).toInt();
+}
+
+String _trimPumpFixedZeros(String value) =>
+    value.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+
+String _formatPumpNumber(
+  double value, {
+  int fallbackDecimals = 2,
+  bool trimFallback = true,
+}) {
+  if (value.isNaN || value.isInfinite) return '';
+  final digits = _pumpCompanyFormatDigits();
+  if (digits != null) return value.toStringAsFixed(digits);
+  final fixed = value.toStringAsFixed(fallbackDecimals);
+  return trimFallback ? _trimPumpFixedZeros(fixed) : fixed;
+}
+
+String _formatPumpManualText(String value, {int fallbackDecimals = 2}) {
+  final text = value.trim();
+  if (text.isEmpty) return '';
+  final parsed = double.tryParse(text.replaceAll(',', ''));
+  if (parsed == null) return value;
+  return _formatPumpNumber(parsed, fallbackDecimals: fallbackDecimals);
+}
 
 // ─── Local row model for Pump page ────────────────────────────────────────────
 class _PumpRow {
@@ -61,7 +93,7 @@ class _PumpRow {
     final rateValue =
         AppUnits.convertValue(rateBase, '(gpm)', AppUnits.drillingFlowRate) ??
         rateBase;
-    rate.value = rateValue.toStringAsFixed(1);
+    rate.value = _formatPumpNumber(rateValue, fallbackDecimals: 1);
   }
 }
 
@@ -328,10 +360,7 @@ class _PumpPageState extends State<PumpPage> {
     if (result == null) {
       return rawValue;
     }
-    return result
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return _formatPumpNumber(result, fallbackDecimals: 4);
   }
 
   // ── Auto-row helpers ─────────────────────────────────────────────
@@ -385,7 +414,7 @@ class _PumpPageState extends State<PumpPage> {
     final text = value?.trim() ?? '';
     final parsed = double.tryParse(text);
     if (parsed != null && parsed == 0) return '';
-    return text;
+    return _formatPumpManualText(text, fallbackDecimals: 1);
   }
 
   Future<void> _loadReportPumpRows() async {
@@ -870,13 +899,34 @@ class _PumpPageState extends State<PumpPage> {
     row.rowNumber = int.tryParse(item['rowNumber']?.toString() ?? '') ?? 0;
     row.model.value = item['model']?.toString() ?? '';
     row.type.value = item['type']?.toString() ?? '';
-    row.linerId.value = item['linerId']?.toString() ?? '';
-    row.rodOd.value = item['rodOd']?.toString() ?? '';
-    row.strokeLength.value = item['strokeLength']?.toString() ?? '';
-    row.efficiency.value = item['efficiency']?.toString() ?? '';
-    row.displacement.value = item['displacement']?.toString() ?? '';
-    row.spm.value = item['spm']?.toString() ?? '';
-    row.rate.value = item['rate']?.toString() ?? '';
+    row.linerId.value = _formatPumpManualText(
+      item['linerId']?.toString() ?? '',
+      fallbackDecimals: 3,
+    );
+    row.rodOd.value = _formatPumpManualText(
+      item['rodOd']?.toString() ?? '',
+      fallbackDecimals: 3,
+    );
+    row.strokeLength.value = _formatPumpManualText(
+      item['strokeLength']?.toString() ?? '',
+      fallbackDecimals: 3,
+    );
+    row.efficiency.value = _formatPumpManualText(
+      item['efficiency']?.toString() ?? '',
+      fallbackDecimals: 1,
+    );
+    row.displacement.value = _formatPumpManualText(
+      item['displacement']?.toString() ?? '',
+      fallbackDecimals: 4,
+    );
+    row.spm.value = _formatPumpManualText(
+      item['spm']?.toString() ?? '',
+      fallbackDecimals: 1,
+    );
+    row.rate.value = _formatPumpManualText(
+      item['rate']?.toString() ?? '',
+      fallbackDecimals: 1,
+    );
     return row;
   }
 
@@ -887,16 +937,22 @@ class _PumpPageState extends State<PumpPage> {
       item['shaker']?.toString() ?? '',
     );
     row.model.value = item['model']?.toString() ?? '';
-    row.screen1.value = item['screen1']?.toString() ?? '';
-    row.screen2.value = item['screen2']?.toString() ?? '';
-    row.screen3.value = item['screen3']?.toString() ?? '';
-    row.screen4.value = item['screen4']?.toString() ?? '';
-    row.screen5.value = item['screen5']?.toString() ?? '';
-    row.screen6.value = item['screen6']?.toString() ?? '';
-    row.screen7.value = item['screen7']?.toString() ?? '';
-    row.screen8.value = item['screen8']?.toString() ?? '';
-    row.time.value = item['time']?.toString() ?? '';
-    row.oocWt.value = item['oocWt']?.toString() ?? '';
+    row.screen1.value = _formatPumpManualText(item['screen1']?.toString() ?? '');
+    row.screen2.value = _formatPumpManualText(item['screen2']?.toString() ?? '');
+    row.screen3.value = _formatPumpManualText(item['screen3']?.toString() ?? '');
+    row.screen4.value = _formatPumpManualText(item['screen4']?.toString() ?? '');
+    row.screen5.value = _formatPumpManualText(item['screen5']?.toString() ?? '');
+    row.screen6.value = _formatPumpManualText(item['screen6']?.toString() ?? '');
+    row.screen7.value = _formatPumpManualText(item['screen7']?.toString() ?? '');
+    row.screen8.value = _formatPumpManualText(item['screen8']?.toString() ?? '');
+    row.time.value = _formatPumpManualText(
+      item['time']?.toString() ?? '',
+      fallbackDecimals: 1,
+    );
+    row.oocWt.value = _formatPumpManualText(
+      item['oocWt']?.toString() ?? '',
+      fallbackDecimals: 1,
+    );
     row.enabledScreens.value =
         int.tryParse(item['screens']?.toString() ?? '') ?? 0;
     return row;
@@ -907,10 +963,16 @@ class _PumpPageState extends State<PumpPage> {
     row.id = item['_id']?.toString() ?? item['id']?.toString();
     row.type.value = item['type']?.toString() ?? '';
     row.model.value = item['model1']?.toString() ?? '';
-    row.uf.value = item['uf']?.toString() ?? '';
-    row.of_.value = item['of']?.toString() ?? '';
-    row.time.value = item['time']?.toString() ?? '';
-    row.oocWt.value = item['oocWt']?.toString() ?? '';
+    row.uf.value = _formatPumpManualText(item['uf']?.toString() ?? '');
+    row.of_.value = _formatPumpManualText(item['of']?.toString() ?? '');
+    row.time.value = _formatPumpManualText(
+      item['time']?.toString() ?? '',
+      fallbackDecimals: 1,
+    );
+    row.oocWt.value = _formatPumpManualText(
+      item['oocWt']?.toString() ?? '',
+      fallbackDecimals: 1,
+    );
     return row;
   }
 
@@ -1056,9 +1118,14 @@ class _PumpPageState extends State<PumpPage> {
         final data = result['data'];
         if (data is Map) {
           row.id = data['_id']?.toString() ?? row.id;
-          row.displacement.value =
-              data['displacement']?.toString() ?? row.displacement.value;
-          row.rate.value = data['rate']?.toString() ?? row.rate.value;
+          row.displacement.value = _formatPumpManualText(
+            data['displacement']?.toString() ?? row.displacement.value,
+            fallbackDecimals: 4,
+          );
+          row.rate.value = _formatPumpManualText(
+            data['rate']?.toString() ?? row.rate.value,
+            fallbackDecimals: 1,
+          );
         }
       }
     } catch (e) {
@@ -1534,6 +1601,11 @@ class _PumpPageState extends State<PumpPage> {
       return Focus(
         onFocusChange: (hasFocus) {
           if (!hasFocus) {
+            row.spm.value = _formatPumpManualText(
+              row.spm.value,
+              fallbackDecimals: 1,
+            );
+            row.recalculateRate();
             _savePumpRowNow(row, rowIndex);
           }
         },
@@ -1602,12 +1674,29 @@ class _PumpPageState extends State<PumpPage> {
                   row.model.value = selected;
                   if (source != null) {
                     row.type.value = source.type.value;
-                    row.linerId.value = source.linerId.value;
+                    row.linerId.value = _formatPumpManualText(
+                      source.linerId.value,
+                      fallbackDecimals: 3,
+                    );
                     final rodVal = double.tryParse(source.rodOd.value) ?? 0;
-                    row.rodOd.value = rodVal > 0 ? source.rodOd.value : '';
-                    row.strokeLength.value = source.strokeLength.value;
-                    row.efficiency.value = source.efficiency.value;
-                    row.displacement.value = source.displacement.value;
+                    row.rodOd.value = rodVal > 0
+                        ? _formatPumpManualText(
+                            source.rodOd.value,
+                            fallbackDecimals: 3,
+                          )
+                        : '';
+                    row.strokeLength.value = _formatPumpManualText(
+                      source.strokeLength.value,
+                      fallbackDecimals: 3,
+                    );
+                    row.efficiency.value = _formatPumpManualText(
+                      source.efficiency.value,
+                      fallbackDecimals: 1,
+                    );
+                    row.displacement.value = _formatPumpManualText(
+                      source.displacement.value,
+                      fallbackDecimals: 4,
+                    );
                     row.spm.value = '';
                     row.rate.value = '';
                   }
@@ -2020,6 +2109,11 @@ class _PumpPageState extends State<PumpPage> {
                 fields[idx].value = v;
                 _scheduleSaveShakerRow(row);
               },
+              onEditingComplete: () {
+                fields[idx].value = _formatPumpManualText(fields[idx].value);
+                _scheduleSaveShakerRow(row);
+                FocusScope.of(context).unfocus();
+              },
               textAlign: TextAlign.left,
               textAlignVertical: TextAlignVertical.center,
               style: TextStyle(
@@ -2136,10 +2230,14 @@ class _PumpPageState extends State<PumpPage> {
     final of = data['of']?.toString().trim() ?? '';
     final time = data['time']?.toString().trim() ?? '';
     final oocWt = data['oocWt']?.toString().trim() ?? '';
-    if (uf.isNotEmpty) row.uf.value = uf;
-    if (of.isNotEmpty) row.of_.value = of;
-    if (time.isNotEmpty) row.time.value = time;
-    if (oocWt.isNotEmpty) row.oocWt.value = oocWt;
+    if (uf.isNotEmpty) row.uf.value = _formatPumpManualText(uf);
+    if (of.isNotEmpty) row.of_.value = _formatPumpManualText(of);
+    if (time.isNotEmpty) {
+      row.time.value = _formatPumpManualText(time, fallbackDecimals: 1);
+    }
+    if (oocWt.isNotEmpty) {
+      row.oocWt.value = _formatPumpManualText(oocWt, fallbackDecimals: 1);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -2284,7 +2382,7 @@ class _PumpPageState extends State<PumpPage> {
       row.screen8,
     ];
     for (var i = 0; i < enabledCount; i++) {
-      fields[i].value = fillVal;
+      fields[i].value = _formatPumpManualText(fillVal);
     }
     _scheduleSaveShakerRow(row);
   }
@@ -2642,7 +2740,7 @@ class _PumpPageState extends State<PumpPage> {
       0,
       (sum, row) => sum + (double.tryParse(row.rate.value.trim()) ?? 0),
     );
-    _summaryPumpRate.value = total.toStringAsFixed(1);
+    _summaryPumpRate.value = _formatPumpNumber(total, fallbackDecimals: 1);
     _scheduleSavePumpSummary();
   }
 
@@ -2677,6 +2775,14 @@ class _PumpPageState extends State<PumpPage> {
                 onChanged: (text) {
                   value.value = text;
                   _scheduleSavePumpSummary();
+                },
+                onEditingComplete: () {
+                  value.value = _formatPumpManualText(
+                    value.value,
+                    fallbackDecimals: 1,
+                  );
+                  _scheduleSavePumpSummary();
+                  FocusScope.of(context).unfocus();
                 },
                 textAlign: TextAlign.left,
                 textAlignVertical: TextAlignVertical.center,
@@ -2911,6 +3017,7 @@ class _PumpPageState extends State<PumpPage> {
     RxString rxValue,
     bool isLocked, {
     VoidCallback? onChanged,
+    int fallbackDecimals = 2,
   }) {
     return Obx(
       () => TextField(
@@ -2922,6 +3029,14 @@ class _PumpPageState extends State<PumpPage> {
         onChanged: (v) {
           rxValue.value = v;
           onChanged?.call();
+        },
+        onEditingComplete: () {
+          rxValue.value = _formatPumpManualText(
+            rxValue.value,
+            fallbackDecimals: fallbackDecimals,
+          );
+          onChanged?.call();
+          FocusScope.of(context).unfocus();
         },
         textAlign: TextAlign.left,
         textAlignVertical: TextAlignVertical.center,

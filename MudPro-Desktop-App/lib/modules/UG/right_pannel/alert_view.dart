@@ -1,12 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 
 class AlertView extends StatelessWidget {
   AlertView({super.key});
   final c = Get.find<UgController>();
+
+  String _formatAlertNumber(String value) {
+    final formatted = formatOperationInputText(
+      value,
+      fallbackDecimals: 1,
+      trimFallback: true,
+    );
+    if (formatted.isNotEmpty) return formatted;
+    return formatOperationNumber(
+      0,
+      fallbackDecimals: 1,
+      trimFallback: true,
+    );
+  }
+
+  String _formatAlertDouble(double value) {
+    return formatOperationNumber(
+      value,
+      fallbackDecimals: 1,
+      trimFallback: true,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +90,7 @@ class AlertView extends StatelessWidget {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Obx(() => Text(
-                          '${double.tryParse(c.safetyMargin.value)?.toStringAsFixed(1) ?? '0.0'}%',
+                          '${_formatAlertNumber(c.safetyMargin.value)}%',
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -123,7 +146,7 @@ class AlertView extends StatelessWidget {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Obx(() => Text(
-                              '${double.tryParse(c.safetyMargin.value)?.toStringAsFixed(1) ?? '0.0'}%',
+                              '${_formatAlertNumber(c.safetyMargin.value)}%',
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -149,7 +172,7 @@ class AlertView extends StatelessWidget {
                               child: TextField(
                                 enabled: !c.isLocked.value,
                                 controller: TextEditingController(
-                                  text: c.safetyMargin.value,
+                                  text: _formatAlertNumber(c.safetyMargin.value),
                                 ),
                                 onChanged: (v) => c.safetyMargin.value = v,
                                 style: TextStyle(fontSize: 12, color: AppTheme.textPrimary),
@@ -252,7 +275,7 @@ class AlertView extends StatelessWidget {
                                     ),
                                     child: Center(
                                       child: Text(
-                                        '${green.toStringAsFixed(0)}%',
+                                        '${_formatAlertDouble(green.toDouble())}%',
                                         style: const TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
@@ -275,7 +298,7 @@ class AlertView extends StatelessWidget {
                                     ),
                                     child: Center(
                                       child: Text(
-                                        '${yellow.toStringAsFixed(0)}%',
+                                        '${_formatAlertDouble(yellow.toDouble())}%',
                                         style: const TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
@@ -302,7 +325,7 @@ class AlertView extends StatelessWidget {
                                     ),
                                     child: Center(
                                       child: Text(
-                                        '${red.toStringAsFixed(0)}%',
+                                        '${_formatAlertDouble(red.toDouble())}%',
                                         style: const TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,

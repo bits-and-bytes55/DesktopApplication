@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/report/controller/cost_of_pad_controller.dart';
 import 'package:mudpro_desktop_app/modules/report/model/cost_of_pad_model.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
@@ -25,8 +26,6 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
       ? Get.find<CostOfPadController>()
       : Get.put(CostOfPadController());
 
-  final NumberFormat _currency = NumberFormat.currency(symbol: '\$');
-  final NumberFormat _decimal = NumberFormat('#,##0.00');
   final ScrollController _ledgerHorizontalController = ScrollController();
   final ScrollController _ledgerVerticalController = ScrollController();
   String _selectedWellId = '';
@@ -1144,9 +1143,13 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
         .toList();
   }
 
-  String _formatCurrency(double value) => _currency.format(value);
+  String _formatCurrency(double value) => '\$${_formatNumber(value)}';
 
-  String _formatNumber(double value) => _decimal.format(value);
+  String _formatNumber(double value) => formatOperationNumber(
+    value,
+    fallbackDecimals: 2,
+    trimFallback: true,
+  );
 
   String _formatDate(String value) {
     final text = value.trim();

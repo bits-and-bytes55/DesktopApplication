@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 PopupMenuItem<String> _menuItem(
@@ -139,7 +140,7 @@ Future<void> showVolumeByGroupDialog(
                         children: [
                           _tableCell(row['label'] as String),
                           _tableValueCell(
-                            (row['value'] as double).toStringAsFixed(2),
+                            formatOperationNumber(row['value'] as double),
                           ),
                         ],
                       ),
@@ -187,7 +188,7 @@ Future<void> showCuttingsRetentionDialog({
     final drilled = double.tryParse(volDrilledController.text.trim()) ?? 0.0;
     final ratio = double.tryParse(mudLossRatioController.text.trim()) ?? 0.0;
     final result = drilled * ratio / 100;
-    resultController.text = result.toStringAsFixed(2);
+    resultController.text = formatOperationNumber(result);
   }
 
   volDrilledController.addListener(recalculate);
@@ -252,7 +253,7 @@ Future<void> showEvaporationDialog({
     final result = flowlineT <= 0 || activeHours <= 0
         ? 0.0
         : ((flowlineT - 32).clamp(0, 9999) * activeHours) / 1000;
-    resultController.text = result.toStringAsFixed(2);
+    resultController.text = formatOperationNumber(result);
   }
 
   flowlineController.addListener(recalculate);

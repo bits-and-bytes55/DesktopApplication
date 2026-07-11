@@ -182,7 +182,7 @@ class _MudViewState extends State<MudView> {
     // Oil/Water Ratio
     if (k.contains('oil') && k.contains('water') && k.contains('ratio'))
       return true;
-    // Solids (% vol) and Total Solids — auto-calculated as 100-(Oil+Water)
+    // Solids and Total Solids are auto-calculated from oil/water.
     if ((k == 'solids' ||
             k.startsWith('solids') ||
             k == 'total solids' ||
@@ -524,10 +524,7 @@ class _MudViewState extends State<MudView> {
                           value: c.isWeightedMud.value,
                           onChanged: dashboard.isLocked.value
                               ? null
-                              : (v) {
-                                  c.isWeightedMud.value = v ?? false;
-                                  c.fetchSolidAnalysis();
-                                },
+                              : (v) => c.changeWeightedMud(v ?? false),
                           activeColor: AppTheme.primaryColor,
                           materialTapTargetSize:
                               MaterialTapTargetSize.shrinkWrap,

@@ -338,7 +338,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
 
   String _numStr(dynamic v) {
     final d = _toDouble(v);
-    return d == 0.0 ? '' : d.toString();
+    return d == 0.0 ? '' : formatOperationNumber(d);
   }
 
   void _scheduleInventorySnapshotRefresh() {
@@ -421,9 +421,10 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     row.code = (data['code'] ?? '').toString();
     row.unit = (data['unit'] ?? '').toString();
     row.price = (data['price'] as num?)?.toDouble() ?? 0.0;
-    row.initial = (data['initial'] ?? '').toString();
-    row.used = (data['used'] ?? '').toString();
-    row.finalValue = (data['finalValue'] ?? '').toString();
+    row.initial = formatOperationInputText((data['initial'] ?? '').toString());
+    row.used = formatOperationInputText((data['used'] ?? '').toString());
+    row.finalValue =
+        formatOperationInputText((data['finalValue'] ?? '').toString());
     row.cost = (data['cost'] as num?)?.toDouble() ?? 0.0;
   }
 
@@ -433,7 +434,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     row.code = (data['code'] ?? '').toString();
     row.unit = (data['unit'] ?? '').toString();
     row.price = (data['price'] as num?)?.toDouble() ?? 0.0;
-    row.usage = (data['usage'] ?? '').toString();
+    row.usage = formatOperationInputText((data['usage'] ?? '').toString());
     row.cost = (data['cost'] as num?)?.toDouble() ?? 0.0;
   }
 
@@ -446,7 +447,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     row.code = (data['code'] ?? '').toString();
     row.unit = (data['unit'] ?? '').toString();
     row.price = (data['price'] as num?)?.toDouble() ?? 0.0;
-    row.usage = (data['usage'] ?? '').toString();
+    row.usage = formatOperationInputText((data['usage'] ?? '').toString());
     row.cost = (data['cost'] as num?)?.toDouble() ?? 0.0;
   }
 
@@ -771,7 +772,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     if (row.selectedItem.isEmpty) return;
     final initial = double.tryParse(row.initial) ?? 0.0;
     final used = double.tryParse(row.used) ?? 0.0;
-    row.finalValue = (initial - used).toStringAsFixed(2);
+    row.finalValue = formatOperationNumber(initial - used);
     row.cost = used * row.price;
   }
 
@@ -1649,9 +1650,24 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       ),
       _editCell(row.codeCtrl, w(90), (v) => {}),
       _editCell(row.unitCtrl, w(70), (v) => {}),
-      _editCell(row.priceCtrl, w(90), (v) => _autoSavePackage(index)),
-      _editCell(row.initialCtrl, w(80), (v) => _autoSavePackage(index)),
-      _editCell(row.usedCtrl, w(80), (v) => _autoSavePackage(index)),
+      _editCell(
+        row.priceCtrl,
+        w(90),
+        (v) => _autoSavePackage(index),
+        formatNumeric: true,
+      ),
+      _editCell(
+        row.initialCtrl,
+        w(80),
+        (v) => _autoSavePackage(index),
+        formatNumeric: true,
+      ),
+      _editCell(
+        row.usedCtrl,
+        w(80),
+        (v) => _autoSavePackage(index),
+        formatNumeric: true,
+      ),
       // Final — read-only, negative = red
       _reactiveReadCell(
         text: () => row.finalValue,
@@ -1663,7 +1679,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
             : Colors.grey.shade700,
       ),
       _reactiveReadCell(
-        text: () => row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
+        text: () => row.cost > 0 ? formatOperationNumber(row.cost) : '',
         width: w(90),
         rightAlign: true,
         bold: true,
@@ -1703,10 +1719,20 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       ),
       _editCell(row.codeCtrl, w(90), (v) => {}),
       _editCell(row.unitCtrl, w(70), (v) => {}),
-      _editCell(row.priceCtrl, w(90), (v) => _autoSaveService(index)),
-      _editCell(row.usedCtrl, w(80), (v) => _autoSaveService(index)),
+      _editCell(
+        row.priceCtrl,
+        w(90),
+        (v) => _autoSaveService(index),
+        formatNumeric: true,
+      ),
+      _editCell(
+        row.usedCtrl,
+        w(80),
+        (v) => _autoSaveService(index),
+        formatNumeric: true,
+      ),
       _reactiveReadCell(
-        text: () => row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
+        text: () => row.cost > 0 ? formatOperationNumber(row.cost) : '',
         width: w(90),
         rightAlign: true,
         bold: true,
@@ -1746,10 +1772,20 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       ),
       _editCell(row.codeCtrl, w(90), (v) => {}),
       _editCell(row.unitCtrl, w(70), (v) => {}),
-      _editCell(row.priceCtrl, w(90), (v) => _autoSaveEngineering(index)),
-      _editCell(row.usageCtrl, w(80), (v) => _autoSaveEngineering(index)),
+      _editCell(
+        row.priceCtrl,
+        w(90),
+        (v) => _autoSaveEngineering(index),
+        formatNumeric: true,
+      ),
+      _editCell(
+        row.usageCtrl,
+        w(80),
+        (v) => _autoSaveEngineering(index),
+        formatNumeric: true,
+      ),
       _reactiveReadCell(
-        text: () => row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
+        text: () => row.cost > 0 ? formatOperationNumber(row.cost) : '',
         width: w(90),
         rightAlign: true,
         bold: true,
@@ -1888,8 +1924,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   DataCell _editCell(
     TextEditingController ctrl,
     double width,
-    Function(String) onChanged,
-  ) {
+    Function(String) onChanged, {
+    bool formatNumeric = false,
+  }) {
     return DataCell(
       Container(
         width: width,
@@ -1913,6 +1950,18 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
           onChanged: (v) {
             onChanged(v);
           },
+          onFieldSubmitted: formatNumeric
+              ? (text) {
+                  final formatted = formatOperationInputText(text);
+                  if (formatted.isNotEmpty) {
+                    ctrl.text = formatted;
+                    ctrl.selection = TextSelection.collapsed(
+                      offset: ctrl.text.length,
+                    );
+                    onChanged(formatted);
+                  }
+                }
+              : null,
         ),
       ),
     );
@@ -2022,7 +2071,7 @@ abstract class BaseRowData {
 
   double get price => double.tryParse(priceCtrl.text) ?? 0.0;
   set price(double v) =>
-      priceCtrl.text = (v == 0.0) ? '' : v.toStringAsFixed(2);
+      priceCtrl.text = (v == 0.0) ? '' : formatOperationNumber(v);
 
   String get initial => initialCtrl.text;
   set initial(String v) => initialCtrl.text = v;

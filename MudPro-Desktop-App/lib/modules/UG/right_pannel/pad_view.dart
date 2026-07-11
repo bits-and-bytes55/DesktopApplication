@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
@@ -219,12 +220,12 @@ class _PadViewState extends State<PadView> {
 
   String _displayFieldValue(String value, String baseUnit) {
     if (_isLengthUnit(baseUnit)) {
-      return _convertText(value, baseUnit, _lengthUnit);
+      return _formatPadNumberText(_convertText(value, baseUnit, _lengthUnit));
     }
     if (_isDiameterUnit(baseUnit)) {
-      return _convertText(value, baseUnit, _diameterUnit);
+      return _formatPadNumberText(_convertText(value, baseUnit, _diameterUnit));
     }
-    return value;
+    return baseUnit.trim().isEmpty ? value : _formatPadNumberText(value);
   }
 
   String _storeFieldValue(String value, String baseUnit) {
@@ -246,10 +247,23 @@ class _PadViewState extends State<PadView> {
     if (parsed == null) return rawValue;
     final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
     if (converted == null) return rawValue;
-    return converted
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return formatOperationNumber(
+      converted,
+      fallbackDecimals: 4,
+      trimFallback: true,
+    );
+  }
+
+  String _formatPadNumberText(String value) {
+    final text = value.trim();
+    if (text.isEmpty) return '';
+    final parsed = double.tryParse(text.replaceAll(',', ''));
+    if (parsed == null) return value;
+    return formatOperationNumber(
+      parsed,
+      fallbackDecimals: 4,
+      trimFallback: true,
+    );
   }
 
   Future<Map<String, dynamic>> _savePad({bool silent = false}) async {

@@ -87,10 +87,11 @@ class _AddWaterViewState extends State<AddWaterView> {
 
   String _formatVolume(double value) {
     if (value <= 0 || value.isNaN) return '';
-    return value
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return formatOperationNumber(
+      value,
+      fallbackDecimals: 4,
+      trimFallback: true,
+    );
   }
 
   Map<String, dynamic>? _extractEntity(dynamic value) {

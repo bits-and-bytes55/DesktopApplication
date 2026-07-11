@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/company_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report/controller/report_manager_controller.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_models.dart';
@@ -978,10 +979,14 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     return DateFormat('MM/dd/yyyy').format(parsed);
   }
 
-  static String _formatNumber(double value) => value.toStringAsFixed(2);
+  static String _formatNumber(double value) => formatOperationNumber(
+    value,
+    fallbackDecimals: 2,
+    trimFallback: true,
+  );
 
   String _formatCurrency(double value) =>
-      '${_currencyLabel()}${value.toStringAsFixed(2)}';
+      '${_currencyLabel()}${_formatNumber(value)}';
 
   String _criteriaLabel(_CriteriaConfig item) {
     switch (item.key) {
