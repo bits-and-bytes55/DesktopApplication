@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 // ════════════════════════════════════════════════════════════════════
@@ -311,10 +312,11 @@ class IntervalController extends GetxController {
     if (parsed == null) return value;
     final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
     final next = converted ?? parsed;
-    return next
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return formatOperationNumber(
+      next,
+      fallbackDecimals: 4,
+      trimFallback: true,
+    );
   }
 
   // ── Computed flat list for the sidebar ──────────────────────────

@@ -5,6 +5,7 @@ import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
@@ -108,7 +109,7 @@ class ReceiveMudController extends GetxController {
     if (n == 0) {
       return '';
     }
-    return n.toStringAsFixed(decimals);
+    return formatOperationNumber(n, fallbackDecimals: decimals);
   }
 
   double _parseNumber(String value) =>

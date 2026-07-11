@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/survey_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
@@ -518,7 +519,7 @@ class SurveyController extends GetxController {
       while (adjusted >= 360) {
         adjusted -= 360;
       }
-      row.azi = adjusted.toStringAsFixed(2);
+      row.azi = _format(adjusted, 2);
       row.syncEditableControllers();
     }
     _recalculateAllRows();
@@ -934,24 +935,45 @@ class SurveyController extends GetxController {
 
   double _lerp(double a, double b, double t) => a + ((b - a) * t);
 
-  String _format(double value, int digits) => value.toStringAsFixed(digits);
+  String _format(double value, int digits) {
+    return formatOperationNumber(
+      value,
+      fallbackDecimals: digits,
+      trimFallback: false,
+    );
+  }
+
+  String _formatSurveyText(String value, {int fallbackDigits = 4}) {
+    final raw = value.trim();
+    if (raw.isEmpty) return value;
+    final parsed = double.tryParse(raw.replaceAll(',', ''));
+    if (parsed == null) return value;
+    return formatOperationNumber(
+      parsed,
+      fallbackDecimals: fallbackDigits,
+      trimFallback: true,
+    );
+  }
 
   SurveyStationRow _displayStationRow(SurveyStationRow row) {
     return SurveyStationRow(
-      md: _convertText(row.md, '(ft)', AppUnits.length),
-      inc: row.inc,
-      azi: row.azi,
-      tvd: _convertText(row.tvd, '(ft)', AppUnits.length),
-      vsec: _convertText(row.vsec, '(ft)', AppUnits.length),
-      northSouth: _convertText(row.northSouth, '(ft)', AppUnits.length),
-      eastWest: _convertText(row.eastWest, '(ft)', AppUnits.length),
-      dogleg: _convertText(row.dogleg, '(°/100ft)', AppUnits.dogleg),
+      md: _formatSurveyText(_convertText(row.md, '(ft)', AppUnits.length)),
+      inc: _formatSurveyText(row.inc),
+      azi: _formatSurveyText(row.azi),
+      tvd: _formatSurveyText(_convertText(row.tvd, '(ft)', AppUnits.length)),
+      vsec: _formatSurveyText(_convertText(row.vsec, '(ft)', AppUnits.length)),
+      northSouth:
+          _formatSurveyText(_convertText(row.northSouth, '(ft)', AppUnits.length)),
+      eastWest:
+          _formatSurveyText(_convertText(row.eastWest, '(ft)', AppUnits.length)),
+      dogleg:
+          _formatSurveyText(_convertText(row.dogleg, '(°/100ft)', AppUnits.dogleg)),
     );
   }
 
   SurveyAnnotationRow _displayAnnotationRow(SurveyAnnotationRow row) {
     return SurveyAnnotationRow(
-      md: _convertText(row.md, '(ft)', AppUnits.length),
+      md: _formatSurveyText(_convertText(row.md, '(ft)', AppUnits.length)),
       annotation: row.annotation,
       symbol: row.symbol,
     );
@@ -981,9 +1003,10 @@ class SurveyController extends GetxController {
     if (parsed == null) return value;
     final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
     if (converted == null) return value;
-    return converted
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return formatOperationNumber(
+      converted,
+      fallbackDecimals: 4,
+      trimFallback: true,
+    );
   }
 }

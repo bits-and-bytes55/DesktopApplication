@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/utility/engineering_tools_ui_pattern.dart';
 
 class UnitConversionView extends StatefulWidget {
@@ -52,9 +53,15 @@ class _UnitConversionViewState extends State<UnitConversionView> {
 
   String _formatDecimal(double value) {
     if (decimalFormat == 'Default') {
-      return value.toStringAsFixed(2);
+      return formatOperationNumber(
+        value,
+        fallbackDecimals: 2,
+        trimFallback: true,
+      );
     }
-    final decimals = decimalFormat.split('.').last.length;
+    final decimals = decimalFormat.contains('.')
+        ? decimalFormat.split('.').last.length
+        : 0;
     return value.toStringAsFixed(decimals);
   }
 

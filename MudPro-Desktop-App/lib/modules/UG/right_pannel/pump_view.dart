@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import '../controller/pump_controller.dart';
 import '../controller/UG_controller.dart';
@@ -158,10 +159,27 @@ class _PumpViewState extends State<PumpView> {
     if (result == null) {
       return rawValue;
     }
-    return result
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return formatOperationNumber(
+      result,
+      fallbackDecimals: 4,
+      trimFallback: true,
+    );
+  }
+
+  String _formatPumpNumberText(String value) {
+    return formatOperationInputText(
+      value,
+      fallbackDecimals: 3,
+      trimFallback: true,
+    );
+  }
+
+  TextEditingController _pumpTextController(String value) {
+    final formatted = _formatPumpNumberText(value);
+    return TextEditingController(text: formatted)
+      ..selection = TextSelection.fromPosition(
+        TextPosition(offset: formatted.length),
+      );
   }
 
   void _showAlert(String message, {bool isSuccess = true}) {
@@ -631,7 +649,7 @@ class _PumpViewState extends State<PumpView> {
                   p.linerId.value = val;
                   p.recalculateDisplacement();
                   pumpController.onFieldChanged(i);
-                }, flex: 2),
+                }, flex: 2, formatNumber: true),
 
                 // AFTER — Rod OD locked for all except Duplex
                 Expanded(
@@ -655,20 +673,14 @@ class _PumpViewState extends State<PumpView> {
                               alignment: Alignment.centerLeft,
                               child: Text(
                                 isDuplex
-                                    ? p.rodOd.value
+                                    ? _formatPumpNumberText(p.rodOd.value)
                                     : '', // non-Duplex shows empty
                                 textAlign: TextAlign.left,
                                 style: AppTheme.wellLikeBodyText,
                               ),
                             )
                           : TextField(
-                              controller:
-                                  TextEditingController(text: p.rodOd.value)
-                                    ..selection = TextSelection.fromPosition(
-                                      TextPosition(
-                                        offset: p.rodOd.value.length,
-                                      ),
-                                    ),
+                              controller: _pumpTextController(p.rodOd.value),
                               onChanged: (val) {
                                 p.rodOd.value = val;
                                 p.recalculateDisplacement(); // always safe, only Duplex reaches here
@@ -694,14 +706,14 @@ class _PumpViewState extends State<PumpView> {
                   p.strokeLength.value = val;
                   p.recalculateDisplacement();
                   pumpController.onFieldChanged(i);
-                }, flex: 2),
+                }, flex: 2, formatNumber: true),
 
                 // Efficiency
                 _editableField(p.efficiency, i, (val) {
                   p.efficiency.value = val;
                   p.recalculateDisplacement();
                   pumpController.onFieldChanged(i);
-                }, flex: 2),
+                }, flex: 2, formatNumber: true),
 
                 // Displacement — READ ONLY, auto-calculated
                 _displacementCell(p, flex: 2),
@@ -710,13 +722,13 @@ class _PumpViewState extends State<PumpView> {
                 _editableField(p.maxPumpP, i, (val) {
                   p.maxPumpP.value = val;
                   pumpController.onFieldChanged(i);
-                }, flex: 2),
+                }, flex: 2, formatNumber: true),
 
                 // Max HP
                 _editableField(p.maxHp, i, (val) {
                   p.maxHp.value = val;
                   pumpController.onFieldChanged(i);
-                }, flex: 2),
+                }, flex: 2, formatNumber: true),
 
                 // Surface Line (Length + ID)
                 Expanded(
@@ -750,25 +762,17 @@ class _PumpViewState extends State<PumpView> {
                                       ),
                                       alignment: Alignment.centerLeft,
                                       child: Text(
-                                        p.surfaceLen.value,
+                                        _formatPumpNumberText(
+                                          p.surfaceLen.value,
+                                        ),
                                         textAlign: TextAlign.left,
                                         style: AppTheme.wellLikeBodyText,
                                       ),
                                     )
                                   : TextField(
-                                      controller:
-                                          TextEditingController(
-                                              text: p.surfaceLen.value,
-                                            )
-                                            ..selection =
-                                                TextSelection.fromPosition(
-                                                  TextPosition(
-                                                    offset: p
-                                                        .surfaceLen
-                                                        .value
-                                                        .length,
-                                                  ),
-                                                ),
+                                      controller: _pumpTextController(
+                                        p.surfaceLen.value,
+                                      ),
                                       onChanged: (v) {
                                         p.surfaceLen.value = v;
                                         pumpController.onFieldChanged(i);
@@ -802,25 +806,17 @@ class _PumpViewState extends State<PumpView> {
                                       ),
                                       alignment: Alignment.centerLeft,
                                       child: Text(
-                                        p.surfaceId.value,
+                                        _formatPumpNumberText(
+                                          p.surfaceId.value,
+                                        ),
                                         textAlign: TextAlign.left,
                                         style: AppTheme.wellLikeBodyText,
                                       ),
                                     )
                                   : TextField(
-                                      controller:
-                                          TextEditingController(
-                                              text: p.surfaceId.value,
-                                            )
-                                            ..selection =
-                                                TextSelection.fromPosition(
-                                                  TextPosition(
-                                                    offset: p
-                                                        .surfaceId
-                                                        .value
-                                                        .length,
-                                                  ),
-                                                ),
+                                      controller: _pumpTextController(
+                                        p.surfaceId.value,
+                                      ),
                                       onChanged: (v) {
                                         p.surfaceId.value = v;
                                         pumpController.onFieldChanged(i);
@@ -865,7 +861,7 @@ class _PumpViewState extends State<PumpView> {
               : const Color(0xfff5f5f5),
           alignment: Alignment.centerLeft,
           child: Text(
-            val.isEmpty ? '-' : val,
+            val.isEmpty ? '-' : _formatPumpNumberText(val),
             textAlign: TextAlign.left,
             style: AppTheme.wellLikeBodyText,
           ),
@@ -969,6 +965,7 @@ class _PumpViewState extends State<PumpView> {
     int index,
     Function(String) onChanged, {
     required int flex,
+    bool formatNumber = false,
   }) {
     return Expanded(
       flex: flex,
@@ -983,16 +980,20 @@ class _PumpViewState extends State<PumpView> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    value.value,
+                    formatNumber
+                        ? _formatPumpNumberText(value.value)
+                        : value.value,
                     textAlign: TextAlign.left,
                     style: AppTheme.wellLikeBodyText,
                   ),
                 )
               : TextField(
-                  controller: TextEditingController(text: value.value)
-                    ..selection = TextSelection.fromPosition(
-                      TextPosition(offset: value.value.length),
-                    ),
+                  controller: formatNumber
+                      ? _pumpTextController(value.value)
+                      : (TextEditingController(text: value.value)
+                          ..selection = TextSelection.fromPosition(
+                            TextPosition(offset: value.value.length),
+                          )),
                   onChanged: (v) => onChanged(v),
                   textAlign: TextAlign.left,
                   style: AppTheme.wellLikeBodyText,

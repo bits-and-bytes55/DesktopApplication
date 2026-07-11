@@ -4,6 +4,7 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dar
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ServicesPickupPage extends StatefulWidget {
@@ -1300,6 +1301,10 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
         ? value.toDouble()
         : double.tryParse(value?.toString() ?? '');
     if (number == null) return '0.000';
-    return number.toStringAsFixed(3);
+    return formatOperationNumber(
+      number,
+      fallbackDecimals: 3,
+      trimFallback: true,
+    );
   }
 }

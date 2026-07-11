@@ -16,6 +16,7 @@ import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_in
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
@@ -807,7 +808,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                     },
                                   ),
                                   _editableTableCell(
-                                    p.sg,
+                                    _formatInventoryNumberText(p.sg),
                                     key: ValueKey(
                                       'product-${_productRowKey(p, index)}-sg',
                                     ),
@@ -818,7 +819,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                   ),
                                   _tableCell(p.formattedUnit),
                                   _editableTableCell(
-                                    p.a.isNotEmpty ? p.a : p.price,
+                                    _formatInventoryNumberText(
+                                      p.a.isNotEmpty ? p.a : p.price,
+                                    ),
                                     key: ValueKey(
                                       'product-${_productRowKey(p, index)}-price',
                                     ),
@@ -829,7 +832,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                     },
                                   ),
                                   _editableTableCell(
-                                    p.initial,
+                                    _formatInventoryNumberText(p.initial),
                                     key: ValueKey(
                                       'product-${_productRowKey(p, index)}-initial',
                                     ),
@@ -1029,13 +1032,21 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   }) async {
     final productController = TextEditingController(text: product.product);
     final codeController = TextEditingController(text: product.code);
-    final sgController = TextEditingController(text: product.sg);
-    final unitNumController = TextEditingController(text: product.unitNum);
+    final sgController = TextEditingController(
+      text: _formatInventoryNumberText(product.sg),
+    );
+    final unitNumController = TextEditingController(
+      text: _formatInventoryNumberText(product.unitNum),
+    );
     final unitClassController = TextEditingController(text: product.unitClass);
     final priceController = TextEditingController(
-      text: product.a.isNotEmpty ? product.a : product.price,
+      text: _formatInventoryNumberText(
+        product.a.isNotEmpty ? product.a : product.price,
+      ),
     );
-    final initialController = TextEditingController(text: product.initial);
+    final initialController = TextEditingController(
+      text: _formatInventoryNumberText(product.initial),
+    );
     final groupController = TextEditingController(text: product.group);
 
     var volAdd = product.volAdd;
@@ -1287,6 +1298,14 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     });
   }
 
+  String _formatInventoryNumberText(String value) {
+    return formatOperationInputText(
+      value,
+      fallbackDecimals: 3,
+      trimFallback: true,
+    );
+  }
+
   Widget _dialogField(String label, TextEditingController controller) {
     return TextField(
       controller: controller,
@@ -1381,7 +1400,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                     },
                                   ),
                                   _editableTableCell(
-                                    e.mw,
+                                    _formatInventoryNumberText(e.mw),
                                     key: ValueKey('${e.id}-mw'),
                                     onTap: () =>
                                         _selectPremixForObm(e.description),
@@ -1392,7 +1411,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                     },
                                   ),
                                   _editableTableCell(
-                                    e.leasingFee,
+                                    _formatInventoryNumberText(e.leasingFee),
                                     key: ValueKey('${e.id}-leasingFee'),
                                     onTap: () =>
                                         _selectPremixForObm(e.description),
@@ -1590,21 +1609,23 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 	                                final index = entry.key;
 	                                final e = entry.value;
 	                                final rowCells = [
-		                                  _tableCell((index + 1).toString()),
-		                                  _readOnlyInventoryCell(e.product),
-		                                  _readOnlyInventoryCell(e.code),
-		                                  _readOnlyInventoryCell(e.sg),
-		                                  _editableTableCell(
-		                                    e.conc,
-		                                    key: ValueKey('${e.id}-conc'),
-		                                    onChanged: (v) {
-		                                      e.conc = v;
-		                                      _scheduleObmUpdate(e);
-		                                    },
-		                                  ),
-		                                  _readOnlyInventoryCell(
-		                                    _unitForObmItem(e),
-		                                  ),
+	                                  _tableCell((index + 1).toString()),
+	                                  _readOnlyInventoryCell(e.product),
+	                                  _readOnlyInventoryCell(e.code),
+	                                  _readOnlyInventoryCell(
+	                                    _formatInventoryNumberText(e.sg),
+	                                  ),
+	                                  _editableTableCell(
+	                                    _formatInventoryNumberText(e.conc),
+	                                    key: ValueKey('${e.id}-conc'),
+	                                    onChanged: (v) {
+	                                      e.conc = v;
+	                                      _scheduleObmUpdate(e);
+	                                    },
+	                                  ),
+	                                  _readOnlyInventoryCell(
+	                                    _unitForObmItem(e),
+	                                  ),
 		                                ];
 
 	                                return TableRow(
@@ -1808,8 +1829,12 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   Future<void> _showObmEditDialog(ObmModel item) async {
     final productController = TextEditingController(text: item.product);
     final codeController = TextEditingController(text: item.code);
-    final sgController = TextEditingController(text: item.sg);
-    final concController = TextEditingController(text: item.conc);
+    final sgController = TextEditingController(
+      text: _formatInventoryNumberText(item.sg),
+    );
+    final concController = TextEditingController(
+      text: _formatInventoryNumberText(item.conc),
+    );
     final unitController = TextEditingController(text: item.unit);
 
     await showDialog<void>(

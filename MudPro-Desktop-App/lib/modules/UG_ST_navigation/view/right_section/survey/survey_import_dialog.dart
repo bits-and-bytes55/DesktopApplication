@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/survey_model.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -505,10 +506,11 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
     if (parsed == null) return value;
     final converted = AppUnits.convertValue(parsed, mdUnit, AppUnits.length);
     if (converted == null) return value;
-    return converted
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return formatOperationNumber(
+      converted,
+      fallbackDecimals: 4,
+      trimFallback: true,
+    );
   }
 }
 

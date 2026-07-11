@@ -8,6 +8,7 @@ import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_s
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_inventory_product_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 
@@ -31,9 +32,11 @@ class _InventoryViewState extends State<InventoryView> {
   void initState() {
     super.initState();
     _bulkTankSetupFeeController = TextEditingController(
-      text: c.bulkTankSetupFee.value,
+      text: _formatInventoryNumberText(c.bulkTankSetupFee.value),
     );
-    _taxRateController = TextEditingController(text: c.taxRate.value);
+    _taxRateController = TextEditingController(
+      text: _formatInventoryNumberText(c.taxRate.value),
+    );
     _bulkTankSetupFeeFocusNode = FocusNode();
     _taxRateFocusNode = FocusNode();
     _bulkTankSetupFeeWorker = ever<String>(c.bulkTankSetupFee, (value) {
@@ -64,10 +67,11 @@ class _InventoryViewState extends State<InventoryView> {
     FocusNode focusNode,
     String value,
   ) {
-    if (focusNode.hasFocus || controller.text == value) return;
+    final next = _formatInventoryNumberText(value);
+    if (focusNode.hasFocus || controller.text == next) return;
     controller.value = TextEditingValue(
-      text: value,
-      selection: TextSelection.collapsed(offset: value.length),
+      text: next,
+      selection: TextSelection.collapsed(offset: next.length),
     );
   }
 
@@ -576,14 +580,24 @@ class _InventoryViewState extends State<InventoryView> {
     final currentText = isBulkTank ? c.bulkTankSetupFee.value : c.taxRate.value;
     final current = double.tryParse(currentText.trim()) ?? 0;
     final next = (current + (increase ? 1 : -1)).clamp(0, double.infinity);
-    final nextText = next % 1 == 0
-        ? next.toInt().toString()
-        : next.toStringAsFixed(2);
+    final nextText = formatOperationNumber(
+      next.toDouble(),
+      fallbackDecimals: 2,
+      trimFallback: true,
+    );
     if (isBulkTank) {
       c.bulkTankSetupFee.value = nextText;
     } else {
       c.taxRate.value = nextText;
     }
+  }
+
+  String _formatInventoryNumberText(String value) {
+    return formatOperationInputText(
+      value,
+      fallbackDecimals: 2,
+      trimFallback: true,
+    );
   }
 
   Widget _radioRow(String text) {

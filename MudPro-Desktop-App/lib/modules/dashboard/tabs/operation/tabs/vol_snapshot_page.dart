@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -504,14 +505,13 @@ class VolumeSnapshotController extends GetxController {
     return parsed ?? 0;
   }
 
-  static double _round2(double value) => double.parse(value.toStringAsFixed(2));
+  static double _round2(double value) => roundOperationNumber(value);
 
   String _format(double value) {
-    final normalized = value.abs() < 0.000001 ? 0 : value;
+    final normalized = value.abs() < 0.000001 ? 0.0 : value;
     if (normalized == 0) return '';
-    final absValue = normalized.abs();
-    final fixed = absValue.toStringAsFixed(2);
-    final parts = fixed.split('.');
+    final formatted = formatOperationNumber(normalized.abs());
+    final parts = formatted.split('.');
     final integerPart = parts.first;
     final buffer = StringBuffer();
 
@@ -523,7 +523,7 @@ class VolumeSnapshotController extends GetxController {
       }
     }
 
-    final text = '${buffer.toString()}.${parts.last}';
+    final text = parts.length > 1 ? '${buffer.toString()}.${parts.last}' : buffer.toString();
     return normalized < 0 ? '-$text' : text;
   }
 }

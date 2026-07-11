@@ -11,6 +11,7 @@ import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -203,8 +204,8 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
                     entry.value.name,
                     entry.value.code,
                     entry.value.unit,
-                    entry.value.price.toString(),
-                    entry.value.initial,
+                    _formatInventoryServiceNumber(entry.value.price),
+                    _formatInventoryServiceText(entry.value.initial),
                     entry.value.tax,
                     entry.value,
                   ];
@@ -259,7 +260,7 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
                     entry.value.name,
                     entry.value.code,
                     entry.value.unit,
-                    entry.value.price.toString(),
+                    _formatInventoryServiceNumber(entry.value.price),
                     entry.value.tax,
                     entry.value,
                   ];
@@ -314,7 +315,7 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
                     entry.value.name,
                     entry.value.code,
                     entry.value.unit,
-                    entry.value.price.toString(),
+                    _formatInventoryServiceNumber(entry.value.price),
                     entry.value.tax,
                     entry.value,
                   ];
@@ -738,9 +739,10 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
     final codeController = TextEditingController(text: code);
     final unitController = TextEditingController(text: unit);
     final priceController = TextEditingController(
-      text: price == 0 ? '' : price.toString(),
+      text: price == 0 ? '' : _formatInventoryServiceNumber(price),
     );
-    final initialController = TextEditingController(text: initial);
+    final initialController =
+        TextEditingController(text: _formatInventoryServiceText(initial));
     var draftTax = tax;
 
     return showDialog<_ServiceItemDraft>(
@@ -1275,6 +1277,22 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
 
   double _parsePrice(dynamic value) {
     return double.tryParse(value.toString().trim()) ?? 0.0;
+  }
+
+  String _formatInventoryServiceNumber(double value) {
+    return formatOperationNumber(
+      value,
+      fallbackDecimals: 3,
+      trimFallback: true,
+    );
+  }
+
+  String _formatInventoryServiceText(String value) {
+    return formatOperationInputText(
+      value,
+      fallbackDecimals: 3,
+      trimFallback: true,
+    );
   }
 
   void _sortPackages(InventoryServicesStore store) {

@@ -7,7 +7,8 @@ import 'package:mudpro_desktop_app/modules/installation/installation_identity.da
 class AdminControlController extends GetxController {
   final isLoading = false.obs;
   final isAdminLoggedIn = false.obs;
-  final isPasswordSetup = false.obs;
+  final isPasswordSetup = true.obs;
+  final isStatusLoaded = false.obs;
   final passwordExpired = false.obs;
   final daysRemaining = 30.obs;
   final message = ''.obs;
@@ -37,6 +38,7 @@ class AdminControlController extends GetxController {
     final response = await AdminControlApiService.getStatus();
     final data = Map<String, dynamic>.from(response['data'] ?? {});
     isPasswordSetup.value = data['isSetup'] == true;
+    isStatusLoaded.value = true;
     passwordExpired.value = data['expired'] == true;
     daysRemaining.value = int.tryParse('${data['daysRemaining'] ?? 0}') ?? 0;
     resetCount.value = int.tryParse('${data['resetCount'] ?? 0}') ?? 0;

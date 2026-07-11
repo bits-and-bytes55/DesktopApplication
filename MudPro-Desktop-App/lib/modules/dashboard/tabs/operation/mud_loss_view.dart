@@ -405,7 +405,8 @@ class MudLossActiveSystemView extends StatelessWidget {
             onPressed: dashboardController.isLocked.value
                 ? () {}
                 : () {
-                    controller.fields['formation']?.text = '0.00';
+                    controller.fields['formation']?.text =
+                        formatOperationNumber(0);
                   },
           ),
         ],

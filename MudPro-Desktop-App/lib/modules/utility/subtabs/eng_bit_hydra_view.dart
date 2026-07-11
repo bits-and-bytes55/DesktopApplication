@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/utility/controller/bit_hydra_controller.dart';
 import 'package:mudpro_desktop_app/modules/utility/engineering_tools_ui_pattern.dart';
@@ -688,7 +689,17 @@ class BitHydraulicsPage extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                value == null ? "0.00" : value.toStringAsFixed(2),
+                value == null
+                    ? formatOperationNumber(
+                        0.0,
+                        fallbackDecimals: 2,
+                        trimFallback: true,
+                      )
+                    : formatOperationNumber(
+                        value,
+                        fallbackDecimals: 2,
+                        trimFallback: true,
+                      ),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,

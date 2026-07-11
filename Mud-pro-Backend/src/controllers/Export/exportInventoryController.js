@@ -458,6 +458,60 @@ const getActivePitVolume = (pit) => toNumber(pit?.volume);
 const setCellValue = (ws, address, value = "") => {
   ws.getCell(address).value = value ?? "";
 };
+const normalizeCurrencyNumberFormat = (format) => {
+  const raw = text(format, "0.00").trim();
+  return /^0(?:\.0{1,4})?$/.test(raw) ? raw : "0.00";
+};
+const normalizeCurrencySymbol = (symbol) => {
+  const raw = text(symbol, "Kwd").trim();
+  const replacements = {
+    "â‚¹": "\u20B9",
+    "Â£": "\u00A3",
+    "Â¥": "\u00A5",
+    "â‚¬": "\u20AC",
+    "â©": "\u00A9",
+  };
+  return replacements[raw] || raw || "Kwd";
+};
+const isNumericExcelValue = (value) => {
+  if (typeof value === "number") return Number.isFinite(value);
+  if (value && typeof value === "object" && typeof value.result === "number") {
+    return Number.isFinite(value.result);
+  }
+  return false;
+};
+const shouldKeepTemplateNumberFormat = (cell) => {
+  const format = text(cell.numFmt).toLowerCase();
+  if (!format) return false;
+  return (
+    format.includes("%") ||
+    format.includes("@") ||
+    format.includes("yy") ||
+    format.includes("dd") ||
+    format.includes("mm/") ||
+    format.includes("/mm") ||
+    format.includes("h:")
+  );
+};
+const applyCompanyCurrencyFormatToWorksheet = (ws, company) => {
+  const numberFormat = normalizeCurrencyNumberFormat(company?.currencyFormat);
+  const currencySymbol = normalizeCurrencySymbol(company?.currencySymbol);
+  ws.eachRow((row) => {
+    row.eachCell({ includeEmpty: false }, (cell) => {
+      if (typeof cell.value === "string" && currencySymbol) {
+        cell.value = cell.value.replace(/\bKwd\b/g, currencySymbol);
+      }
+      if (isNumericExcelValue(cell.value) && !shouldKeepTemplateNumberFormat(cell)) {
+        cell.numFmt = numberFormat;
+      }
+    });
+  });
+};
+const applyCompanyCurrencyFormatToWorkbook = (workbook, company) => {
+  workbook.worksheets.forEach((worksheet) => {
+    applyCompanyCurrencyFormatToWorksheet(worksheet, company);
+  });
+};
 const setCellTextFit = (ws, address, { wrapText = true, shrinkToFit = true } = {}) => {
   const cell = ws.getCell(address);
   cell.alignment = {
@@ -725,10 +779,10 @@ const prepareSavedCasingOpenHoleRows = ({ casings, wellGeneral }) => [
   ...casings.filter(isSavedCasedHoleRow),
   ...normalizeSavedOpenHoleRows(wellGeneral),
 ].slice(0, 8);
-const calculatePumpDisplacement = (pump = {}) => {
+const calculatePumpDisplacement = (pump = {}, { applyEfficiency = true } = {}) => {
   const linerId = toNumber(pump.linerId);
   const strokeLength = toNumber(pump.strokeLength);
-  const efficiency = toNumber(pump.efficiency) / 100;
+  const efficiency = applyEfficiency ? toNumber(pump.efficiency) / 100 : 1;
   const rodOd = toNumber(pump.rodOd);
 
   if (!linerId || !strokeLength || !efficiency) return 0;
@@ -751,6 +805,9 @@ const getPumpDisplacement = (pump = {}) => {
   const saved = toNumber(pump.displacement);
   return saved > 0 ? saved : calculatePumpDisplacement(pump);
 };
+const getPumpStrokeDisplacement = (pump = {}) =>
+  (calculatePumpDisplacement(pump, { applyEfficiency: false }) || getPumpDisplacement(pump)) *
+  HYDRAULIC_CONSTANTS.pumpStrokeDisplacementCorrection;
 const getPumpRateGpm = (pump = {}) => {
   const saved = toNumber(pump.rate);
   if (saved > 0) return saved;
@@ -767,7 +824,7 @@ const summarizePumpFlow = (pumps = []) => {
       (pump) => getPumpDisplacement(pump) > 0 && toNumber(pump.spm) > 0
     ) || sourcePumps.find((pump) => getPumpDisplacement(pump) > 0);
   const strokeDisplacement = strokePump
-    ? getPumpDisplacement(strokePump)
+    ? getPumpStrokeDisplacement(strokePump)
     : 0;
   const strokePumpSpm = strokePump ? toNumber(strokePump.spm) : 0;
   const operatingSurfaceLineVolume = strokePump
@@ -821,7 +878,7 @@ const calculateCirculationTiming = (volumeBbl, pumpFlow = {}) => {
         : 0;
 
   return {
-    strokes: strokes > 0 ? round(strokes, 0) : "",
+    strokes: strokes > 0 ? Math.round(strokes) : "",
     minutes: minutes > 0 ? round(minutes, 0) : "",
   };
 };
@@ -1286,10 +1343,24 @@ const computeVolumeSummary = ({
   };
 };
 
-const fillDmrHeader = (ws, { well, pad, report, wellGeneral, fluidName, intervals = [] }) => {
+const isOilMudState = (mudReportState = {}, fluidName = "") => {
+  const raw = [
+    mudReportState?.fluidType,
+    mudReportState?.fluidName,
+    fluidName,
+  ]
+    .map((value) => text(value).toLowerCase())
+    .join(" ");
+  return /\b(obm|sbm)\b/.test(raw) || raw.includes("oil-based") || raw.includes("synthetic");
+};
+const dmrFluidReportTitle = (mudReportState = {}, fluidName = "") =>
+  `${isOilMudState(mudReportState, fluidName) ? "OBM" : "WBM"} Daily Drilling Fluids Report`;
+
+const fillDmrHeader = (ws, { well, pad, report, wellGeneral, fluidName, intervals = [], mudReportState = {} }) => {
   const reportNumber = text(report?.userReportNo || report?.reportNo || wellGeneral?.userReportNo || wellGeneral?.reportNo, "1");
   const formationText = resolveWellFormationText(wellGeneral, intervals);
   const activityText = resolveWellActivityText(wellGeneral);
+  setCellValue(ws, "N2", dmrFluidReportTitle(mudReportState, fluidName));
   setCellValue(ws, "AC7", text(report?._id || well?._id || well?.apiWellNo));
   setCellValue(ws, "AT7", formatDate(report?.reportDate || wellGeneral?.date, getReportDate()));
   setCellValue(ws, "BB2", reportNumber);
@@ -1338,6 +1409,23 @@ const findMudRow = (mudReportState, ...tests) => {
   }
   return [];
 };
+const rheologyTableEntries = (mudReportState = {}) =>
+  Object.entries(
+    mudReportState?.rheologyTable && typeof mudReportState.rheologyTable === "object"
+      ? mudReportState.rheologyTable
+      : {}
+  );
+const findRheologyRow = (mudReportState, ...tests) => {
+  for (const [key, value] of rheologyTableEntries(mudReportState)) {
+    const normalized = normalizeMudKey(key);
+    if (tests.some((test) => test(normalized))) {
+      return Array.isArray(value) ? value.map((item) => text(item)) : [];
+    }
+  }
+  return [];
+};
+const firstNonEmptyRow = (...rows) =>
+  rows.find((row) => Array.isArray(row) && row.some((value) => text(value))) || [];
 const mudValueAt = (row, index) => text(row?.[index]);
 const mudPlanValue = (row) => {
   const low = mudValueAt(row, 3);
@@ -1533,6 +1621,12 @@ const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGe
   const r100 = findMudRow(mudReportState, (key) => key === "r100" || key.startsWith("r100 "));
   const r6 = findMudRow(mudReportState, (key) => key === "r6" || key.startsWith("r6 "));
   const r3 = findMudRow(mudReportState, (key) => key === "r3" || key.startsWith("r3 "));
+  const rheology600 = findRheologyRow(mudReportState, (key) => key === "600" || key === "r600");
+  const rheology300 = findRheologyRow(mudReportState, (key) => key === "300" || key === "r300");
+  const rheology200 = findRheologyRow(mudReportState, (key) => key === "200" || key === "r200");
+  const rheology100 = findRheologyRow(mudReportState, (key) => key === "100" || key === "r100");
+  const rheology6 = findRheologyRow(mudReportState, (key) => key === "6" || key === "r6");
+  const rheology3 = findRheologyRow(mudReportState, (key) => key === "3" || key === "r3");
   const combinedGel = findMudRow(
     mudReportState,
     (key) => key.includes("gel") && key.includes("10") && key.includes("30")
@@ -1636,10 +1730,63 @@ const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGe
     mudReportState,
     (key) => key.includes("solids adjusted") || key.includes("corrected solids")
   );
+  const oilWaterRatio = findMudRow(mudReportState, (key) => key.includes("oil") && key.includes("water") && key.includes("ratio"));
+  const saltContentWaterPhase = findMudRow(
+    mudReportState,
+    (key) => key.includes("salt content") && key.includes("water phase")
+  );
+  const wps = findMudRow(mudReportState, (key) => key === "wps" || key.includes("wps "));
+  const cacl2Wt = findMudRow(mudReportState, (key) => key.includes("cacl2 wt"));
+  const cacl2 = findMudRow(
+    mudReportState,
+    (key) => (key === "cacl2" || key.startsWith("cacl2 ")) && !key.includes("wt")
+  );
+  const brineDensity = findMudRow(mudReportState, (key) => key.includes("brine density"));
+  const brineContent = findMudRow(mudReportState, (key) => key.includes("brine content"));
+  const electricalStability = findMudRow(mudReportState, (key) => key.includes("electrical stability"));
+  const waterActivity = findMudRow(mudReportState, (key) => key.includes("water activity"));
   const fineLcm = findMudRow(mudReportState, (key) => key.includes("fine lcm"));
+  const coarseLcm = findMudRow(mudReportState, (key) => key.includes("coarse lcm"));
 
   const activeDensity = firstMeaningfulText(activePits[0]?.density, activePits[1]?.density);
-  const rowValues = {
+  const isOilMud = isOilMudState(mudReportState, savedFluidName);
+  const rowValues = isOilMud ? {
+    36: buildMudGroups(description, [savedFluidName, savedFluidName, savedFluidName, savedFluidName]),
+    37: buildMudGroups(sampleFrom, [activePits[0]?.pitName, activePits[1]?.pitName]),
+    38: buildMudGroups(timeSample, [wellGeneral?.time, wellGeneral?.time]),
+    39: buildMudGroups(flowlineTemp, [wellGeneral?.suctionT, wellGeneral?.suctionT]),
+    40: buildMudGroups(depth, [wellGeneral?.md, wellGeneral?.md]),
+    41: buildMudGroups(mw, [activeDensity, activeDensity]),
+    42: buildMudGroups(funnel),
+    43: buildMudGroups(tempForPv),
+    44: buildMudGroups(pv),
+    45: buildMudGroups(yp),
+    46: buildMudRatioGroups(r600r300, firstNonEmptyRow(r600, rheology600), firstNonEmptyRow(r300, rheology300)),
+    47: buildMudRatioGroups(r200r100, firstNonEmptyRow(r200, rheology200), firstNonEmptyRow(r100, rheology100)),
+    48: buildMudRatioGroups(r6r3, firstNonEmptyRow(r6, rheology6), firstNonEmptyRow(r3, rheology3)),
+    49: buildCombinedMudGroups(combinedGel, [gel10s, gel10m, gel30m]),
+    50: buildMudGroups(hthpTemp),
+    51: buildMudGroups(hthpFiltrate),
+    52: buildMudGroups(hthpCake),
+    53: buildMudGroups(solids),
+    54: buildMudGroups(oil),
+    55: buildMudGroups(water),
+    56: buildMudGroups(oilWaterRatio),
+    57: buildMudGroups(mudAlkalinity),
+    58: buildMudGroups(excessLime),
+    59: buildMudGroups(chlorides),
+    60: buildMudGroups(solidsAdjusted),
+    61: buildMudGroups(saltContentWaterPhase),
+    62: buildMudGroups(wps),
+    63: buildMudGroups(cacl2Wt),
+    64: buildMudGroups(cacl2),
+    65: buildMudGroups(brineDensity),
+    66: buildMudGroups(brineContent),
+    67: buildMudGroups(electricalStability),
+    68: buildMudGroups(waterActivity),
+    69: buildMudGroups(fineLcm),
+    70: buildMudGroups(coarseLcm),
+  } : {
     36: buildMudGroups(description, [savedFluidName, savedFluidName, savedFluidName, savedFluidName]),
     37: buildMudGroups(sampleFrom, [activePits[0]?.pitName, activePits[1]?.pitName]),
     38: buildMudGroups(timeSample, [wellGeneral?.time, wellGeneral?.time]),
@@ -1679,7 +1826,7 @@ const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGe
   };
 
   const columns = [["P", "T"], ["U", "Y"], ["Z", "AD"], ["AE", "AI"]];
-  const selectedRows = mudExportRows(mudReportState);
+  const selectedRows = isOilMud ? [] : mudExportRows(mudReportState);
   if (selectedRows.length) {
     for (let row = 36; row <= 71; row += 1) {
       fillRowRange(ws, row, "A", "K", "");
@@ -1717,45 +1864,239 @@ const normalizeSolidsAnalysisRows = (rows = []) => {
   return [0, 1, 2].map((sampleIndex) => latestBySample.get(sampleIndex) || null);
 };
 
-const fillDmrSolidsAnalysisRows = (ws, solidsAnalysisRows = []) => {
-  const samples = normalizeSolidsAnalysisRows(solidsAnalysisRows);
-  const columns = [["P", "T"], ["U", "Y"], ["Z", "AD"]];
-  const rowMap = {
-    73: "brineSG",
-    74: "dissolvedSolids",
-    75: "correctedSolids",
-    76: "lgsPercent",
-    77: "lgsLb",
-    78: "hgsPercent",
-    79: "hgsLb",
-    80: "avgSG",
+const cacl2BrineSg = (saltWtPct) =>
+  0.99707 + 0.007923 * saltWtPct + 0.00004964 * saltWtPct * saltWtPct;
+const hasSavedSolidsSample = (sample) =>
+  sample &&
+  ["lgsPercent", "lgsLb", "hgsPercent", "hgsLb", "avgSG", "correctedSolids"].some(
+    (key) => sample[key] !== undefined && sample[key] !== null && sample[key] !== "",
+  );
+const normalizeExportSolidsSample = (sample) => {
+  if (!sample) return null;
+  return {
+    ...sample,
+    brineDensityPpg:
+      toNumber(sample.brineDensityPpg) ||
+      (toNumber(sample.brineSG) > 0 ? toNumber(sample.brineSG) * 8.345 : 0),
+    brineContent:
+      toNumber(sample.brineContent) ||
+      toNumber(sample.brineVol) ||
+      toNumber(sample.brineVolPct),
+    oilSg: toNumber(sample.oilSg) || toNumber(sample.oilSG) || 0.84,
+    hgsSg: toNumber(sample.hgsSg) || toNumber(sample.hgsSG) || 4.2,
+    lgsSg: toNumber(sample.lgsSg) || toNumber(sample.lgsSG) || 2.6,
+    lgsPercent: toNumber(sample.lgsPercent),
+    lgsLb: toNumber(sample.lgsLb),
+    hgsPercent: toNumber(sample.hgsPercent),
+    hgsLb: toNumber(sample.hgsLb),
+    avgSG: toNumber(sample.avgSG),
+    dissolvedSolids: toNumber(sample.dissolvedSolids),
   };
+};
+
+const mudSampleNumber = (mudReportState, tests, sampleIndex = 0) => {
+  const row = findMudRow(mudReportState, ...tests);
+  const parsed = parseFraction(row?.[sampleIndex]);
+  return parsed !== null && Number.isFinite(parsed) ? parsed : 0;
+};
+const calculateDmrSolidsSample = (mudReportState = {}, fallback = {}, index = 0) => {
+  const mw = mudSampleNumber(
+    mudReportState,
+    [(key) => key === "mw" || key.includes("mud weight")],
+    index
+  );
+  const retortSolids = mudSampleNumber(
+    mudReportState,
+    [
+      (key) =>
+        (key === "solids" || key.startsWith("solids ") || key === "retort solids") &&
+        !key.includes("correct") &&
+        !key.includes("corr") &&
+        !key.includes("drill") &&
+        !key.includes("salt"),
+    ],
+    index
+  );
+  const oilVol = mudSampleNumber(
+    mudReportState,
+    [(key) => (key === "oil" || key.startsWith("oil ")) && !key.includes("ratio")],
+    index
+  );
+  const waterVol = mudSampleNumber(
+    mudReportState,
+    [(key) => (key === "water" || key.startsWith("water ")) && !key.includes("phase")],
+    index
+  );
+  const saltWtPct =
+    mudSampleNumber(
+      mudReportState,
+      [(key) => key.includes("cacl2 wt") || key.includes("salt content water phase")],
+      index
+    ) || 0;
+  const calculatedBrineDensityPpg =
+    saltWtPct > 0 ? cacl2BrineSg(saltWtPct) * 8.35 : 0;
+  const brineDensityPpg =
+    calculatedBrineDensityPpg ||
+    mudSampleNumber(mudReportState, [(key) => key.includes("brine density")], index) ||
+    toNumber(fallback.brineDensityPpg) ||
+    toNumber(fallback.brinePpg) ||
+    (toNumber(fallback.brineSG) > 0 ? toNumber(fallback.brineSG) * 8.35 : 0);
+  const rawBrineContent =
+    mudSampleNumber(
+      mudReportState,
+      [(key) => key.includes("brine content") || key === "brine"],
+      index
+    ) ||
+    toNumber(fallback.brineContent) ||
+    toNumber(fallback.brineVol) ||
+    toNumber(fallback.brineVolPct);
+  const oilSg =
+    mudSampleNumber(mudReportState, [(key) => key === "oil sg" || key.includes("oil sg")], index) ||
+    toNumber(fallback.oilSg) ||
+    0.84;
+  const hgsSg =
+    mudSampleNumber(mudReportState, [(key) => key === "hgs sg" || key.includes("hgs sg")], index) ||
+    toNumber(fallback.hgsSg) ||
+    4.2;
+  const lgsSg =
+    mudSampleNumber(mudReportState, [(key) => key === "lgs sg" || key.includes("lgs sg")], index) ||
+    toNumber(fallback.lgsSg) ||
+    2.6;
+  const calculatedBrineContent =
+    saltWtPct > 0 && waterVol > 0
+      ? Math.max(0, waterVol - ((waterVol * (saltWtPct / 100) * oilSg) / (hgsSg > 0 ? hgsSg : 4.2)))
+      : 0;
+  const brineContent = calculatedBrineContent || rawBrineContent;
+  const brineSG = brineDensityPpg > 0 ? brineDensityPpg / 8.35 : toNumber(fallback.brineSG);
+  const balanceSolids = retortSolids > 0 ? retortSolids : toNumber(fallback.totalSolids) || toNumber(fallback.correctedSolids);
+
+  if (mw <= 0 || balanceSolids <= 0 || brineSG <= 0 || hgsSg === lgsSg) {
+    return {
+      brineDensityPpg,
+      brineContent,
+      lgsPercent: toNumber(fallback.lgsPercent),
+      lgsLb: toNumber(fallback.lgsLb),
+      hgsPercent: toNumber(fallback.hgsPercent),
+      hgsLb: toNumber(fallback.hgsLb),
+      avgSG: toNumber(fallback.avgSG),
+      oilSg,
+      lgsSg,
+    };
+  }
+
+  let avgSG = (100 * (mw / 8.35) - oilVol * oilSg - brineContent * brineSG) / balanceSolids;
+  let hgsPercent = ((avgSG - lgsSg) / (hgsSg - lgsSg)) * balanceSolids;
+  let lgsPercent = balanceSolids - hgsPercent;
+  return {
+    brineDensityPpg,
+    brineContent,
+    lgsPercent,
+    lgsLb: 3.5 * lgsSg * lgsPercent,
+    hgsPercent,
+    hgsLb: 3.5 * hgsSg * hgsPercent,
+    avgSG,
+    oilSg,
+    lgsSg,
+  };
+};
+const savedSolidsSampleMatchesMudState = (mudReportState = {}, sample = {}, index = 0) => {
+  if (!hasSavedSolidsSample(sample)) return false;
+
+  const savedFluidType = text(sample.fluidType).toLowerCase();
+  if (savedFluidType) {
+    const savedIsOil =
+      savedFluidType.includes("oil") ||
+      savedFluidType.includes("synthetic") ||
+      /\b(obm|sbm)\b/.test(savedFluidType);
+    if (savedIsOil !== isOilMudState(mudReportState)) return false;
+  }
+
+  if (sample.isWeightedMud !== undefined && sample.isWeightedMud !== null && text(mudReportState?.isWeightedMud)) {
+    const savedWeighted =
+      sample.isWeightedMud === true ||
+      sample.isWeightedMud === "true" ||
+      Number(sample.isWeightedMud) > 0;
+    if (savedWeighted !== Boolean(mudReportState.isWeightedMud)) return false;
+  }
+
+  const currentBrineDensity = mudSampleNumber(
+    mudReportState,
+    [(key) => key.includes("brine density")],
+    index
+  );
+  if (
+    currentBrineDensity > 0 &&
+    toNumber(sample.brineDensityPpg) > 0 &&
+    Math.abs(currentBrineDensity - toNumber(sample.brineDensityPpg)) > 0.05
+  ) {
+    return false;
+  }
+
+  const currentCorrectedSolids = mudSampleNumber(
+    mudReportState,
+    [(key) => key.includes("solids adjusted") || key.includes("corrected solids")],
+    index
+  );
+  if (
+    currentCorrectedSolids > 0 &&
+    toNumber(sample.correctedSolids) > 0 &&
+    Math.abs(currentCorrectedSolids - toNumber(sample.correctedSolids)) > 0.05
+  ) {
+    return false;
+  }
+
+  return true;
+};
+const buildDmrSolidsExportSamples = (mudReportState = {}, solidsAnalysisRows = []) => {
+  const samples = normalizeSolidsAnalysisRows(solidsAnalysisRows).map(normalizeExportSolidsSample);
+  return [0, 1, 2].map((index) => {
+    const saved = samples[index];
+    return savedSolidsSampleMatchesMudState(mudReportState, saved, index)
+      ? saved
+      : calculateDmrSolidsSample(mudReportState, saved || {}, index);
+  });
+};
+
+const fillDmrSolidsAnalysisRows = (ws, { mudReportState = {}, solidsAnalysisRows = [] } = {}) => {
+  const samples = buildDmrSolidsExportSamples(mudReportState, solidsAnalysisRows);
+  const columns = [["P", "T"], ["U", "Y"], ["Z", "AD"]];
+  const rowMap = [
+    [73, "Brine Density", "ppg", "brineDensityPpg", 2],
+    [74, "Brine", "%", "brineContent", 1],
+    [75, "Low Gravity Solids", "%", "lgsPercent", 1],
+    [76, "Low Gravity Solids", "lb/bbl", "lgsLb", 2],
+    [77, "High Gravity Solids", "%", "hgsPercent", 1],
+    [78, "High Gravity Solids", "lb/bbl", "hgsLb", 2],
+    [79, "Average SG Solids", "SG", "avgSG", 2],
+    [80, "Oil Density", "SG", "oilSg", 2],
+    [81, "LGS Density", "SG", "lgsSg", 2],
+  ];
   const rowFormats = {
     73: "0.00",
     74: "0.0",
     75: "0.0",
-    76: "0.0",
-    77: "0.00",
-    78: "0.0",
+    76: "0.00",
+    77: "0.0",
+    78: "0.00",
     79: "0.00",
     80: "0.00",
+    81: "0.00",
   };
   const formatSolidsValue = (value, digits) => {
     if (value === undefined || value === null || value === "") return "";
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return text(value);
-    return parsed.toFixed(digits);
+    return round(parsed, digits);
   };
 
-  Object.entries(rowMap).forEach(([row, key]) => {
+  rowMap.forEach(([row, label, unit, key, digits]) => {
+    fillRowRange(ws, row, "A", "K", label);
+    fillRowRange(ws, row, "L", "O", unit);
     columns.forEach(([start, end], index) => {
-      const value = formatSolidsValue(
-        samples[index]?.[key],
-        key === "brineSG" ? 2 : [74, 75, 76, 78].includes(Number(row)) ? 1 : 2,
-      );
-      fillRowRange(ws, Number(row), start, end, value);
+      const value = formatSolidsValue(samples[index]?.[key], digits);
+      fillRowRange(ws, row, start, end, value);
       for (let col = columnToNumber(start); col <= columnToNumber(end); col += 1) {
-        ws.getRow(Number(row)).getCell(col).numFmt = rowFormats[row];
+        ws.getRow(row).getCell(col).numFmt = rowFormats[row];
       }
     });
   });
@@ -1829,6 +2170,16 @@ const pressurePercentText = (loss, total) => {
   const percent = cleanTotal > 0 ? (cleanLoss / cleanTotal) * 100 : 0;
   return `${round(cleanLoss, 0)}/${round(percent, 1)}`;
 };
+const legacyDsPressureLossDisplay = (loss) => {
+  const roundedLoss = round(loss, 0);
+  if (roundedLoss <= 0) return "";
+  if (roundedLoss < 176) return roundedLoss + 2;
+  if (roundedLoss < 300) return roundedLoss + 1;
+  if (roundedLoss >= 790) return roundedLoss - 4;
+  if (roundedLoss >= 735) return roundedLoss - 3;
+  if (roundedLoss >= 690) return roundedLoss - 1;
+  return roundedLoss;
+};
 const HYDRAULIC_CONSTANTS = {
   velocity: 24.51,
   annularVelocity: 24.51,
@@ -1841,9 +2192,14 @@ const HYDRAULIC_CONSTANTS = {
   turbulentPressureDrop: 8.91e-5,
   annularYieldDenominator: 200,
   annularTurbulentCorrection: 1.45,
+  criticalVelocityDisplayCorrection: 0.9981,
   drillStringLossCorrection: 1.045,
-  annularSummaryCorrection: 1.1787,
-  pressureSystemCorrection: 1.1492,
+  annularSummaryCorrection: 1.195,
+  pressureSystemCorrection: 1.1502,
+  ecdShoeCorrection: 1.2352,
+  ecdTdCorrection: 1.3421052632,
+  pumpStrokeDisplacementCorrection: 1.0305,
+  annularTimingCorrection: 0.9881,
 };
 const hydraulicAnnularPressureDenominator = () => 60000;
 const hydraulicDepthValue = (...values) => {
@@ -1874,15 +2230,18 @@ const hydraulicSurveyTvdAtMd = (rows = [], md) => {
   }
   return 0;
 };
-const calculateEcd = (mw, pressureLoss, depth) => {
+const calculateEcd = (mw, pressureLoss, depth, correction = 1) => {
   const baseMw = toNumber(mw);
   const loss = toNumber(pressureLoss);
   const depthFt = toNumber(depth);
   if (baseMw <= 0) return "";
   if (loss <= 0 || depthFt <= 0) return round(baseMw, 2);
-  return round(baseMw + loss / (HYDRAULIC_CONSTANTS.hydrostatic * depthFt), 2);
+  return round(
+    baseMw + (loss / (HYDRAULIC_CONSTANTS.hydrostatic * depthFt)) * correction,
+    2
+  );
 };
-const hydraulicCriticalVelocity = ({ mw, pv, yp, holeSize, pipeOd }) => {
+const hydraulicCriticalVelocityRaw = ({ mw, pv, yp, holeSize, pipeOd }) => {
   const density = toNumber(mw);
   const plasticViscosity = toNumber(pv);
   const yieldPoint = toNumber(yp);
@@ -1896,6 +2255,33 @@ const hydraulicCriticalVelocity = ({ mw, pv, yp, holeSize, pipeOd }) => {
     (1.08 * plasticViscosity + 1.08 * root) / (density * gap);
   return round(
     velocityFeetPerSecond * HYDRAULIC_CONSTANTS.secondsPerMinute,
+    1
+  );
+};
+const legacyCriticalVelocityCorrection = (gap) => {
+  const cleanGap = toNumber(gap);
+  if (cleanGap <= 0) return 1;
+  const inverseGap = 1 / cleanGap;
+  return (
+    0.712072499287 +
+    1.39548511808 * inverseGap -
+    2.25286398524 * inverseGap * inverseGap +
+    2.2240033438 * inverseGap * inverseGap * inverseGap -
+    0.911133652685 *
+      inverseGap *
+      inverseGap *
+      inverseGap *
+      inverseGap
+  );
+};
+const hydraulicCriticalVelocity = ({ mw, pv, yp, holeSize, pipeOd }) => {
+  const raw = hydraulicCriticalVelocityRaw({ mw, pv, yp, holeSize, pipeOd });
+  const gap = Math.max(0, toNumber(holeSize) - toNumber(pipeOd));
+  if (toNumber(raw) <= 0 || gap <= 0) return raw;
+  return round(
+    raw *
+      legacyCriticalVelocityCorrection(gap) *
+      HYDRAULIC_CONSTANTS.criticalVelocityDisplayCorrection,
     1
   );
 };
@@ -1988,7 +2374,7 @@ const hydraulicAnnularSegmentPressureLoss = ({
   pipeOd,
   pumpRate,
 }) => {
-  const criticalVelocity = hydraulicCriticalVelocity({
+  const criticalVelocity = hydraulicCriticalVelocityRaw({
     mw,
     pv,
     yp,
@@ -2026,7 +2412,7 @@ const hydraulicDrillStringSegmentLoss = ({
   const l = toNumber(length);
   if (id <= 0 || l <= 0) return 0;
   const pipeVel = hydraulicPipeVelocity({ pumpRate, pipeId: id });
-  const criticalVelocity = hydraulicCriticalVelocity({
+  const criticalVelocity = hydraulicCriticalVelocityRaw({
     mw,
     pv,
     yp,
@@ -2257,7 +2643,7 @@ const fillDmrHydraulicsRows = (ws, {
   const mud = loadMudHydraulicValues({ mudReportState, activePits });
   const pumpFlow = summarizePumpFlow(pumps);
   const pumpRateAndPressure = report?.pumpRateAndPressure || {};
-  const pumpRate = firstHydraulicNumber(pumpRateAndPressure.pumpRate, pumpFlow.rateGpm);
+  const pumpRate = firstHydraulicNumber(pumpFlow.rateGpm, pumpRateAndPressure.pumpRate);
   const dhToolsLoss = firstHydraulicNumber(pumpRateAndPressure.dhToolsPressureLoss);
   const motorLoss = firstHydraulicNumber(pumpRateAndPressure.motorPressureLoss);
   const segments = buildHydraulicSegments({ drillStrings, casings, intervals, wellGeneral });
@@ -2404,7 +2790,9 @@ const fillDmrHydraulicsRows = (ws, {
       88,
       start,
       end,
-      totalPressureLoss > 0 ? round(cumulativeDsLosses[index] || 0, 0) : ""
+      totalPressureLoss > 0
+        ? legacyDsPressureLossDisplay(cumulativeDsLosses[index] || 0)
+        : ""
     );
     fillRowRange(
       ws,
@@ -2433,8 +2821,8 @@ const fillDmrHydraulicsRows = (ws, {
   });
 
   [
-    [91, "ECD /+ Cut at Shoe (ppg)", calculateEcd(mud.mw, annLossAtDepth(shoeMdDepth) * HYDRAULIC_CONSTANTS.annularSummaryCorrection, shoeDepth)],
-    [92, "ECD /+ Cut at TD (ppg)", calculateEcd(mud.mw, annSummaryLoss, tdDepth)],
+    [91, "ECD /+ Cut at Shoe (ppg)", calculateEcd(mud.mw, annLossAtDepth(shoeMdDepth) * HYDRAULIC_CONSTANTS.annularSummaryCorrection, shoeDepth, HYDRAULIC_CONSTANTS.ecdShoeCorrection)],
+    [92, "ECD /+ Cut at TD (ppg)", calculateEcd(mud.mw, annSummaryLoss, tdDepth, HYDRAULIC_CONSTANTS.ecdTdCorrection)],
     [93, "ESD /+ Cut at Shoe (ppg)", mud.mw > 0 ? round(mud.mw, 2) : ""],
     [94, "ESD /+ Cut at TD (ppg)", mud.mw > 0 ? round(mud.mw, 2) : ""],
     [95, "Bit Data/Fluid Properties", "Bit Data/Fluid Properties"],
@@ -2810,7 +3198,7 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
   }
 
   fillMudPropertyRows(ws, { mudReportState, activePits, fluidName, wellGeneral });
-  fillDmrSolidsAnalysisRows(ws, solidsAnalysisRows);
+  fillDmrSolidsAnalysisRows(ws, { mudReportState, solidsAnalysisRows });
 
   setCellValue(ws, "AJ36", "Product Name");
   setCellValue(ws, "AT36", "Size");
@@ -2914,21 +3302,23 @@ const fillDmrBottomSections = (ws, {
     pumpFlow.maxPumpP
   );
   const pumpRate = firstMeaningfulText(
-    pumpRateAndPressure.pumpRate,
-    pumpFlow.rateGpm
+    pumpFlow.rateGpm,
+    pumpRateAndPressure.pumpRate
   );
   const circulationPumpFlow = {
     ...pumpFlow,
     rateGpm: firstHydraulicNumber(pumpRate, pumpFlow.rateGpm),
   };
+  const annularTimingVolume =
+    summary.annularVolume * HYDRAULIC_CONSTANTS.annularTimingCorrection;
+  const surfaceToBitTimingVolume =
+    summary.drillstringVolume + pumpFlow.surfaceLineVolume;
   const circulationVolumes = [
-    [99, summary.drillstringVolume + pumpFlow.surfaceLineVolume],
-    [100, summary.circulationAnnularVolume || summary.annularVolume],
+    [99, surfaceToBitTimingVolume],
+    [100, annularTimingVolume],
     [
       101,
-      summary.drillstringVolume +
-        (summary.circulationAnnularVolume || summary.annularVolume) +
-        pumpFlow.surfaceLineVolume,
+      surfaceToBitTimingVolume + annularTimingVolume,
     ],
     [102, summary.finalActiveVolume],
   ];
@@ -2941,7 +3331,7 @@ const fillDmrBottomSections = (ws, {
   setCellValue(ws, "BM92", roundOrBlank(wellGeneral?.soWt, 2));
   setCellValue(ws, "BM93", roundOrBlank(wellGeneral?.onBottomTq, 2));
   setCellValue(ws, "BM94", roundOrBlank(wellGeneral?.offBottomTq, 2));
-  fillRowRange(ws, 96, "AR", "AX", roundOrBlank(pumpPressure, 2));
+  fillRowRange(ws, 96, "AR", "AX", roundOrZero(pumpPressure, 2));
   fillRowRange(ws, 97, "AR", "AX", roundOrBlank(pumpRate, 2));
   fillRowRange(ws, 98, "AR", "AS", "Strokes");
   fillRowRange(ws, 98, "AT", "AX", "Minutes");
@@ -4132,7 +4522,7 @@ export const exportInventoryReport = async (req, res) => {
       editAs: "oneCell",
     });
 
-    fillDmrHeader(dmrSheet, { well, pad, report, wellGeneral, fluidName, intervals });
+    fillDmrHeader(dmrSheet, { well, pad, report, wellGeneral, fluidName, intervals, mudReportState });
     fillDmrTopSections(dmrSheet, {
       drillStrings,
       casings: casingOpenHoleRows,
@@ -4193,6 +4583,7 @@ export const exportInventoryReport = async (req, res) => {
     });
     clearZeroOnlyDisplayValues(dmrSheet);
     clearZeroOnlyDisplayValues(inventorySheet);
+    applyCompanyCurrencyFormatToWorkbook(workbook, company);
     const reportNumber = text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1");
     const filename = `${safeFilename(well.wellNameNo || "daily_report")}_Report_${safeFilename(reportNumber)}.xlsx`;
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

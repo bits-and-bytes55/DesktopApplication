@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 
@@ -122,7 +123,11 @@ class _PitViewState extends State<PitView> {
 
   String _capacityText(PitModel pit) {
     if (pit.capacity.value <= 0) return '';
-    return pit.capacity.value.toStringAsFixed(2);
+    return formatOperationNumber(
+      pit.capacity.value,
+      fallbackDecimals: 2,
+      trimFallback: true,
+    );
   }
 
   Widget _headerCell(

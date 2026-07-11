@@ -12,6 +12,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/formation_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/formation_row_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:win32/win32.dart';
@@ -58,6 +59,14 @@ class _FormationViewState extends State<FormationView> {
   bool get _rowsReadOnly => _isLocked || controller.poreFromTop.value;
 
   bool _rowHasData(FormationRow row) => row.hasData;
+
+  String _formatFormationNumberText(String value) {
+    return formatOperationInputText(
+      value,
+      fallbackDecimals: 3,
+      trimFallback: true,
+    );
+  }
 
   _FormationLayout _layoutFor(double totalWidth, bool showGraph) {
     final desiredGraphWidth = showGraph
@@ -260,8 +269,12 @@ class _FormationViewState extends State<FormationView> {
     bool highlightWhenReadOnly = true,
     TextAlign textAlign = TextAlign.left,
     List<TextInputFormatter>? inputFormatters,
+    bool formatNumber = false,
   }) {
     final isEditable = !_rowsReadOnly && editableWhenUnlocked;
+    final displayValue = formatNumber
+        ? _formatFormationNumberText(value)
+        : value;
     return Container(
       width: width,
       height: _rowHeight,
@@ -279,8 +292,8 @@ class _FormationViewState extends State<FormationView> {
       ),
       child: isEditable
           ? TextFormField(
-              key: ValueKey(value),
-              initialValue: value,
+              key: ValueKey(displayValue),
+              initialValue: displayValue,
               onChanged: onChanged,
               textAlign: textAlign,
               inputFormatters: inputFormatters,
@@ -296,12 +309,12 @@ class _FormationViewState extends State<FormationView> {
                   ? Alignment.centerLeft
                   : Alignment.centerRight,
               child: Text(
-                value,
+                displayValue,
                 textAlign: textAlign,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: value.isEmpty
+                  color: displayValue.isEmpty
                       ? const Color(0xFFB2B7BF)
                       : const Color(0xFF2F2F2F),
                 ),
@@ -687,6 +700,7 @@ class _FormationViewState extends State<FormationView> {
             width: layout.tvdWidth,
             editableWhenUnlocked: true,
             textAlign: TextAlign.left,
+            formatNumber: true,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}$')),
             ],
@@ -698,6 +712,7 @@ class _FormationViewState extends State<FormationView> {
             width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('porePpg'),
             textAlign: TextAlign.left,
+            formatNumber: true,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
             ],
@@ -709,6 +724,7 @@ class _FormationViewState extends State<FormationView> {
             width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('poreGrad'),
             textAlign: TextAlign.left,
+            formatNumber: true,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}$')),
             ],
@@ -720,6 +736,7 @@ class _FormationViewState extends State<FormationView> {
             width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('porePsi'),
             textAlign: TextAlign.left,
+            formatNumber: true,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}$')),
             ],
@@ -731,6 +748,7 @@ class _FormationViewState extends State<FormationView> {
             width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('fracPpg'),
             textAlign: TextAlign.left,
+            formatNumber: true,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
             ],
@@ -742,6 +760,7 @@ class _FormationViewState extends State<FormationView> {
             width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('fracGrad'),
             textAlign: TextAlign.left,
+            formatNumber: true,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}$')),
             ],
@@ -753,6 +772,7 @@ class _FormationViewState extends State<FormationView> {
             width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('fracPsi'),
             textAlign: TextAlign.left,
+            formatNumber: true,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}$')),
             ],

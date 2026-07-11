@@ -59,16 +59,41 @@ int? _wellDecimalPlacesFromText(String value) {
   return (text.length - decimalIndex - 1).clamp(0, 12).toInt();
 }
 
+int? _wellCompanyFormatDigits() {
+  if (!Get.isRegistered<CompanyController>()) return null;
+  final format = Get.find<CompanyController>().currencyFormat.value.trim();
+  if (format.isEmpty || format == 'Default') return null;
+  final dot = format.indexOf('.');
+  return dot < 0 ? 0 : (format.length - dot - 1).clamp(0, 6).toInt();
+}
+
+String _trimFixedZeros(String value) =>
+    value.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+
+String _formatWellNumber(
+  double value, {
+  int fallbackDecimals = 2,
+  bool trimFallback = true,
+}) {
+  final digits = _wellCompanyFormatDigits();
+  if (digits != null) return value.toStringAsFixed(digits);
+  final fixed = value.toStringAsFixed(fallbackDecimals);
+  return trimFallback ? _trimFixedZeros(fixed) : fixed;
+}
+
+String _formatWellPreciseNumber(double value) => _trimFixedZeros(
+      value.toStringAsFixed(4),
+    );
+
 String _formatWellConvertedNumber(double value, {String? sourceText}) {
+  final companyDigits = _wellCompanyFormatDigits();
+  if (companyDigits != null) return value.toStringAsFixed(companyDigits);
   final sourceDecimals =
       sourceText == null ? null : _wellDecimalPlacesFromText(sourceText);
   if (sourceDecimals != null) {
     return value.toStringAsFixed(sourceDecimals);
   }
-  return value
-      .toStringAsFixed(4)
-      .replaceAll(RegExp(r'0+$'), '')
-      .replaceAll(RegExp(r'\.$'), '');
+  return _formatWellPreciseNumber(value);
 }
 
 String _displayCurrencyLabel(String rawCurrency) {
@@ -687,10 +712,7 @@ class _GeneralSectionState extends State<GeneralSection> {
   }
 
   String _formatNumber(double value) {
-    return value
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return _formatWellNumber(value, fallbackDecimals: 4);
   }
 
   Future<void> _fetchActivities() async {
@@ -1536,10 +1558,7 @@ class _MiddlePortionState extends State<MiddlePortion> {
   }
 
   String _formatNumber(double value, {int decimals = 2}) {
-    return value
-        .toStringAsFixed(decimals)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return _formatWellNumber(value, fallbackDecimals: decimals);
   }
 
   double? _resolveHoleDiameterInches() {
@@ -2252,10 +2271,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
   }
 
   String _formatNumber(double value, {int decimals = 2}) {
-    return value
-        .toStringAsFixed(decimals)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return _formatWellNumber(value, fallbackDecimals: decimals);
   }
 
   double? _parseNumber(String rawValue) {
@@ -2751,10 +2767,7 @@ class _DrillStringSectionState extends State<DrillStringSection> {
   }
 
   String _formatNumber(double value, {int decimals = 2}) {
-    return value
-        .toStringAsFixed(decimals)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return _formatWellNumber(value, fallbackDecimals: decimals);
   }
 
   int _targetRowIndex() {
@@ -3074,7 +3087,10 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 6),
                           child: Text(
-                            ds.totalLength.value.toStringAsFixed(1),
+                            _formatWellNumber(
+                              ds.totalLength.value,
+                              fallbackDecimals: 1,
+                            ),
                             textAlign: TextAlign.left,
                             style: const TextStyle(
                               fontSize: 11,
@@ -3343,10 +3359,7 @@ class _BitSectionState extends State<BitSection> {
     if (parsed == null) return raw;
     final converted = AppUnits.convertValue(parsed, 'in', _diameterUnit);
     final value = converted ?? parsed;
-    return value
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return _formatWellNumber(value, fallbackDecimals: 4);
   }
 
   String _storeBitSize(String rawValue) {
@@ -3356,10 +3369,7 @@ class _BitSectionState extends State<BitSection> {
     if (parsed == null) return raw;
     final converted = AppUnits.convertValue(parsed, _diameterUnit, 'in');
     final value = converted ?? parsed;
-    return value
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return _formatWellPreciseNumber(value);
   }
 
   void _handleUnitChange() {
@@ -3405,10 +3415,7 @@ class _BitSectionState extends State<BitSection> {
     if (result == null) {
       return rawValue;
     }
-    return result
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return _formatWellNumber(result, fallbackDecimals: 4);
   }
 
   void _applyDefaultBitDepth() {
@@ -3822,7 +3829,10 @@ class _NozzleSectionState extends State<NozzleSection> {
                         child: Text(
                           nc.tfa.value == 0
                               ? ''
-                              : nc.tfa.value.toStringAsFixed(3),
+                              : _formatWellNumber(
+                                  nc.tfa.value,
+                                  fallbackDecimals: 3,
+                                ),
                           textAlign: TextAlign.left,
                           style: const TextStyle(
                             fontSize: 11,
