@@ -37,6 +37,9 @@ import { calculateCombinedHoleVolumeResult } from "../pitvolumename/volumeName.c
 const TEMPLATE_PATH = fileURLToPath(
   new URL("../../../assets/template.xlsx", import.meta.url)
 );
+const COST_OF_PAD_TEMPLATE_PATH = fileURLToPath(
+  new URL("../../../assets/cost_of_pad_template.xlsx", import.meta.url)
+);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PAD_LOGO_UPLOADS_ROOT = path.resolve(__dirname, "../../uploads/pad-logos");
@@ -3467,6 +3470,249 @@ const loadDmrCostSummary = async ({
   };
 };
 
+const costPadCategoryKey = (value) =>
+  text(value).toLowerCase().replace(/[\s_-]+/g, "");
+const costPadCategoryTotal = (rows = [], aliases = []) => {
+  const keys = aliases.map(costPadCategoryKey);
+  return round(
+    sumBy(
+      rows.filter((row) => keys.includes(costPadCategoryKey(row?.category))),
+      snapshotCost
+    ),
+    3
+  );
+};
+const costPadProductRows = (rows = []) =>
+  rows.filter((row) => costPadCategoryKey(row?.category) === "product");
+const costPadDisplayName = (pad = {}) =>
+  firstText(pad?.stockPoint, pad?.padName, pad?.name, pad?.fieldBlock, pad?.rig);
+const copyRowStyle = (ws, sourceRowNumber, targetRowNumber) => {
+  const source = ws.getRow(sourceRowNumber);
+  const target = ws.getRow(targetRowNumber);
+  target.height = source.height;
+  source.eachCell({ includeEmpty: true }, (cell, columnNumber) => {
+    const next = target.getCell(columnNumber);
+    next.style = JSON.parse(JSON.stringify(cell.style || {}));
+    next.numFmt = cell.numFmt;
+    next.alignment = cell.alignment ? { ...cell.alignment } : undefined;
+    next.border = cell.border ? { ...cell.border } : undefined;
+    next.fill = cell.fill ? { ...cell.fill } : undefined;
+    next.font = cell.font ? { ...cell.font } : undefined;
+  });
+};
+const insertStyledRows = (ws, atRow, count, styleSourceRow) => {
+  if (count <= 0) return;
+  ws.insertRows(atRow, Array.from({ length: count }, () => []));
+  for (let index = 0; index < count; index += 1) {
+    copyRowStyle(ws, styleSourceRow, atRow + index);
+  }
+};
+const mergeCostPadInventoryRow = (ws, row) => {
+  [
+    ["A", "G"],
+    ["H", "K"],
+    ["L", "O"],
+    ["P", "U"],
+    ["V", "Y"],
+    ["Z", "AC"],
+    ["AD", "AH"],
+    ["AI", "AL"],
+    ["AM", "AQ"],
+  ].forEach(([start, end]) => {
+    const range = `${start}${row}:${end}${row}`;
+    try {
+      ws.mergeCells(range);
+    } catch (_) {}
+  });
+};
+const normalizeInventoryKey = (row = {}) =>
+  lookupKey(row?.code) || lookupKey(row?.itemName) || lookupKey(row?.product);
+const aggregateCostPadInventoryRows = (rows = []) => {
+  const grouped = new Map();
+  for (const row of costPadProductRows(rows)) {
+    const key = normalizeInventoryKey(row);
+    if (!key) continue;
+    const existing = grouped.get(key) || {
+      itemName: firstText(row?.itemName, row?.product, row?.code),
+      unit: text(row?.unit),
+      price: 0,
+      initial: 0,
+      cumulativeRec: 0,
+      cumulativeRet: 0,
+      cumulativeUsed: 0,
+      final: 0,
+      cost: 0,
+    };
+    existing.itemName = firstText(existing.itemName, row?.itemName, row?.product, row?.code);
+    existing.unit = firstText(existing.unit, row?.unit);
+    existing.price = toNumber(row?.price) || existing.price;
+    existing.initial += toNumber(row?.initial);
+    existing.cumulativeRec += toNumber(row?.cumulativeRec, toNumber(row?.rec));
+    existing.cumulativeRet += toNumber(row?.cumulativeRet, toNumber(row?.ret));
+    existing.cumulativeUsed += toNumber(row?.cumulativeUsed, toNumber(row?.used));
+    existing.final += toNumber(row?.final);
+    existing.cost += snapshotCost(row);
+    grouped.set(key, existing);
+  }
+  return [...grouped.values()].sort((left, right) =>
+    text(left.itemName).localeCompare(text(right.itemName), "en", {
+      sensitivity: "base",
+    })
+  );
+};
+const costPadLatestReport = (reports = []) => {
+  const ordered = sortReportsForCost(reports);
+  return ordered.length > 0 ? ordered[ordered.length - 1] : null;
+};
+const loadCostPadWellRows = async (wells = []) => {
+  const results = [];
+  for (const well of wells) {
+    const wellId = text(well?._id);
+    const reports = sortReportsForCost(await Report.find({ wellId }).lean());
+    const latestReport = costPadLatestReport(reports);
+    const latestRows = latestReport
+      ? await loadInventorySnapshot({
+          wellId,
+          reportId: text(latestReport._id),
+        })
+      : [];
+    const wellGeneralRows = latestReport
+      ? await WellGeneral.find({
+          wellId,
+          $or: [
+            { reportId: text(latestReport._id) },
+            { reportNo: text(latestReport.reportNo) },
+          ],
+        })
+          .sort({ updatedAt: -1, createdAt: -1, _id: -1 })
+          .lean()
+      : [];
+    const latestWellGeneral = wellGeneralRows[0] || {};
+
+    const product = costPadCategoryTotal(latestRows, ["Product"]);
+    const premixed = costPadCategoryTotal(latestRows, [
+      "Premixed",
+      "Pre Mixed",
+      "Pre-mixed",
+    ]);
+    const packages = costPadCategoryTotal(latestRows, ["Package"]);
+    const service = costPadCategoryTotal(latestRows, ["Service"]);
+    const engineering = costPadCategoryTotal(latestRows, ["Engineering"]);
+
+    results.push({
+      well,
+      reports,
+      latestReport,
+      latestRows,
+      td: firstHydraulicNumber(latestWellGeneral?.md, latestWellGeneral?.depthDrilled),
+      days: reports.length,
+      bulkTankSetupFee: toNumber(well?.bulkTankSetupFee),
+      product,
+      premixed,
+      package: packages,
+      service,
+      engineering,
+      total: round(product + premixed + packages + service + engineering, 3),
+    });
+  }
+  return results;
+};
+const fillCostPadExportWorkbook = async ({ workbook, pad, wells }) => {
+  const ws = workbook.getWorksheet("Cost Summary") || workbook.worksheets[0];
+  if (!ws) throw new Error("Cost of Pad template is missing a worksheet");
+
+  const wellRows = await loadCostPadWellRows(wells);
+  const allLatestInventoryRows = wellRows.flatMap((item) => item.latestRows);
+  const productRows = aggregateCostPadInventoryRows(allLatestInventoryRows);
+  const wellExtraRows = Math.max(0, wellRows.length - 1);
+  insertStyledRows(ws, 15, wellExtraRows, 14);
+  const totalRow = 15 + wellExtraRows;
+  const inventoryTitleRow = 16 + wellExtraRows;
+  const inventoryHeaderRow = 17 + wellExtraRows;
+  const productStartRow = 19 + wellExtraRows;
+  const templateProductCapacity = 49;
+  const productExtraRows = Math.max(0, productRows.length - templateProductCapacity);
+  insertStyledRows(
+    ws,
+    productStartRow + templateProductCapacity,
+    productExtraRows,
+    productStartRow + templateProductCapacity - 1
+  );
+  for (let index = 0; index < productExtraRows; index += 1) {
+    mergeCostPadInventoryRow(ws, productStartRow + templateProductCapacity + index);
+  }
+
+  setCellValue(ws, "I6", costPadDisplayName(pad));
+  setCellValue(ws, "AE6", text(pad?.operator));
+  setCellValue(ws, "I7", text(pad?.fieldBlock));
+  setCellValue(ws, "I8", text(pad?.rig));
+  setCellValue(ws, "AE8", text(pad?.contractor));
+  setCellValue(ws, "I9", new Date());
+  setCellValue(
+    ws,
+    "J11",
+    round(sumBy(wellRows, (item) => item.bulkTankSetupFee), 3)
+  );
+  setCellValue(ws, `A${inventoryTitleRow}`, "Inventory");
+  [
+    ["A", "Product "],
+    ["H", "Unit"],
+    ["L", "Initial"],
+    ["P", "Price (Kwd)"],
+    ["V", "Received"],
+    ["Z", "Returned"],
+    ["AD", "Used"],
+    ["AI", "Final"],
+    ["AM", "Cost (Kwd)"],
+  ].forEach(([column, label]) => setCellValue(ws, `${column}${inventoryHeaderRow}`, label));
+
+  wellRows.forEach((item, index) => {
+    const row = 14 + index;
+    setCellValue(ws, `A${row}`, text(item.well?.wellNameNo));
+    setCellValue(ws, `H${row}`, item.td || "");
+    setCellValue(ws, `L${row}`, item.days || "");
+    setCellValue(ws, `O${row}`, item.product);
+    setCellValue(ws, `T${row}`, item.premixed);
+    setCellValue(ws, `Y${row}`, item.package);
+    setCellValue(ws, `AD${row}`, item.service);
+    setCellValue(ws, `AH${row}`, item.engineering);
+    setCellValue(ws, `AM${row}`, item.total);
+  });
+
+  [
+    ["A", "Total (Kwd)"],
+    ["O", round(sumBy(wellRows, (item) => item.product), 3)],
+    ["T", round(sumBy(wellRows, (item) => item.premixed), 3)],
+    ["Y", round(sumBy(wellRows, (item) => item.package), 3)],
+    ["AD", round(sumBy(wellRows, (item) => item.service), 3)],
+    ["AH", round(sumBy(wellRows, (item) => item.engineering), 3)],
+    ["AM", round(sumBy(wellRows, (item) => item.total), 3)],
+  ].forEach(([column, value]) => setCellValue(ws, `${column}${totalRow}`, value));
+
+  const productCapacity = templateProductCapacity + productExtraRows;
+  for (let index = 0; index < productCapacity; index += 1) {
+    const row = productStartRow + index;
+    const item = productRows[index];
+    setCellValue(ws, `A${row}`, item?.itemName || "");
+    setCellValue(ws, `H${row}`, item?.unit || "");
+    setCellValue(ws, `L${row}`, item ? round(item.initial, 3) : "");
+    setCellValue(ws, `P${row}`, item ? round(item.price, 3) : "");
+    setCellValue(ws, `V${row}`, item ? round(item.cumulativeRec, 3) : "");
+    setCellValue(ws, `Z${row}`, item ? round(item.cumulativeRet, 3) : "");
+    setCellValue(ws, `AD${row}`, item ? round(item.cumulativeUsed, 3) : "");
+    setCellValue(ws, `AI${row}`, item ? round(item.final, 3) : "");
+    setCellValue(ws, `AM${row}`, item ? round(item.cost, 3) : "");
+  }
+
+  ws.getCell("I9").numFmt = "m/d/yyyy h:mm:ss AM/PM";
+  ws.pageSetup = {
+    ...(ws.pageSetup || {}),
+    printArea: `A1:AQ${productStartRow + productCapacity - 1}`,
+    printTitlesRow: "1:9",
+  };
+  clearZeroOnlyDisplayValues(ws);
+};
+
 const loadExportPumps = async ({ wellId, reportId }) => {
   if (!wellId) return [];
 
@@ -3671,6 +3917,43 @@ const loadExportSurvey = async ({ wellId, reportId }) => {
   }
 
   return null;
+};
+
+export const exportCostOfPadReport = async (req, res) => {
+  try {
+    const padId = text(req.params.padId || req.query.padId);
+    if (!padId) {
+      return res.status(400).json({
+        success: false,
+        message: "padId is required",
+      });
+    }
+
+    const pad = await Pad.findById(padId).lean();
+    if (!pad) {
+      return res.status(404).json({
+        success: false,
+        message: "Pad not found",
+      });
+    }
+
+    const wells = await Well.find({ padId })
+      .sort({ wellNameNo: 1, createdAt: 1, _id: 1 })
+      .lean();
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(COST_OF_PAD_TEMPLATE_PATH);
+    await fillCostPadExportWorkbook({ workbook, pad, wells });
+
+    const filename = `${safeFilename(costPadDisplayName(pad) || "pad")}_Cost_of_Pad.xlsx`;
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 };
 
 export const exportInventoryReport = async (req, res) => {

@@ -227,8 +227,13 @@ class ServicesPage extends StatelessWidget {
   Widget _headerCell({double? width, int? flex, required String text}) {
     Widget cell = Container(
       width: width,
-      alignment: Alignment.center,
-      child: Text(text, style: AppTheme.companySetupBodyBold),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      alignment: Alignment.centerLeft,
+      child: Text(
+        text,
+        style: AppTheme.companySetupBodyBold,
+        textAlign: TextAlign.left,
+      ),
     );
     return flex != null ? Expanded(flex: flex, child: cell) : cell;
   }
@@ -269,6 +274,7 @@ class ServicesPage extends StatelessWidget {
               children: [
                 _cell(
                   width: 40,
+                  alignment: Alignment.center,
                   child: Text(
                     '${index + 1}',
                     style: AppTheme.companySetupBodyText,
@@ -323,7 +329,11 @@ class ServicesPage extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _cell(width: 40, child: Text('${index + 1}', style: AppTheme.companySetupBodyText)),
+          _cell(
+            width: 40,
+            alignment: Alignment.center,
+            child: Text('${index + 1}', style: AppTheme.companySetupBodyText),
+          ),
           _cell(
             flex: 3,
             child: _editField(
@@ -422,11 +432,16 @@ class ServicesPage extends StatelessWidget {
     }
   }
 
-  Widget _cell({double? width, int? flex, required Widget child}) {
+  Widget _cell({
+    double? width,
+    int? flex,
+    Alignment alignment = Alignment.centerLeft,
+    required Widget child,
+  }) {
     Widget c = Container(
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      alignment: Alignment.center,
+      alignment: alignment,
       decoration: BoxDecoration(border: Border(left: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5))),
       child: child,
     );
@@ -450,7 +465,7 @@ class ServicesPage extends StatelessWidget {
       style: AppTheme.companySetupBodyText,
       keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
       decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.symmetric(vertical: 8)),
-      textAlign: TextAlign.center,
+      textAlign: TextAlign.left,
     );
   }
 

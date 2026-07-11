@@ -6,6 +6,7 @@ import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_sna
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/nozzle_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_api_service.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_models.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
@@ -15,6 +16,90 @@ import 'package:path_provider/path_provider.dart';
 class ExportController {
   static const String baseUrl = ApiEndpoint.baseUrl;
   static const String _fallbackBaseName = 'WBM_Report';
+
+  static Future<void> downloadAndOpenCostOfPadReport() async {
+    if (padWellContext.pads.isEmpty && !padWellContext.isLoading.value) {
+      await padWellContext.reloadData();
+    }
+
+    final padId = padWellContext.selectedPadId.value.trim();
+    if (padId.isEmpty) {
+      throw Exception('No backend pad selected');
+    }
+
+    final wells = padWellContext.wellsForPad(padId);
+    final snapshotController = InventorySnapshotController();
+    final reportApi = ReportApiService();
+
+    for (final well in wells) {
+      final reports = await reportApi.fetchReports(well.id);
+      for (final report in reports) {
+        final snapshotResult = await snapshotController.generateInventorySnapshot(
+          wellId: well.id,
+          reportIdOverride: report.id,
+        );
+        if (snapshotResult['success'] != true) {
+          throw Exception(
+            snapshotResult['message'] ??
+                'Failed to update Cost of Pad data for ${well.displayName}',
+          );
+        }
+      }
+    }
+
+    final uri = Uri.parse('${baseUrl}export/cost-of-pad-export/$padId');
+    final response = await http.get(
+      uri,
+      headers: ApiEndpoint.withInstallationHeaders({
+        'Accept':
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      final body = response.body.trim();
+      throw Exception(
+        body.isEmpty
+            ? 'Server error: ${response.statusCode}'
+            : 'Server error: ${response.statusCode} $body',
+      );
+    }
+
+    final contentType = response.headers['content-type'] ?? '';
+    if (!contentType.contains('spreadsheetml') &&
+        !contentType.contains('application/octet-stream')) {
+      final body = response.body.trim();
+      throw Exception(
+        body.isEmpty
+            ? 'Invalid Cost of Pad response'
+            : 'Invalid Cost of Pad response: $body',
+      );
+    }
+
+    if (!_looksLikeXlsx(response.bodyBytes)) {
+      final contentType = response.headers['content-type'] ?? 'unknown';
+      final body = response.body.trim();
+      throw Exception(
+        body.isEmpty
+            ? 'Server did not return an Excel file ($contentType)'
+            : 'Server did not return an Excel file ($contentType): $body',
+      );
+    }
+
+    final Directory reportDir = await _resolveReportDirectory();
+    final String filePath = await _resolveOutputPath(reportDir, response);
+    final String finalPath = await _writeBytesWithRetry(
+      filePath,
+      response.bodyBytes,
+    );
+
+    if (!await _openReportFile(finalPath)) {
+      await _openContainingFolder(finalPath);
+      throw Exception(
+        'Cost of Pad saved at $finalPath, but no application could open .xlsx files automatically.',
+      );
+    }
+  }
 
   static Future<void> downloadAndOpenInventoryReport() async {
     final wellId = currentBackendWellId;
