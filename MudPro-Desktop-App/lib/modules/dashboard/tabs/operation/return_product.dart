@@ -109,7 +109,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
         row.selectedItem = item['productName']?.toString() ?? '';
         row.code = item['code']?.toString() ?? '';
         row.unit = item['unit']?.toString() ?? '';
-        row.amount = item['amount']?.toString() ?? '';
+        row.amount = formatOperationInputText(item['amount']?.toString() ?? '');
         row.amountController.text = row.amount;
         productRows.add(row);
       }
@@ -122,7 +122,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
         row.selectedItem = item['packageName']?.toString() ?? '';
         row.code = item['code']?.toString() ?? '';
         row.unit = item['unit']?.toString() ?? '';
-        row.amount = item['amount']?.toString() ?? '';
+        row.amount = formatOperationInputText(item['amount']?.toString() ?? '');
         row.amountController.text = row.amount;
         packageRows.add(row);
       }
@@ -260,7 +260,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     row.selectedItem = (snapshot['selectedItem'] ?? '').toString();
     row.code = (snapshot['code'] ?? '').toString();
     row.unit = (snapshot['unit'] ?? '').toString();
-    row.amount = (snapshot['amount'] ?? '').toString();
+    row.amount = formatOperationInputText((snapshot['amount'] ?? '').toString());
     row.amountController.text = row.amount;
   }
 
@@ -272,7 +272,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     row.selectedItem = (snapshot['selectedItem'] ?? '').toString();
     row.code = (snapshot['code'] ?? '').toString();
     row.unit = (snapshot['unit'] ?? '').toString();
-    row.amount = (snapshot['amount'] ?? '').toString();
+    row.amount = formatOperationInputText((snapshot['amount'] ?? '').toString());
     row.amountController.text = row.amount;
   }
 
@@ -721,7 +721,8 @@ class _ReturnProductViewState extends State<ReturnProductView> {
       final productCount = productRows.length;
       for (int i = 0; i < productCount; i++) {
         final row = productRows[i];
-        row.amount = row.amountController.text;
+        row.amount = formatOperationInputText(row.amountController.text);
+        row.amountController.text = row.amount;
         if (row.selectedItem.isNotEmpty && row.amount.isNotEmpty) {
           await _saveProductRow(i);
           saved++;
@@ -730,7 +731,8 @@ class _ReturnProductViewState extends State<ReturnProductView> {
       final packageCount = packageRows.length;
       for (int i = 0; i < packageCount; i++) {
         final row = packageRows[i];
-        row.amount = row.amountController.text;
+        row.amount = formatOperationInputText(row.amountController.text);
+        row.amountController.text = row.amount;
         if (row.selectedItem.isNotEmpty && row.amount.isNotEmpty) {
           await _savePackageRow(i);
           saved++;
@@ -1297,8 +1299,35 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                                   );
                                                 }
                                               },
-                                              onSubmitted: (_) =>
-                                                  onSaveRow(index),
+                                              onSubmitted: (value) {
+                                                final formatted =
+                                                    formatOperationInputText(
+                                                  value,
+                                                );
+                                                final amountController =
+                                                    amtCtrl;
+                                                if (amountController != null) {
+                                                  amountController.text =
+                                                      formatted;
+                                                  amountController.selection =
+                                                      TextSelection.collapsed(
+                                                    offset: amountController
+                                                        .text
+                                                        .length,
+                                                  );
+                                                }
+                                                if (T == ProductRowData) {
+                                                  (rows[index]
+                                                          as ProductRowData)
+                                                      .amount = formatted;
+                                                } else if (T ==
+                                                    PackageRowData) {
+                                                  (rows[index]
+                                                          as PackageRowData)
+                                                      .amount = formatted;
+                                                }
+                                                onSaveRow(index);
+                                              },
                                             ),
                                             noBorder: true,
                                             backgroundColor:

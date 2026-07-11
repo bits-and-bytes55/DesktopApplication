@@ -596,7 +596,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
   }
 
   String _formatNumber(double value) {
-    return value.toStringAsFixed(2);
+    return formatOperationNumber(value);
   }
 }
 

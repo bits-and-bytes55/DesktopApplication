@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class OtherVolAdditionController extends GetxController {
@@ -129,7 +130,7 @@ class OtherVolAdditionController extends GetxController {
     if (n == 0) {
       return '';
     }
-    return n.toStringAsFixed(2);
+    return formatOperationNumber(n);
   }
 
   double _number(TextEditingController controller) {

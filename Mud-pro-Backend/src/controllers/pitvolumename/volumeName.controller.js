@@ -790,18 +790,6 @@ const findScopedWellGeneral = async ({ wellId, reportId, reportNo }) => {
 };
 
 const findScopedCasings = async ({ wellId, reportId, strictScope = false }) => {
-  const globalCasings = await Casing.find({
-    wellId,
-    $or: [
-      { toc: { $ne: CASED_HOLE_TOC_MARKER }, reportId: "" },
-      { toc: { $ne: CASED_HOLE_TOC_MARKER }, reportId: { $exists: false } },
-    ],
-  }).sort({ sortOrder: 1, createdAt: 1, _id: 1 });
-
-  if (globalCasings.length > 0) {
-    return globalCasings;
-  }
-
   if (reportId) {
     const scopedCasings = await Casing.find({
       wellId,
@@ -820,6 +808,18 @@ const findScopedCasings = async ({ wellId, reportId, strictScope = false }) => {
     if (strictScope) {
       return [];
     }
+  }
+
+  const globalCasings = await Casing.find({
+    wellId,
+    $or: [
+      { toc: { $ne: CASED_HOLE_TOC_MARKER }, reportId: "" },
+      { toc: { $ne: CASED_HOLE_TOC_MARKER }, reportId: { $exists: false } },
+    ],
+  }).sort({ sortOrder: 1, createdAt: 1, _id: 1 });
+
+  if (globalCasings.length > 0) {
+    return globalCasings;
   }
 
   return [];

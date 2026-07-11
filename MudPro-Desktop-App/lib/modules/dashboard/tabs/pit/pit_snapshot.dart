@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/pit_snapshot_Controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 
 const _snapshotFrameBlue = Color(0xFF6C9BCF);
 const _snapshotBorder = Color(0xFFB8D0EA);
@@ -258,7 +259,7 @@ class PitSnapshotPage extends StatelessWidget {
                             textColor: Colors.black87,
                           ),
                           _SummaryValueCell(
-                            row.value.toStringAsFixed(2),
+                            formatOperationNumber(row.value),
                             fill: _snapshotValueFill,
                             alignRight: true,
                             textColor: row.highlightRed
@@ -626,7 +627,7 @@ class PitSnapshotPage extends StatelessWidget {
                             textColor: Colors.black87,
                           ),
                           _SummaryValueCell(
-                            row.value.toStringAsFixed(2),
+                            formatOperationNumber(row.value),
                             fill: _snapshotValueFill,
                             alignRight: true,
                             textColor: Colors.black87,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_graph_utils.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -127,14 +128,14 @@ class _SurveyPointCalculationDialogState
 
   Widget _summaryTable(dynamic point) {
     final rows = [
-      ['MD of POI', point.md.toStringAsFixed(1), AppUnits.unitText('(ft)')],
-      ['Inc', point.inc.toStringAsFixed(2), AppUnits.unitText('(°)')],
-      ['Azi', point.azi.toStringAsFixed(2), AppUnits.unitText('(°)')],
-      ['TVD', point.tvd.toStringAsFixed(1), AppUnits.unitText('(ft)')],
-      ['Vsec', point.vsec.toStringAsFixed(1), AppUnits.unitText('(ft)')],
-      ['N+/S-', point.northSouth.toStringAsFixed(1), AppUnits.unitText('(ft)')],
-      ['E+/W-', point.eastWest.toStringAsFixed(1), AppUnits.unitText('(ft)')],
-      ['Dogleg', point.dogleg.toStringAsFixed(2), AppUnits.dogleg],
+      ['MD of POI', _formatSurveyValue(point.md, 1), AppUnits.unitText('(ft)')],
+      ['Inc', _formatSurveyValue(point.inc, 2), AppUnits.unitText('(°)')],
+      ['Azi', _formatSurveyValue(point.azi, 2), AppUnits.unitText('(°)')],
+      ['TVD', _formatSurveyValue(point.tvd, 1), AppUnits.unitText('(ft)')],
+      ['Vsec', _formatSurveyValue(point.vsec, 1), AppUnits.unitText('(ft)')],
+      ['N+/S-', _formatSurveyValue(point.northSouth, 1), AppUnits.unitText('(ft)')],
+      ['E+/W-', _formatSurveyValue(point.eastWest, 1), AppUnits.unitText('(ft)')],
+      ['Dogleg', _formatSurveyValue(point.dogleg, 2), AppUnits.dogleg],
     ];
 
     return Container(
@@ -206,6 +207,14 @@ class _SurveyPointCalculationDialogState
           );
         }),
       ),
+    );
+  }
+
+  String _formatSurveyValue(num value, int fallbackDigits) {
+    return formatOperationNumber(
+      value.toDouble(),
+      fallbackDecimals: fallbackDigits,
+      trimFallback: true,
     );
   }
 

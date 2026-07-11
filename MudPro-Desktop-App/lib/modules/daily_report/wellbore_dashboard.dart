@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:mudpro_desktop_app/modules/daily_report/widgets/wellbore_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 
 class WellboreDashboard extends StatelessWidget {
   const WellboreDashboard({Key? key}) : super(key: key);
@@ -246,27 +247,27 @@ class WellboreDashboard extends StatelessWidget {
                     'Depth',
                     controller.depthKPI.value,
                     controller.maxDepthKPI.value,
-                    '${AppUnits.formatValue(controller.depthKPI.value, '(ft)', fractionDigits: 2)} ${AppUnits.strip(AppUnits.length)}',
+                    '${_formatHomeNumber(controller.depthKPI.value)} ${AppUnits.strip(AppUnits.length)}',
                     AppTheme.primaryColor,
-                    (controller.depthKPI.value / controller.maxDepthKPI.value * 100).toStringAsFixed(1),
+                    _formatHomeNumber(controller.depthKPI.value / controller.maxDepthKPI.value * 100),
                   )),
                   const SizedBox(height: 16),
                   Obx(() => _buildGaugeChart(
                     'Cost',
                     controller.costKPI.value,
                     controller.maxCostKPI.value,
-                    '€${controller.costKPI.value.toStringAsFixed(2)}',
+                    '€${_formatHomeNumber(controller.costKPI.value)}',
                     AppTheme.secondaryColor,
-                    (controller.costKPI.value / controller.maxCostKPI.value * 100).toStringAsFixed(1),
+                    _formatHomeNumber(controller.costKPI.value / controller.maxCostKPI.value * 100),
                   )),
                   const SizedBox(height: 16),
                   Obx(() => _buildGaugeChart(
                     'Day',
                     controller.dayKPI.value,
                     controller.maxDayKPI.value,
-                    '${controller.dayKPI.value.toStringAsFixed(0)} Days',
+                    '${_formatHomeNumber(controller.dayKPI.value)} Days',
                     AppTheme.accentColor,
-                    (controller.dayKPI.value / controller.maxDayKPI.value * 100).toStringAsFixed(1),
+                    _formatHomeNumber(controller.dayKPI.value / controller.maxDayKPI.value * 100),
                   )),
                 ],
               ),
@@ -274,6 +275,14 @@ class WellboreDashboard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  String _formatHomeNumber(double value) {
+    return formatOperationNumber(
+      value,
+      fallbackDecimals: 2,
+      trimFallback: true,
     );
   }
 
@@ -473,7 +482,7 @@ class WellboreDashboard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '${percentage.toStringAsFixed(1)}%',
+                        '${formatOperationNumber(percentage, fallbackDecimals: 1, trimFallback: true)}%',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -520,7 +529,7 @@ class WellboreDashboard extends StatelessWidget {
                           child: Align(
                             alignment: Alignment.centerRight,
                             child: Text(
-                              '${percentage.toStringAsFixed(1)}%',
+                              '${formatOperationNumber(percentage, fallbackDecimals: 1, trimFallback: true)}%',
                               style: const TextStyle(
                                 fontSize: 9,
                                 color: Colors.white,

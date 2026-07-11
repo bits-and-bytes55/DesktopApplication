@@ -214,7 +214,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     _applyAddWaterState(
       enabled: savedAddWaterEnabled,
       volume: savedAddWaterEnabled && savedAddWaterVolume > 0
-          ? savedAddWaterVolume.toStringAsFixed(3)
+          ? formatOperationNumber(savedAddWaterVolume, fallbackDecimals: 3)
           : '',
     );
     _recalculateTotalVolume();
@@ -233,7 +233,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       final volume = _toDouble(map['volume']);
       if (pitName.isEmpty || volume <= 0) continue;
       restoredRows.add(
-        DistributeRowData(pit: pitName, volume: volume.toStringAsFixed(3)),
+        DistributeRowData(
+          pit: pitName,
+          volume: formatOperationNumber(volume, fallbackDecimals: 3),
+        ),
       );
     }
 
@@ -389,10 +392,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   }
 
   String _formatCarryInitial(double value) {
-    final text = value
-        .toStringAsFixed(3)
-        .replaceFirst(RegExp(r'0+$'), '')
-        .replaceFirst(RegExp(r'\.$'), '');
+    final text = formatOperationNumber(
+      value,
+      fallbackDecimals: 3,
+      trimFallback: true,
+    );
     return text.isEmpty ? '0' : text;
   }
 
@@ -581,7 +585,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
   String _numStr(dynamic v) {
     final d = _toDouble(v);
-    return d == 0.0 ? '' : d.toString();
+    return d == 0.0
+        ? ''
+        : formatOperationNumber(d, fallbackDecimals: 3, trimFallback: true);
   }
 
   String _mergeUnit(ProductModel p) {
@@ -723,7 +729,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     if (addWater.value) {
       total += double.tryParse(waterVolumeController.text) ?? 0.0;
     }
-    totalVolumeDisplay.value = total.toStringAsFixed(3);
+    totalVolumeDisplay.value = formatOperationNumber(
+      total,
+      fallbackDecimals: 3,
+    );
     operationController.totalVolume.value = total;
   }
 
@@ -761,9 +770,21 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     row.sg = (data['sg'] ?? '').toString();
     row.unit = (data['unit'] ?? '').toString();
     row.price = (data['price'] as num?)?.toDouble() ?? 0.0;
-    row.initial = (data['initial'] ?? '').toString();
-    row.adjust = (data['adjust'] ?? '').toString();
-    row.used = (data['used'] ?? '').toString();
+    row.initial = formatOperationInputText(
+      (data['initial'] ?? '').toString(),
+      fallbackDecimals: 3,
+      trimFallback: true,
+    );
+    row.adjust = formatOperationInputText(
+      (data['adjust'] ?? '').toString(),
+      fallbackDecimals: 3,
+      trimFallback: true,
+    );
+    row.used = formatOperationInputText(
+      (data['used'] ?? '').toString(),
+      fallbackDecimals: 3,
+      trimFallback: true,
+    );
     row.recalculate();
   }
 
@@ -859,7 +880,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     Map<String, dynamic> data,
   ) {
     final index = distributeRows.indexOf(row);
-    final nextVolume = (data['volume'] ?? '').toString();
+    final nextVolume = formatOperationInputText(
+      (data['volume'] ?? '').toString(),
+      fallbackDecimals: 3,
+      trimFallback: true,
+    );
     if (index >= 0 && !_canSetDistributeVolume(index, nextVolume)) {
       _showDistributionLimitAlert();
       return;
@@ -1382,7 +1407,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
       distributions.add({
         'pitName': pitName,
-        'volume': double.parse(volume.toStringAsFixed(3)),
+        'volume': roundOperationNumber(volume, fallbackDecimals: 3),
       });
     }
 
@@ -1990,7 +2015,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       DataCell(_staticField(row.unit, w(70))),
       DataCell(
         _staticField(
-          row.price > 0 ? row.price.toStringAsFixed(2) : '',
+          row.price > 0 ? formatOperationNumber(row.price) : '',
           w(90),
           right: true,
         ),
@@ -2056,7 +2081,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             width: w(75),
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
-              row.productName.isNotEmpty ? fv.toStringAsFixed(2) : '',
+              row.productName.isNotEmpty ? formatOperationNumber(fv) : '',
               textAlign: TextAlign.right,
               style: AppTheme.bodySmall.copyWith(
                 fontSize: 11,
@@ -2079,7 +2104,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           child: Obx(() {
             final cv = row.calculatedCost.value;
             return Text(
-              cv > 0 ? cv.toStringAsFixed(2) : '',
+              cv > 0 ? formatOperationNumber(cv) : '',
               textAlign: TextAlign.right,
               style: AppTheme.bodySmall.copyWith(
                 fontSize: 11,
@@ -2102,7 +2127,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           child: Obx(() {
             final vv = row.calculatedVolume.value;
             return Text(
-              vv > 0 ? vv.toStringAsFixed(3) : '',
+              vv > 0 ? formatOperationNumber(vv, fallbackDecimals: 3) : '',
               textAlign: TextAlign.right,
               style: AppTheme.bodySmall.copyWith(
                 fontSize: 11,
@@ -2169,6 +2194,16 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           border: InputBorder.none,
         ),
         onChanged: onChange,
+        onFieldSubmitted: (text) {
+          final formatted = formatOperationInputText(
+            text,
+            fallbackDecimals: 3,
+            trimFallback: true,
+          );
+          if (formatted.isNotEmpty) {
+            onChange(formatted);
+          }
+        },
       ),
     );
   }
@@ -2933,7 +2968,7 @@ class ProductRowData {
     calculatedCost.value = uVal * price;
     final shouldCalculateVolume = selectedProduct.value?.volAdd ?? false;
     calculatedVolume.value = shouldCalculateVolume
-        ? double.parse(_calculateVolumeBbl(uVal, sVal).toStringAsFixed(3))
+        ? roundOperationNumber(_calculateVolumeBbl(uVal, sVal), fallbackDecimals: 3)
         : 0.0;
   }
 }

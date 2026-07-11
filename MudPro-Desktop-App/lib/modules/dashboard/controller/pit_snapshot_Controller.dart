@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_models.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
@@ -1533,9 +1534,9 @@ class PitSnapshotController extends GetxController {
 
   String _formatConcentration(double value) {
     if (value.isNaN || value.isInfinite || value <= 0) {
-      return '0.00';
+      return formatOperationNumber(0);
     }
-    return value.toStringAsFixed(2);
+    return formatOperationNumber(value);
   }
 
   _ConcentrationBasis? _basisFromPackUnit(String unit) {
@@ -1671,7 +1672,7 @@ class PitSnapshotPitRow {
   final double displayVolume;
   final bool isActive;
 
-  String get label => '$pitName, ${displayVolume.toStringAsFixed(2)} bbl';
+  String get label => '$pitName, ${formatOperationNumber(displayVolume)} bbl';
 }
 
 class PitVolumeSummaryRow {

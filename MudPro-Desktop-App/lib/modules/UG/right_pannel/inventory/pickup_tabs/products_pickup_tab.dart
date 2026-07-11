@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/product_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ProductsPickupPage extends StatefulWidget {
@@ -823,6 +824,10 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
         ? value.toDouble()
         : double.tryParse(value?.toString() ?? '');
     if (number == null) return '0.000';
-    return number.toStringAsFixed(3);
+    return formatOperationNumber(
+      number,
+      fallbackDecimals: 3,
+      trimFallback: true,
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
@@ -515,7 +516,7 @@ class PitController extends GetxController {
 
   String _displayNumber(double value) {
     if (value <= 0 || value.isNaN) return '';
-    return value.toStringAsFixed(2);
+    return formatOperationNumber(value);
   }
 
   void _syncControllerText(TextEditingController? ctrl, String value) {
@@ -1161,7 +1162,10 @@ class PitController extends GetxController {
             transferRows.add(
               TransferRowData(
                 pitName: transfer['pitName']?.toString() ?? '',
-                volume: transfer['volume']?.toString() ?? '',
+                volume: formatOperationInputText(
+                  transfer['volume']?.toString() ?? '',
+                  trimFallback: true,
+                ),
                 savedId: item['_id']?.toString(),
               ),
             );

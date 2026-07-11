@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import '../../../controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
@@ -165,8 +166,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
   String _fmt(dynamic v, {int decimals = 2}) {
     if (v == null) return '';
     final d = (v is num) ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0;
-    if (decimals == 0) return d.toStringAsFixed(0);
-    return d.toStringAsFixed(decimals);
+    return formatOperationNumber(d, fallbackDecimals: decimals);
   }
 
   double _toDouble(dynamic value) {

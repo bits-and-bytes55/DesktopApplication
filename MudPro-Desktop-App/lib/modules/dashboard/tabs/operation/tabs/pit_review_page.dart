@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
@@ -459,7 +460,7 @@ class PitReviewSummaryRow {
 
 String _formatPitReviewValue(double value) {
   if (value.abs() <= 0.005) return '';
-  return value.toStringAsFixed(2);
+  return formatOperationNumber(value);
 }
 
 class _PitReviewHeaderCell extends StatelessWidget {

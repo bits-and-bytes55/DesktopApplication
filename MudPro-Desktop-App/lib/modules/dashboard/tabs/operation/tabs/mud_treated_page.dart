@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -174,9 +175,9 @@ class MudTreatedController extends GetxController {
     return double.tryParse(value?.toString().replaceAll(',', '') ?? '') ?? 0;
   }
 
-  double _round2(double value) => double.parse(value.toStringAsFixed(2));
+  double _round2(double value) => roundOperationNumber(value);
 
-  String _format(double value) => _round2(value).toStringAsFixed(2);
+  String _format(double value) => formatOperationNumber(_round2(value));
 
   void _reset() {
     receiveMud.value = '';

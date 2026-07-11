@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
@@ -101,7 +102,7 @@ class _WellViewState extends State<WellView> {
     for (final field in _wellFields) {
       _controllers[field.key]!.text = _displayFieldValue(
         _wellValue(well, field.key),
-        field.unit,
+        field,
       );
     }
 
@@ -142,7 +143,7 @@ class _WellViewState extends State<WellView> {
       for (final field in _wellFields)
         field.key: _storeFieldValue(
           _controllers[field.key]!.text.trim(),
-          field.unit,
+          field,
         ),
     };
 
@@ -216,15 +217,19 @@ class _WellViewState extends State<WellView> {
       AppUnits.unitText(unit) == AppUnits.length ||
       AppUnits.unitText(unit) == AppUnits.unitText('(ft)');
 
-  String _displayFieldValue(String value, String baseUnit) {
-    if (baseUnit.trim().isEmpty) return value;
+  String _displayFieldValue(String value, _WellField field) {
+    final baseUnit = field.unit;
+    if (baseUnit.trim().isEmpty) {
+      return _isNumericWellField(field) ? _formatWellNumberText(value) : value;
+    }
     if (_isLengthUnit(baseUnit)) {
       return _convertText(value, baseUnit, _lengthUnit);
     }
-    return value;
+    return _formatWellNumberText(value);
   }
 
-  String _storeFieldValue(String value, String baseUnit) {
+  String _storeFieldValue(String value, _WellField field) {
+    final baseUnit = field.unit;
     if (baseUnit.trim().isEmpty) return value;
     if (_isLengthUnit(baseUnit)) {
       return _convertText(value, _lengthUnit, baseUnit);
@@ -241,10 +246,28 @@ class _WellViewState extends State<WellView> {
     if (parsed == null) return rawValue;
     final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
     if (converted == null) return rawValue;
-    return converted
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return formatOperationNumber(
+      converted,
+      fallbackDecimals: 4,
+      trimFallback: true,
+    );
+  }
+
+  String _formatWellNumberText(String value) {
+    final text = value.trim();
+    if (text.isEmpty) return '';
+    final parsed = double.tryParse(text.replaceAll(',', ''));
+    if (parsed == null) return value;
+    return formatOperationNumber(
+      parsed,
+      fallbackDecimals: 4,
+      trimFallback: true,
+    );
+  }
+
+  bool _isNumericWellField(_WellField field) {
+    return const {'longitude', 'latitude'}.contains(field.key) ||
+        field.unit.trim().isNotEmpty;
   }
 
   Map<String, String> _currentFormValues() {

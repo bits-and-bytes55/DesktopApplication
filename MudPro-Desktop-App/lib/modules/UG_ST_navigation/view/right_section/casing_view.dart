@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/compact_tabular_database_dialog.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -34,7 +35,15 @@ int? _decimalPlacesFromText(String value) {
   return (text.length - decimalIndex - 1).clamp(0, 12).toInt();
 }
 
-String _formatCasingNumber(double value, {String? sourceText}) {
+String _formatCasingNumber(double value) {
+  return formatOperationNumber(
+    value,
+    fallbackDecimals: 4,
+    trimFallback: true,
+  );
+}
+
+String _formatCasingStoredNumber(double value, {String? sourceText}) {
   final sourceDecimals = sourceText == null
       ? null
       : _decimalPlacesFromText(sourceText);
@@ -47,14 +56,24 @@ String _formatCasingNumber(double value, {String? sourceText}) {
       .replaceAll(RegExp(r'\.$'), '');
 }
 
-String _convertCasingText(String rawValue, String fromUnit, String toUnit) {
+String _convertCasingText(
+  String rawValue,
+  String fromUnit,
+  String toUnit, {
+  bool displayFormat = true,
+}) {
   final raw = rawValue.trim();
-  if (raw.isEmpty || fromUnit == toUnit) return rawValue;
+  if (raw.isEmpty) return rawValue;
   final parsed = double.tryParse(raw.replaceAll(',', ''));
   if (parsed == null) return rawValue;
+  if (fromUnit == toUnit) {
+    return displayFormat ? _formatCasingNumber(parsed) : rawValue;
+  }
   final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
   if (converted == null) return rawValue;
-  return _formatCasingNumber(converted, sourceText: rawValue);
+  return displayFormat
+      ? _formatCasingNumber(converted)
+      : _formatCasingStoredNumber(converted, sourceText: rawValue);
 }
 
 String _displayDiameter(String value) =>
@@ -67,13 +86,28 @@ String _displayLength(String value) =>
     _convertCasingText(value, _casingLengthBaseUnit, AppUnits.length);
 
 String _storeDiameter(String value) =>
-    _convertCasingText(value, AppUnits.diameter, _casingDiameterBaseUnit);
+    _convertCasingText(
+      value,
+      AppUnits.diameter,
+      _casingDiameterBaseUnit,
+      displayFormat: false,
+    );
 
 String _storeLineDensity(String value) =>
-    _convertCasingText(value, AppUnits.lineDensity, _casingLineDensityBaseUnit);
+    _convertCasingText(
+      value,
+      AppUnits.lineDensity,
+      _casingLineDensityBaseUnit,
+      displayFormat: false,
+    );
 
 String _storeLength(String value) =>
-    _convertCasingText(value, AppUnits.length, _casingLengthBaseUnit);
+    _convertCasingText(
+      value,
+      AppUnits.length,
+      _casingLengthBaseUnit,
+      displayFormat: false,
+    );
 
 class CasingView extends StatefulWidget {
   const CasingView({super.key});

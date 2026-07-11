@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_comparision/controller/well_comparision_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_comparision/model/well_comparision_model.dart';
@@ -575,7 +576,7 @@ class WellComparisonPage extends StatelessWidget {
     return ComparisonMetricRow(
       section: section,
       label: AppUnits.label(label),
-      values: values.map((value) => value.toStringAsFixed(2)).toList(),
+      values: values.map(_formatComparisonNumber).toList(),
     );
   }
 
@@ -587,18 +588,24 @@ class WellComparisonPage extends StatelessWidget {
     return ComparisonMetricRow(
       section: section,
       label: label,
-      values: values.map((value) => '\$${value.toStringAsFixed(2)}').toList(),
+      values: values.map((value) => '\$${_formatComparisonNumber(value)}').toList(),
     );
   }
 
   String _reportSubtitle(ReportModel report) {
     final parts = <String>[
       _valueOrDash(report.mudType),
-      'MD ${report.md.toStringAsFixed(2)}',
-      'MW ${report.mw.toStringAsFixed(2)}',
+      'MD ${_formatComparisonNumber(report.md)}',
+      'MW ${_formatComparisonNumber(report.mw)}',
     ];
     return parts.join(' • ');
   }
+
+  String _formatComparisonNumber(double value) => formatOperationNumber(
+    value,
+    fallbackDecimals: 2,
+    trimFallback: true,
+  );
 
   Widget _sectionHeader({
     required IconData icon,

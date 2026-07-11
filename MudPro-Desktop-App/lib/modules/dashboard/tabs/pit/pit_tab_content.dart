@@ -5,6 +5,7 @@ import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/pit/pit_concentration.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/pit/pit_snapshot.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -75,7 +76,7 @@ class _PitPageState extends State<PitPage> {
     );
     Get.snackbar(
       'Invalid measured volume',
-      'Measured Vol. cannot exceed pit capacity (${capacity.toStringAsFixed(2)} bbl).',
+      'Measured Vol. cannot exceed pit capacity (${formatOperationNumber(capacity)} bbl).',
       snackPosition: SnackPosition.BOTTOM,
       margin: const EdgeInsets.all(12),
       duration: const Duration(seconds: 2),
@@ -618,10 +619,11 @@ class _PitPageState extends State<PitPage> {
     }
 
     String formatValue(double v) =>
-        v.abs() <= 0.005 ? '' : v.toStringAsFixed(2);
+        v.abs() <= 0.005 ? '' : formatOperationNumber(v);
     String formatSignedValue(double v) {
       if (v.abs() <= 0.005) return '';
-      return v > 0 ? '+${v.toStringAsFixed(2)}' : v.toStringAsFixed(2);
+      final formatted = formatOperationNumber(v.abs());
+      return v > 0 ? '+$formatted' : '-$formatted';
     }
 
     final rows = [
@@ -772,7 +774,7 @@ class _PitPageState extends State<PitPage> {
   Widget _buildHaulOffTableBody() {
     final rows = [
       ["No. of Loads", "0", ""],
-      ["Vol.", "0.00", "(bbl)"],
+      ["Vol.", formatOperationNumber(0), "(bbl)"],
       ["Weight", "0", "(lbm)"],
       ["Oil", "0", "(%)"],
       ["Water", "0", "(%)"],
@@ -1060,8 +1062,10 @@ class _PitPageState extends State<PitPage> {
     PitModel pit,
     Map<String, dynamic> volumeNameData,
   ) {
-    return controller
-        .storageCalculatedVolumeForPit(pit, volumeNameData: volumeNameData)
-        .toStringAsFixed(2);
+    final value = controller.storageCalculatedVolumeForPit(
+      pit,
+      volumeNameData: volumeNameData,
+    );
+    return formatOperationNumber(value);
   }
 }

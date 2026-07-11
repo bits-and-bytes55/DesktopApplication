@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_setup_ui_pattern.dart';
@@ -21,6 +22,18 @@ const Color _planHeader = wellSetupColumnHeader;
 const Color _planLockedCell = wellSetupLockedEditable;
 const Color _planEditableCell = Colors.white;
 const Color _planSelectedCell = Color(0xFFEAF2FF);
+
+String _formatPlanCellText(String value) {
+  final text = value.trim();
+  if (text.isEmpty) return value;
+  final parsed = double.tryParse(text.replaceAll(',', ''));
+  if (parsed == null) return value;
+  return formatOperationNumber(
+    parsed,
+    fallbackDecimals: 4,
+    trimFallback: true,
+  );
+}
 
 class _PlanFixedColumn {
   final String title;
@@ -84,6 +97,9 @@ class _PlanPageViewState extends State<PlanPageView> {
   final TextEditingController _tdController = TextEditingController();
   final TextEditingController _daysController = TextEditingController();
   final TextEditingController _totalCostController = TextEditingController();
+  final FocusNode _tdFocus = FocusNode();
+  final FocusNode _daysFocus = FocusNode();
+  final FocusNode _totalCostFocus = FocusNode();
   int _selectedRowIndex = -1;
   List<String>? _clipboardRow;
 
@@ -91,6 +107,11 @@ class _PlanPageViewState extends State<PlanPageView> {
   void initState() {
     super.initState();
     c = Get.find<UgStController>();
+    _tdFocus.addListener(() => _syncSummaryControllerAt(0, force: true));
+    _daysFocus.addListener(() => _syncSummaryControllerAt(1, force: true));
+    _totalCostFocus.addListener(
+      () => _syncSummaryControllerAt(2, force: true),
+    );
   }
 
   @override
@@ -100,21 +121,38 @@ class _PlanPageViewState extends State<PlanPageView> {
     _tdController.dispose();
     _daysController.dispose();
     _totalCostController.dispose();
+    _tdFocus.dispose();
+    _daysFocus.dispose();
+    _totalCostFocus.dispose();
     super.dispose();
   }
 
   bool get _locked => c.isLocked.value;
 
   void _syncSummaryControllers() {
+    _syncSummaryControllerAt(0);
+    _syncSummaryControllerAt(1);
+    _syncSummaryControllerAt(2);
+  }
+
+  void _syncSummaryControllerAt(int index, {bool force = false}) {
+    if (force && _summaryFocus(index).hasFocus) return;
+    if (_summaryFocus(index).hasFocus) return;
     final summary = c.summaryData;
-    final tdValue = summary.isNotEmpty ? (summary[0]['amount'] ?? '') : '';
-    final daysValue = summary.length > 1 ? (summary[1]['amount'] ?? '') : '';
-    final totalCostValue = summary.length > 2
-        ? (summary[2]['amount'] ?? '')
-        : '';
-    _syncController(_tdController, tdValue);
-    _syncController(_daysController, daysValue);
-    _syncController(_totalCostController, totalCostValue);
+    final value = summary.length > index ? (summary[index]['amount'] ?? '') : '';
+    _syncController(_summaryController(index), _formatPlanCellText(value));
+  }
+
+  TextEditingController _summaryController(int index) {
+    if (index == 0) return _tdController;
+    if (index == 1) return _daysController;
+    return _totalCostController;
+  }
+
+  FocusNode _summaryFocus(int index) {
+    if (index == 0) return _tdFocus;
+    if (index == 1) return _daysFocus;
+    return _totalCostFocus;
   }
 
   @override
@@ -333,6 +371,7 @@ class _PlanPageViewState extends State<PlanPageView> {
       alignment: Alignment.centerLeft,
       child: TextField(
         controller: controller,
+        focusNode: _summaryFocus(summaryIndex),
         readOnly: _locked,
         textAlign: TextAlign.left,
         onChanged: (value) =>
@@ -586,32 +625,54 @@ class _PlanDataRow extends StatefulWidget {
 
 class _PlanDataRowState extends State<_PlanDataRow> {
   late final List<TextEditingController> _controllers;
+  late final List<FocusNode> _focusNodes;
 
   @override
   void initState() {
     super.initState();
     _controllers = widget.values
-        .map((value) => TextEditingController(text: value))
+        .map((value) => TextEditingController(text: _formatPlanCellText(value)))
         .toList(growable: false);
+    _focusNodes = List<FocusNode>.generate(
+      widget.values.length,
+      (index) => FocusNode()
+        ..addListener(() {
+          if (!_focusNodes[index].hasFocus) {
+            _syncCellController(index, forceFormatted: true);
+          }
+        }),
+      growable: false,
+    );
   }
 
   @override
   void didUpdateWidget(covariant _PlanDataRow oldWidget) {
     super.didUpdateWidget(oldWidget);
     for (var index = 0; index < _controllers.length; index++) {
-      final nextValue = index < widget.values.length
-          ? widget.values[index]
-          : '';
-      _syncController(_controllers[index], nextValue);
+      _syncCellController(index);
     }
   }
 
   @override
   void dispose() {
+    for (final focusNode in _focusNodes) {
+      focusNode.dispose();
+    }
     for (final controller in _controllers) {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  void _syncCellController(int index, {bool forceFormatted = false}) {
+    if (index >= _controllers.length) return;
+    if (index < _focusNodes.length &&
+        _focusNodes[index].hasFocus &&
+        !forceFormatted) {
+      return;
+    }
+    final raw = index < widget.values.length ? widget.values[index] : '';
+    _syncController(_controllers[index], _formatPlanCellText(raw));
   }
 
   @override
@@ -700,6 +761,7 @@ class _PlanDataRowState extends State<_PlanDataRow> {
       controller: controller,
       width: width,
       colIndex: colIndex,
+      focusNode: _focusNodes[colIndex],
       textAlign: textAlign,
     );
   }
@@ -711,6 +773,7 @@ class _PlanDataRowState extends State<_PlanDataRow> {
       controller: controller,
       width: width,
       colIndex: colIndex,
+      focusNode: _focusNodes[colIndex],
       textAlign: TextAlign.left,
     );
   }
@@ -719,6 +782,7 @@ class _PlanDataRowState extends State<_PlanDataRow> {
     required TextEditingController controller,
     required double width,
     required int colIndex,
+    required FocusNode focusNode,
     required TextAlign textAlign,
   }) {
     return Container(
@@ -741,6 +805,7 @@ class _PlanDataRowState extends State<_PlanDataRow> {
                 : Alignment.centerLeft,
             child: TextField(
               controller: controller,
+              focusNode: focusNode,
               readOnly: widget.locked,
               textAlign: textAlign,
               onChanged: (value) => widget.onValueChanged(colIndex, value),
