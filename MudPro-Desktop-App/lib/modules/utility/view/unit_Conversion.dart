@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
+import 'package:mudpro_desktop_app/modules/options/unit_conversion_service.dart';
+import 'package:mudpro_desktop_app/modules/options/unit_definitions.dart';
 import 'package:mudpro_desktop_app/modules/utility/engineering_tools_ui_pattern.dart';
 
 class UnitConversionView extends StatefulWidget {
@@ -14,14 +16,12 @@ class _UnitConversionViewState extends State<UnitConversionView> {
   final TextEditingController inputCtrl = TextEditingController();
   final TextEditingController outputCtrl = TextEditingController();
 
-  String parameter = 'Length';
-
-  String inputUnit = 'ft';
-  String outputUnit = 'm';
-
+  String parameterNumber = UnitDefinitions.parameters.first['number']!;
   String decimalFormat = 'Default';
+  late String inputUnit;
+  late String outputUnit;
 
-  final List<String> decimalOptions = [
+  final List<String> decimalOptions = const [
     'Default',
     '0',
     '0.0',
@@ -31,24 +31,60 @@ class _UnitConversionViewState extends State<UnitConversionView> {
     '0.00000',
   ];
 
-  // ---------------- CALCULATION ----------------
+  @override
+  void initState() {
+    super.initState();
+    final units = _unitsFor(parameterNumber);
+    inputUnit = units.first;
+    outputUnit = units.length > 1 ? units[1] : units.first;
+  }
+
+  @override
+  void dispose() {
+    inputCtrl.dispose();
+    outputCtrl.dispose();
+    super.dispose();
+  }
+
+  void _changeParameter(String nextNumber) {
+    final units = _unitsFor(nextNumber);
+    setState(() {
+      parameterNumber = nextNumber;
+      inputUnit = units.first;
+      outputUnit = units.length > 1 ? units[1] : units.first;
+      outputCtrl.clear();
+    });
+  }
+
   void calculate() {
-    final value = double.tryParse(inputCtrl.text);
+    final value = double.tryParse(inputCtrl.text.trim());
     if (value == null) {
       outputCtrl.clear();
       return;
     }
 
-    double result = value;
+    final result = UnitConversionService.instance.convertValue(
+      value,
+      inputUnit,
+      outputUnit,
+    );
+    outputCtrl.text = result == null ? '' : _formatDecimal(result);
+  }
 
-    // Length conversion
-    if (inputUnit == 'm' && outputUnit == 'ft') {
-      result = value * 3.28084;
-    } else if (inputUnit == 'ft' && outputUnit == 'm') {
-      result = value * 0.3048;
-    }
+  void copyFormula() {
+    final result = UnitConversionService.instance.convertValue(
+      1.0,
+      inputUnit,
+      outputUnit,
+    );
+    final formula = result == null
+        ? 'No conversion available for $inputUnit to $outputUnit'
+        : '1 $inputUnit = ${_formatDecimal(result)} $outputUnit';
+    Clipboard.setData(ClipboardData(text: formula));
+  }
 
-    outputCtrl.text = _formatDecimal(result);
+  void copyResult() {
+    Clipboard.setData(ClipboardData(text: outputCtrl.text));
   }
 
   String _formatDecimal(double value) {
@@ -65,168 +101,114 @@ class _UnitConversionViewState extends State<UnitConversionView> {
     return value.toStringAsFixed(decimals);
   }
 
-  // ---------------- COPY ----------------
-  void copyFormula() {
-    Clipboard.setData(const ClipboardData(
-      text: '1 m = 3.28084 ft\n1 ft = 0.3048 m',
-    ));
-  }
-
-  void copyResult() {
-    Clipboard.setData(ClipboardData(text: outputCtrl.text));
+  List<String> _unitsFor(String number) {
+    return UnitConversionService.instance.getUnitsForParam(number);
   }
 
   @override
   Widget build(BuildContext context) {
+    final units = _unitsFor(parameterNumber);
+
     return DefaultTextStyle.merge(
       style: engineeringDataText,
       child: Scaffold(
-        backgroundColor: engineeringPage,
+        backgroundColor: const Color(0xFFF1F1F1),
         appBar: AppBar(
-          backgroundColor: engineeringSection,
+          toolbarHeight: 34,
+          backgroundColor: const Color(0xFFEAF4F8),
           elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.white),
-          title: const Text('Unit Conversion', style: engineeringSectionText),
+          automaticallyImplyLeading: false,
+          titleSpacing: 10,
+          title: const Text(
+            'Unit Conversion',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.close),
+              icon: const Icon(Icons.close, color: Colors.black),
+              padding: EdgeInsets.zero,
               onPressed: () => Navigator.pop(context),
             ),
           ],
         ),
         body: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(30, 18, 30, 20),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                flex: 3,
-                child: _panel(
-                  title: 'Input',
-                  icon: Icons.input,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _label('Parameter'),
-                      DropdownButtonFormField<String>(
-                        value: parameter,
-                        style: engineeringDataText,
-                        decoration: _fieldDecoration(),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'Length',
-                            child: Text('Length'),
-                          ),
-                        ],
-                        onChanged: (_) {},
-                      ),
-                      const SizedBox(height: 14),
-                      _label('Value'),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: inputCtrl,
-                              keyboardType: TextInputType.number,
-                              style: engineeringDataText,
-                              decoration: _fieldDecoration(),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          _actionButton(
-                            label: 'Calculate',
-                            icon: Icons.calculate_outlined,
-                            onPressed: calculate,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      DropdownButtonFormField<String>(
-                        value: inputUnit,
-                        style: engineeringDataText,
-                        decoration: _fieldDecoration(),
-                        items: const [
-                          DropdownMenuItem(value: 'ft', child: Text('(ft)')),
-                          DropdownMenuItem(value: 'm', child: Text('(m)')),
-                        ],
-                        onChanged: (v) => setState(() => inputUnit = v!),
-                      ),
-                      const SizedBox(height: 20),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _actionButton(
-                            label: 'Copy Formula',
-                            icon: Icons.copy_outlined,
-                            onPressed: copyFormula,
-                          ),
-                          _actionButton(
-                            label: 'Copy Result',
-                            icon: Icons.content_copy,
-                            onPressed: copyResult,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+              Row(
+                children: [
+                  SizedBox(width: 130, child: _label('Parameter')),
+                  SizedBox(width: 360, child: _parameterDropdown()),
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 3,
-                child: _panel(
-                  title: 'Output',
-                  icon: Icons.output,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _label('Converted Value'),
-                      TextField(
-                        controller: outputCtrl,
-                        readOnly: true,
-                        style: engineeringDataText,
-                        decoration: _fieldDecoration(readOnly: true),
-                      ),
-                      const SizedBox(height: 10),
-                      DropdownButtonFormField<String>(
-                        value: outputUnit,
-                        style: engineeringDataText,
-                        decoration: _fieldDecoration(),
-                        items: const [
-                          DropdownMenuItem(value: 'm', child: Text('(m)')),
-                          DropdownMenuItem(value: 'ft', child: Text('(ft)')),
-                        ],
-                        onChanged: (v) => setState(() => outputUnit = v!),
-                      ),
-                      const SizedBox(height: 18),
-                      _label('Decimal'),
-                      DropdownButtonFormField<String>(
-                        value: decimalFormat,
-                        style: engineeringDataText,
-                        decoration: _fieldDecoration(),
-                        items: decimalOptions
-                            .map(
-                              (e) => DropdownMenuItem(
-                                value: e,
-                                child: Text(e),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) => setState(() => decimalFormat = v!),
-                      ),
-                      const Spacer(),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: _actionButton(
-                          label: 'Close',
-                          icon: Icons.close,
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ),
-                    ],
+              const SizedBox(height: 18),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 225,
+                    child: _inputBlock('Input', inputCtrl),
                   ),
-                ),
+                  const SizedBox(width: 28),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 30),
+                    child: _button('Calculate', calculate, width: 110),
+                  ),
+                  const SizedBox(width: 28),
+                  SizedBox(
+                    width: 235,
+                    child: _outputBlock(),
+                  ),
+                  const SizedBox(width: 28),
+                  SizedBox(
+                    width: 230,
+                    child: _decimalBlock(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 225,
+                    height: 142,
+                    child: _unitList(
+                      units: units,
+                      selected: inputUnit,
+                      onSelected: (unit) => setState(() => inputUnit = unit),
+                    ),
+                  ),
+                  const SizedBox(width: 166),
+                  SizedBox(
+                    width: 235,
+                    height: 142,
+                    child: _unitList(
+                      units: units,
+                      selected: outputUnit,
+                      onSelected: (unit) => setState(() => outputUnit = unit),
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  _button('Copy the Formula', copyFormula, width: 170),
+                  const SizedBox(width: 12),
+                  _button('Copy the Result', copyResult, width: 170),
+                  const Spacer(),
+                  _button(
+                    'Close',
+                    () => Navigator.pop(context),
+                    width: 170,
+                  ),
+                ],
               ),
             ],
           ),
@@ -235,39 +217,188 @@ class _UnitConversionViewState extends State<UnitConversionView> {
     );
   }
 
-  Widget _panel({
-    required String title,
-    required IconData icon,
-    required Widget child,
+  Widget _parameterDropdown() {
+    return SizedBox(
+      height: 31,
+      child: DropdownButtonFormField<String>(
+        value: parameterNumber,
+        isExpanded: true,
+        menuMaxHeight: 320,
+        style: engineeringDataText,
+        dropdownColor: Colors.white,
+        decoration: _fieldDecoration(),
+        items: UnitDefinitions.parameters
+            .map(
+              (item) => DropdownMenuItem<String>(
+                value: item['number'],
+                child: Text(
+                  item['name']!,
+                  textAlign: TextAlign.left,
+                  overflow: TextOverflow.ellipsis,
+                  style: engineeringDataText,
+                ),
+              ),
+            )
+            .toList(),
+        selectedItemBuilder: (context) => UnitDefinitions.parameters
+            .map(
+              (item) => Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  item['name']!,
+                  textAlign: TextAlign.left,
+                  overflow: TextOverflow.ellipsis,
+                  style: engineeringDataText,
+                ),
+              ),
+            )
+            .toList(),
+        onChanged: (value) {
+          if (value != null) _changeParameter(value);
+        },
+      ),
+    );
+  }
+
+  Widget _inputBlock(String title, TextEditingController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label(title),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 30,
+          child: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            textAlign: TextAlign.right,
+            style: engineeringDataText,
+            decoration: _fieldDecoration(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _outputBlock() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Output'),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 30,
+          child: TextField(
+            controller: outputCtrl,
+            readOnly: true,
+            textAlign: TextAlign.right,
+            style: engineeringDataText,
+            decoration: _fieldDecoration(readOnly: true),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _decimalBlock() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Decimal'),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 30,
+          child: DropdownButtonFormField<String>(
+            value: decimalFormat,
+            isExpanded: true,
+            style: engineeringDataText,
+            decoration: _fieldDecoration(),
+            items: decimalOptions
+                .map(
+                  (item) => DropdownMenuItem<String>(
+                    value: item,
+                    child: Text(item, style: engineeringDataText),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() => decimalFormat = value);
+              if (outputCtrl.text.isNotEmpty) calculate();
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _unitList({
+    required List<String> units,
+    required String selected,
+    required ValueChanged<String> onSelected,
   }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: engineeringBorder),
-        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: const Color(0xFF9EA9B5)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: const BoxDecoration(
-              color: engineeringSection,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+      child: ListView.builder(
+        itemCount: units.length,
+        itemBuilder: (context, index) {
+          final unit = units[index];
+          final isSelected = unit == selected;
+          return InkWell(
+            onTap: () => onSelected(unit),
+            child: Container(
+              height: 22,
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              color: isSelected ? const Color(0xFF0078D7) : Colors.white,
+              child: Text(
+                unit,
+                textAlign: TextAlign.left,
+                overflow: TextOverflow.ellipsis,
+                style: engineeringDataText.copyWith(
+                  color: isSelected ? Colors.white : Colors.black,
+                ),
+              ),
             ),
-            child: Row(
-              children: [
-                Icon(icon, size: 16, color: Colors.white),
-                const SizedBox(width: 8),
-                Text(title, style: engineeringSectionText),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Padding(padding: const EdgeInsets.all(12), child: child),
-          ),
-        ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _label(String text) {
+    return Text(
+      text,
+      textAlign: TextAlign.left,
+      style: engineeringDataText.copyWith(
+        color: Colors.black,
+        fontWeight: FontWeight.w400,
+      ),
+    );
+  }
+
+  Widget _button(String label, VoidCallback onPressed, {required double width}) {
+    return SizedBox(
+      width: width,
+      height: 34,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.black,
+          textStyle: engineeringDataText,
+          side: const BorderSide(color: Color(0xFFCFCFCF)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          backgroundColor: Colors.white,
+          padding: EdgeInsets.zero,
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: engineeringDataText,
+        ),
       ),
     );
   }
@@ -277,45 +408,19 @@ class _UnitConversionViewState extends State<UnitConversionView> {
       isDense: true,
       filled: true,
       fillColor: readOnly ? engineeringReadOnly : Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
       border: const OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(4)),
-        borderSide: BorderSide(color: engineeringGrid),
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: Color(0xFFB6B6B6)),
       ),
       enabledBorder: const OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(4)),
-        borderSide: BorderSide(color: engineeringGrid),
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: Color(0xFFB6B6B6)),
       ),
       focusedBorder: const OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(4)),
-        borderSide: BorderSide(color: engineeringSection),
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: Color(0xFF1683D8)),
       ),
     );
   }
-
-  Widget _actionButton({
-    required String label,
-    required IconData icon,
-    required VoidCallback onPressed,
-  }) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 15),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: engineeringSection,
-        foregroundColor: Colors.white,
-        textStyle: engineeringDataText.copyWith(color: Colors.white),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-      ),
-    );
-  }
-
-  Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(
-          text,
-          style: engineeringDataText,
-        ),
-      );
 }
