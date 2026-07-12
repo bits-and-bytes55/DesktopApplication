@@ -3259,6 +3259,9 @@ class _BitSectionState extends State<BitSection> {
   final wellGenCtrl = Get.isRegistered<WellGeneralController>()
       ? Get.find<WellGeneralController>()
       : Get.put(WellGeneralController(), permanent: true);
+  final ds = Get.isRegistered<DrillStringController>()
+      ? Get.find<DrillStringController>()
+      : Get.put(DrillStringController());
   final Map<String, TextEditingController> bc = {
     'Mft': TextEditingController(),
     'Type': TextEditingController(),
@@ -3419,12 +3422,11 @@ class _BitSectionState extends State<BitSection> {
   }
 
   void _applyDefaultBitDepth() {
-    final mdText = wellGenCtrl.md.value.trim();
-    if (mdText.isEmpty) return;
-    bc['Depth-in']!.text = mdText;
-    bc['Depth']!.text = mdText;
-    _syncBitField('Depth-in', mdText);
-    _syncBitField('Depth', mdText);
+    final totalLength = ds.totalLength.value;
+    if (totalLength <= 0) return;
+    final depthText = _formatWellNumber(totalLength, fallbackDecimals: 4);
+    bc['Depth']!.text = depthText;
+    _syncBitField('Depth', depthText);
     if (mounted) setState(() {});
   }
 
