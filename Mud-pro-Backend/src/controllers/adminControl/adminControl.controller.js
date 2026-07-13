@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import AccessCode from "../../modules/adminControl/accessCode.model.js";
 import AdminCredential from "../../modules/adminControl/adminCredential.model.js";
 import AuthorizedDevice from "../../modules/adminControl/authorizedDevice.model.js";
 import SecurityLog from "../../modules/adminControl/securityLog.model.js";
@@ -6,6 +7,8 @@ import SecurityLog from "../../modules/adminControl/securityLog.model.js";
 const PASSWORD_MAX_AGE_DAYS = 30;
 const RESET_LIMIT = 2;
 const SESSION_TTL_MS = 30 * 60 * 1000;
+const ACCESS_CODE_DIGITS = 10;
+const ACCESS_CODE_TTL_HOURS = 24;
 const adminSessions = new Map();
 
 const toText = (value) => String(value ?? "").trim();
@@ -23,6 +26,42 @@ const createPasswordHash = (password) => {
   const salt = crypto.randomBytes(16).toString("hex");
   const hash = crypto.scryptSync(password, salt, 64).toString("hex");
   return { hash, salt };
+};
+
+const hashAccessCode = (code) =>
+  crypto.createHash("sha256").update(String(code)).digest("hex");
+
+const generateNumericCode = (digits = ACCESS_CODE_DIGITS) => {
+  let code = "";
+  for (let index = 0; index < digits; index += 1) {
+    code += crypto.randomInt(0, 10).toString();
+  }
+  return code;
+};
+
+const normalizeDurationDays = (value) => {
+  const durationDays = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(durationDays) || durationDays < 1 || durationDays > 3650) {
+    return null;
+  }
+  return durationDays;
+};
+
+export const applyDeviceExpiry = async (device) => {
+  if (!device) return device;
+  const expiresAt = device.accessExpiresAt ? new Date(device.accessExpiresAt) : null;
+  const isExpired =
+    device.status === "allowed" &&
+    device.accessType === "timed" &&
+    expiresAt &&
+    expiresAt.getTime() <= Date.now();
+
+  device.lastAccessCheckAt = new Date();
+  if (isExpired) {
+    device.status = "expired";
+  }
+  await device.save();
+  return device;
 };
 
 const verifyPassword = (password, credential) => {
@@ -376,7 +415,7 @@ export const updateDeviceStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const status = toText(req.body?.status);
-    if (!["allowed", "blocked", "pending"].includes(status)) {
+    if (!["allowed", "blocked", "pending", "expired"].includes(status)) {
       return res.status(400).json({
         success: false,
         message: "Invalid device status",
@@ -387,8 +426,18 @@ export const updateDeviceStatus = async (req, res) => {
     if (status === "allowed") {
       update.approvedAt = new Date();
       update.blockedAt = null;
+      update.accessType = "permanent";
+      update.accessStartsAt = new Date();
+      update.accessExpiresAt = null;
+      update.accessDurationDays = 0;
     } else if (status === "blocked") {
       update.blockedAt = new Date();
+    } else if (status === "pending") {
+      update.blockedAt = null;
+      update.accessType = "none";
+      update.accessStartsAt = null;
+      update.accessExpiresAt = null;
+      update.accessDurationDays = 0;
     }
 
     const device = await AuthorizedDevice.findByIdAndUpdate(id, update, {
@@ -417,6 +466,87 @@ export const updateDeviceStatus = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to update device status",
+      error: error.message,
+    });
+  }
+};
+
+export const generateAccessCode = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const durationDays = normalizeDurationDays(req.body?.durationDays);
+    if (!durationDays) {
+      return res.status(400).json({
+        success: false,
+        message: "Duration must be between 1 and 3650 days",
+      });
+    }
+
+    const device = await AuthorizedDevice.findById(id);
+    if (!device) {
+      return res.status(404).json({
+        success: false,
+        message: "Device not found",
+      });
+    }
+    if (device.status === "blocked") {
+      return res.status(409).json({
+        success: false,
+        message: "Blocked device cannot receive an access code",
+      });
+    }
+
+    let code = "";
+    let codeHash = "";
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      code = generateNumericCode();
+      codeHash = hashAccessCode(code);
+      const existing = await AccessCode.exists({ codeHash, usedAt: null });
+      if (!existing) break;
+    }
+
+    const now = new Date();
+    const codeExpiresAt = new Date(
+      now.getTime() + ACCESS_CODE_TTL_HOURS * 60 * 60 * 1000
+    );
+    const accessExpiresAt = new Date(
+      now.getTime() + durationDays * 24 * 60 * 60 * 1000
+    );
+
+    await AccessCode.create({
+      codeHash,
+      codeLast4: code.slice(-4),
+      deviceId: device._id,
+      installationId: device.installationId,
+      machineKey: device.machineKey,
+      durationDays,
+      codeExpiresAt,
+      accessExpiresAt,
+    });
+
+    await logSecurityEvent("access_code_generated", "Timed access code generated", req, {
+      deviceId: String(device._id),
+      durationDays,
+      codeLast4: code.slice(-4),
+      codeExpiresAt,
+      accessExpiresAt,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Access code generated",
+      data: {
+        code,
+        durationDays,
+        codeExpiresAt,
+        accessExpiresAt,
+        deviceId: String(device._id),
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate access code",
       error: error.message,
     });
   }

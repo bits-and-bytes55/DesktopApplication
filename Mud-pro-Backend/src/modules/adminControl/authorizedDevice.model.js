@@ -36,9 +36,29 @@ const authorizedDeviceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "allowed", "blocked"],
+      enum: ["pending", "allowed", "blocked", "expired"],
       default: "pending",
       index: true,
+    },
+    accessType: {
+      type: String,
+      enum: ["none", "permanent", "timed"],
+      default: "none",
+      index: true,
+    },
+    accessStartsAt: {
+      type: Date,
+      default: null,
+    },
+    accessExpiresAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    accessDurationDays: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     approvedAt: {
       type: Date,
@@ -51,6 +71,10 @@ const authorizedDeviceSchema = new mongoose.Schema(
     lastSeenAt: {
       type: Date,
       default: Date.now,
+    },
+    lastAccessCheckAt: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }

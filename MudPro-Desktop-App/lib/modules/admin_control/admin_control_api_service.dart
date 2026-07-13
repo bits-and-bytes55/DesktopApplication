@@ -103,6 +103,15 @@ class AdminControlApiService {
     return _decode(response);
   }
 
+  static Future<Map<String, dynamic>> verifyAccessCode(String code) async {
+    final response = await http.post(
+      _uri(ApiEndpoint.deviceAuthVerifyCode),
+      headers: _headers(),
+      body: jsonEncode(await _devicePayload({'code': code})),
+    );
+    return _decode(response);
+  }
+
   static Future<Map<String, dynamic>> registerCurrentDevice(
     String adminToken,
   ) async {
@@ -131,6 +140,19 @@ class AdminControlApiService {
       _uri('${ApiEndpoint.adminDevices}/$id/status'),
       headers: _headers(adminToken),
       body: jsonEncode({'status': status}),
+    );
+    return _decode(response);
+  }
+
+  static Future<Map<String, dynamic>> generateAccessCode({
+    required String id,
+    required int durationDays,
+    required String adminToken,
+  }) async {
+    final response = await http.post(
+      _uri('${ApiEndpoint.adminDevices}/$id/access-code'),
+      headers: _headers(adminToken),
+      body: jsonEncode({'durationDays': durationDays}),
     );
     return _decode(response);
   }

@@ -18,6 +18,8 @@ class AdminControlView extends StatelessWidget {
   final _confirmPassword = TextEditingController();
   final _resetPassword = TextEditingController();
   final _resetConfirm = TextEditingController();
+  final _accessCode = TextEditingController();
+  final _customAccessDays = TextEditingController(text: '1');
 
   static const _blue = AppTheme.primaryColor;
   static const _border = Color(0xFFB9D4EF);
@@ -69,9 +71,20 @@ class AdminControlView extends StatelessWidget {
                           ],
                         )
                       : Center(
-                          child: SizedBox(
-                            width: 560,
-                            child: _adminAccessCard(),
+                          child: SingleChildScrollView(
+                            child: SizedBox(
+                              width: 560,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _adminAccessCard(),
+                                  if (!c.isDeviceAllowed.value) ...[
+                                    const SizedBox(height: 10),
+                                    _activateAccessCodeCard(),
+                                  ],
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                 ),
@@ -148,15 +161,26 @@ class AdminControlView extends StatelessWidget {
           color: const Color(0xFFFFF3CD),
           border: Border.all(color: const Color(0xFFFFC107)),
         ),
-        child: const Text(
-          'This device is not authorized. Login to Admin Control to approve this device.',
-          style: TextStyle(
+        child: Text(
+          _unauthorizedMessage(),
+          style: const TextStyle(
             color: Color(0xFF2F2F2F),
             fontWeight: FontWeight.w700,
           ),
         ),
       ),
     );
+  }
+
+  String _unauthorizedMessage() {
+    final status = '${c.currentDevice['status'] ?? ''}'.toLowerCase();
+    if (status == 'expired') {
+      return 'This device access has expired. Please contact admin.';
+    }
+    if (status == 'blocked') {
+      return 'This device is blocked. Please contact admin.';
+    }
+    return 'This device is not authorized. Login to Admin Control to approve this device.';
   }
 
   Widget _messageBox() {
@@ -252,6 +276,8 @@ class AdminControlView extends StatelessWidget {
           _infoRow('IP Address', '${device['ipAddress'] ?? ''}'),
           _infoRow('Installation ID', '${device['installationId'] ?? ''}'),
           _infoRow('Machine Key', '${device['machineKey'] ?? ''}'),
+          _infoRow('Access Type', '${device['accessType'] ?? 'none'}'),
+          _infoRow('Expires At', _displayValue(device['accessExpiresAt'])),
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
@@ -305,6 +331,61 @@ class AdminControlView extends StatelessWidget {
             _button('Login', () => c.login(_loginPassword.text)),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _activateAccessCodeCard() {
+    return _card(
+      'Activate Device Access',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Enter the 10 digit access code provided by admin.',
+            style: AppTheme.wellLikeBodyText,
+          ),
+          const SizedBox(height: 8),
+          _textField(_accessCode, '10 digit access code'),
+          const SizedBox(height: 8),
+          _button(
+            'Activate Access',
+            () => c.verifyAccessCode(_accessCode.text),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _generatedCodeCard() {
+    if (c.generatedAccessCode.value.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF3CD),
+          border: Border.all(color: const Color(0xFFFFC107)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Generated Access Code', style: AppTheme.wellLikeBodyText),
+            const SizedBox(height: 6),
+            SelectableText(
+              c.generatedAccessCode.value,
+              style: AppTheme.wellLikeBodyText.copyWith(fontSize: 22),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              c.generatedAccessCodeMessage.value,
+              style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -372,12 +453,22 @@ class AdminControlView extends StatelessWidget {
     return _largeCard(
       'Device Access List',
       [
+        _generatedCodeCard(),
         Align(
           alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: c.isAdminLoggedIn.value ? c.refreshDevices : null,
-            icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('Refresh Devices'),
+          child: Row(
+            children: [
+              TextButton.icon(
+                onPressed: c.isAdminLoggedIn.value ? c.refreshDevices : null,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Refresh Devices'),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: 110,
+                child: _textField(_customAccessDays, 'Custom days'),
+              ),
+            ],
           ),
         ),
         const Divider(height: 1),
@@ -395,13 +486,17 @@ class AdminControlView extends StatelessWidget {
                   style: AppTheme.wellLikeBodyText,
                 ),
                 subtitle: Text(
-                  '${device['macAddress'] ?? ''}\n${device['installationId'] ?? ''}',
+                  _deviceSubtitle(device),
                   style: AppTheme.wellLikeBodyText.copyWith(fontSize: 10),
                 ),
                 trailing: Wrap(
                   spacing: 6,
                   children: [
                     _statusBadge(status),
+                    _durationButton(id, '1D', 1),
+                    _durationButton(id, '2D', 2),
+                    _durationButton(id, '7D', 7),
+                    _customDurationButton(id),
                     TextButton(
                       onPressed: c.isAdminLoggedIn.value && id.isNotEmpty
                           ? () =>
@@ -423,6 +518,39 @@ class AdminControlView extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  String _deviceSubtitle(Map<String, dynamic> device) {
+    final expires = '${device['accessExpiresAt'] ?? ''}';
+    final accessType = '${device['accessType'] ?? 'none'}';
+    final lines = <String>[
+      '${device['macAddress'] ?? ''}',
+      '${device['installationId'] ?? ''}',
+      if (accessType != 'none') 'Access: $accessType',
+      if (expires.isNotEmpty && expires != 'null') 'Expires: $expires',
+    ];
+    return lines.where((line) => line.trim().isNotEmpty).join('\n');
+  }
+
+  Widget _durationButton(String id, String label, int days) {
+    return TextButton(
+      onPressed: c.isAdminLoggedIn.value && id.isNotEmpty
+          ? () => c.generateAccessCode(id: id, durationDays: days)
+          : null,
+      child: Text(label),
+    );
+  }
+
+  Widget _customDurationButton(String id) {
+    return TextButton(
+      onPressed: c.isAdminLoggedIn.value && id.isNotEmpty
+          ? () {
+              final days = int.tryParse(_customAccessDays.text.trim()) ?? 1;
+              c.generateAccessCode(id: id, durationDays: days);
+            }
+          : null,
+      child: const Text('Custom'),
     );
   }
 
@@ -522,11 +650,13 @@ class AdminControlView extends StatelessWidget {
     final color = switch (normalized) {
       'allowed' => const Color(0xFF1E8E3E),
       'blocked' => const Color(0xFFD93025),
+      'expired' => const Color(0xFF6F42C1),
       _ => const Color(0xFFB7791F),
     };
     final label = switch (normalized) {
       'allowed' => 'Allowed',
       'blocked' => 'Blocked',
+      'expired' => 'Expired',
       _ => 'Pending',
     };
 
@@ -543,6 +673,30 @@ class AdminControlView extends StatelessWidget {
           color: color,
           fontWeight: FontWeight.w700,
           fontSize: 11,
+        ),
+      ),
+    );
+  }
+
+  String _displayValue(dynamic value) {
+    final text = '${value ?? ''}'.trim();
+    if (text.isEmpty || text == 'null') {
+      return '-';
+    }
+    return text;
+  }
+
+  Widget _textField(TextEditingController controller, String hint) {
+    return SizedBox(
+      height: 34,
+      child: TextField(
+        controller: controller,
+        style: AppTheme.wellLikeBodyText,
+        decoration: InputDecoration(
+          hintText: hint,
+          isDense: true,
+          border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
         ),
       ),
     );

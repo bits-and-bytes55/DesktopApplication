@@ -159,5 +159,6 @@ static const String deleteOperator = 'operators'; // DELETE /:id
   static const String adminCurrentDevice = "admin-control/devices/current";
   static const String adminLogs = "admin-control/logs";
   static const String deviceAuthCheck = "device-auth/check";
+  static const String deviceAuthVerifyCode = "device-auth/verify-code";
 
 }
