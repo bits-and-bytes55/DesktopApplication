@@ -18,6 +18,8 @@ class AdminControlController extends GetxController {
   final adminToken = ''.obs;
   final isDeviceAllowed = false.obs;
   final resetCount = 0.obs;
+  final generatedAccessCode = ''.obs;
+  final generatedAccessCodeMessage = ''.obs;
   Timer? _sessionTimer;
 
   @override
@@ -53,6 +55,20 @@ class AdminControlController extends GetxController {
       'allowed': response['allowed'] == true,
     };
     isDeviceAllowed.value = response['allowed'] == true;
+  }
+
+  Future<void> verifyAccessCode(String code) async {
+    await _run(() async {
+      final response = await AdminControlApiService.verifyAccessCode(code);
+      final data = Map<String, dynamic>.from(response['data'] ?? {});
+      currentDevice.value = {
+        ...currentDevice.value,
+        ...data,
+        'allowed': response['allowed'] == true,
+      };
+      isDeviceAllowed.value = response['allowed'] == true;
+      message.value = response['message']?.toString() ?? 'Device access activated';
+    });
   }
 
   Future<void> setupPassword(String password, String confirmPassword) async {
@@ -96,6 +112,8 @@ class AdminControlController extends GetxController {
     isAdminLoggedIn.value = false;
     devices.clear();
     logs.clear();
+    generatedAccessCode.value = '';
+    generatedAccessCodeMessage.value = '';
     message.value = text;
   }
 
@@ -174,6 +192,26 @@ class AdminControlController extends GetxController {
       await _refreshDevices();
       await refreshCurrentDevice();
       message.value = 'Device ${status == 'allowed' ? 'allowed' : 'blocked'}';
+    });
+  }
+
+  Future<void> generateAccessCode({
+    required String id,
+    required int durationDays,
+  }) async {
+    await _run(() async {
+      final response = await AdminControlApiService.generateAccessCode(
+        id: id,
+        durationDays: durationDays,
+        adminToken: adminToken.value,
+      );
+      final data = Map<String, dynamic>.from(response['data'] ?? {});
+      generatedAccessCode.value = '${data['code'] ?? ''}';
+      generatedAccessCodeMessage.value =
+          'Valid for $durationDays day${durationDays == 1 ? '' : 's'}. Code expires in 24 hours.';
+      await _refreshDevices();
+      await _refreshLogs();
+      message.value = 'Access code generated';
     });
   }
 

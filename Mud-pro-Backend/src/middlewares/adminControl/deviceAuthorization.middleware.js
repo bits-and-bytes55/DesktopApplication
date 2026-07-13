@@ -18,15 +18,37 @@ export const requireAuthorizedDevice = async (req, res, next) => {
     const device = await AuthorizedDevice.findOne({
       installationId,
       machineKey,
-    }).lean();
+    });
 
     if (!device || device.status !== "allowed") {
       return res.status(403).json({
         success: false,
         code: "DEVICE_NOT_AUTHORIZED",
-        message: "This device is not authorized. Open Admin Control.",
+        message:
+          device?.status === "expired"
+            ? "This device access has expired. Please contact admin."
+            : "This device is not authorized. Open Admin Control.",
       });
     }
+
+    const expiresAt = device.accessExpiresAt ? new Date(device.accessExpiresAt) : null;
+    if (
+      device.accessType === "timed" &&
+      expiresAt &&
+      expiresAt.getTime() <= Date.now()
+    ) {
+      device.status = "expired";
+      device.lastAccessCheckAt = new Date();
+      await device.save();
+      return res.status(403).json({
+        success: false,
+        code: "DEVICE_ACCESS_EXPIRED",
+        message: "This device access has expired. Please contact admin.",
+      });
+    }
+
+    device.lastAccessCheckAt = new Date();
+    await device.save();
 
     return next();
   } catch (error) {

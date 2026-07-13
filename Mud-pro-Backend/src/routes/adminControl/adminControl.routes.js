@@ -2,6 +2,7 @@ import express from "express";
 import {
   changeAdminPassword,
   deleteDevice,
+  generateAccessCode,
   getAdminStatus,
   getDevices,
   getSecurityLogs,
@@ -25,6 +26,11 @@ protectedRouter.post("/change-password", requireAdminSession, changeAdminPasswor
 protectedRouter.get("/devices", requireAdminSession, getDevices);
 protectedRouter.post("/devices/current", requireAdminSession, upsertCurrentDevice);
 protectedRouter.patch("/devices/:id/status", requireAdminSession, updateDeviceStatus);
+protectedRouter.post(
+  "/devices/:id/access-code",
+  requireAdminSession,
+  generateAccessCode
+);
 protectedRouter.delete("/devices/:id", requireAdminSession, deleteDevice);
 protectedRouter.get("/logs", requireAdminSession, getSecurityLogs);
 
