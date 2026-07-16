@@ -1,0 +1,33 @@
+name: Deploy MudPro Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy backend to Hostinger VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          timeout: 120s
+          command_timeout: 15m
+          script_stop: true
+          script: |
+            cd ${{ secrets.APP_DIR }}
+            git pull origin main
+
+            cd Mud-pro-Backend
+            npm install --omit=dev
+
+            pm2 restart mudpro-backend || pm2 start server.js --name mudpro-backend
+            pm2 save
+
+            systemctl reload nginx
