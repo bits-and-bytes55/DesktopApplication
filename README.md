@@ -1,2 +1,3 @@
 # DesktopApplication
-http://213.210.37.129
+http://200.97.172.156
+ssh root@200.97.172.156
