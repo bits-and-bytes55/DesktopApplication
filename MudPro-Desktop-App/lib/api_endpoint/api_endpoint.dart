@@ -11,6 +11,7 @@ class ApiEndpoint {
     'Expires': '0',
   };
 
+
   static Iterable<String> get candidateBaseUrls sync* {
     final seen = <String>{};
     final primaryIsLocal =
