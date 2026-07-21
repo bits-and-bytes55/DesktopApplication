@@ -80,7 +80,7 @@ class UserManualPage extends StatefulWidget {
         _ManualNode('Toolbar', children: [
           _ManualNode('Home'),
           _ManualNode('Report'),
-          _ManualNode('Options'),
+          _ManualNode('Options', topic: 'Output Options'),
           _ManualNode('Utility & Help'),
         ]),
         _ManualNode('Output Job Explorer', children: [
@@ -1468,6 +1468,7 @@ class _ManualTopicPage extends StatelessWidget {
         _reportPitsLinks.contains(topic) ||
         topic == 'Report Safety' ||
         topic == 'Report Remarks' ||
+        topic == 'Output Options' ||
         _menuToolbarLinks.contains(topic);
   }
 
@@ -1680,6 +1681,12 @@ class _ManualTopicPage extends StatelessWidget {
     }
     if (topic == 'Report Safety') {
       return _reportSafetyPage();
+    }
+    if (topic == 'Report Remarks') {
+      return _reportRemarksPage();
+    }
+    if (topic == 'Output Options') {
+      return _outputOptionsPage();
     }
     if (topic == 'Pad Detail') {
       return _padDetailPage();
@@ -5655,6 +5662,650 @@ class _ManualTopicPage extends StatelessWidget {
           'All safety information entered here will be reflected in the Safety Card report.',
         ),
       ],
+    );
+  }
+
+  Widget _reportRemarksPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _reportRemarksInputMock(),
+        const SizedBox(height: 24),
+        _manualParagraph('There are four text boxes on the Remarks page.'),
+        _manualParagraph(
+          'These text boxes are used to enter the corresponding remarks for the current daily report. The entered content is shown in the daily report and recap report, and the four sections include spell-check support for report writing.',
+        ),
+        _manualParagraph(
+          'A picture can also be uploaded for the remarks section. The selected image is saved with the project/case file and can be used as part of the report record.',
+        ),
+        _manualNote(
+          'The internal notes will not be shown in any reports. They are kept only for internal reference.',
+        ),
+      ],
+    );
+  }
+
+  Widget _outputOptionsPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _outputSummaryOptionsMock(),
+        const SizedBox(height: 22),
+        _manualParagraph(
+          'Options lets the user control which dashboard charts and report sections are included in the Output window.',
+        ),
+        _manualHeading('1. Summary'),
+        _manualParagraph(
+          'Summary settings control the panels shown on the output dashboard. Up to three KPI panels, progress charts, and cost-distribution views can be selected. Product groups and other cost categories can also be chosen for comparison charts.',
+        ),
+        _manualBullet('Dashboard choices include depth, cost, day, average cost, daily footage, mud weight, rheology, ECD, and solids values.'),
+        _manualBullet('Cost Distribution can show top products, individual products, selected product groups, packages, services, premixed mud, engineering, or all categories.'),
+        const SizedBox(height: 12),
+        _outputDashboardPreview(),
+        const SizedBox(height: 24),
+        _manualHeading('2. Report'),
+        _outputReportOptionsMock(),
+        const SizedBox(height: 14),
+        _manualParagraph(
+          'Report settings control the daily report layout and the information printed in exported reports.',
+        ),
+        _manualBullet('Daily Report Page selects a one-page, two-page, or three-page layout according to the required level of detail.'),
+        _manualBullet('Report Page Size selects Legal, Letter, or A4 based on the available printer and export requirements.'),
+        _manualBullet('Daily Report options control product price, product cost, total-cost basis, consumption basis, CCI visibility, and detailed pit information.'),
+        _manualNote('Multi-rheology output requires a report format and page size that provide enough space for the additional result columns.'),
+        const SizedBox(height: 24),
+        _manualHeading('3. Detail Report'),
+        _outputDetailOptionsMock(),
+        const SizedBox(height: 14),
+        _manualParagraph(
+          'Detail Report settings select the sections included in the detailed output package. Each section can expose its relevant graph, current table, history table, planned survey table, usage view, inventory view, or summary view.',
+        ),
+        _manualParagraph(
+          'Use Default to restore the standard selections, OK to apply the current choices, or Cancel to close the window without applying the latest changes.',
+        ),
+      ],
+    );
+  }
+
+  Widget _outputSummaryOptionsMock() {
+    return _outputOptionsShell(
+      selected: 'Summary',
+      height: 520,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _optionsGroupTitle('Dashboard (up to 3)'),
+                _checkboxMock('Depth with Target', true),
+                _checkboxMock('Cost with Budget', true),
+                _checkboxMock('Day with Goal', true),
+                _checkboxMock('Depth', false),
+                _checkboxMock('Cost', false),
+                _checkboxMock('Day', false),
+                _checkboxMock('Average Cost per Unit Length', false),
+                _checkboxMock('Average Daily Cost', false),
+                _checkboxMock('Cost vs. Mud Type', false),
+                _checkboxMock('Daily Footage', false),
+                _checkboxMock('Calendar', false),
+                const SizedBox(height: 6),
+                _optionsGroupTitle('Cost Distribution (up to 2)'),
+                _checkboxMock('Top 10 Products', true),
+                _checkboxMock('Product', false),
+                _outputGroupChoice('Group', 'Base Fluid'),
+                _outputGroupChoice('Group', 'Weight Material'),
+                _checkboxMock('Package', false),
+                _checkboxMock('Service', false),
+                _checkboxMock('Premixed Mud', false),
+                _checkboxMock('Engineering', false),
+                _checkboxMock('All Categories', true),
+              ],
+            ),
+          ),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _optionsGroupTitle('Progress (up to 3)'),
+                _checkboxMock('Depth', true),
+                _checkboxMock('Cumulative Product Cost', false),
+                _checkboxMock('Cumulative Package Cost', false),
+                _checkboxMock('Cumulative Service Cost', false),
+                _checkboxMock('Cumulative Engineering Cost', false),
+                _checkboxMock('Cumulative Premixed Mud Cost', false),
+                _checkboxMock('Cumulative Total Cost', true),
+                _checkboxMock('Mud Weight', true),
+                _checkboxMock('Funnel Viscosity', false),
+                _checkboxMock('PV', false),
+                _checkboxMock('YP', false),
+                _checkboxMock('ROP', false),
+                _checkboxMock('RPM', false),
+                _checkboxMock('Bottom Hole ECD', false),
+                _checkboxMock('LGS percentage', false),
+                _checkboxMock('LGS', false),
+                _checkboxMock('HGS percentage', false),
+                _checkboxMock('HGS', false),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _outputReportOptionsMock() {
+    return _outputOptionsShell(
+      selected: 'Report',
+      height: 310,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _optionsGroupTitle('Daily Report Page'),
+          Wrap(
+            spacing: 18,
+            children: [
+              _radioMock('1 Page', selected: true),
+              _radioMock('2 Page', selected: false),
+              _radioMock('3 Page', selected: false),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _optionsGroupTitle('Report Page Size'),
+          Wrap(
+            spacing: 18,
+            children: [
+              _radioMock('Legal', selected: true),
+              _radioMock('Letter', selected: false),
+              _radioMock('A4', selected: false),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _optionsGroupTitle('Daily Report'),
+          Wrap(
+            spacing: 24,
+            runSpacing: 2,
+            children: [
+              SizedBox(width: 180, child: _checkboxMock('Product Price', false)),
+              SizedBox(width: 180, child: _checkboxMock('Product Cost', true)),
+              SizedBox(width: 180, child: _checkboxMock('CCI in Annular Hydraulics', true)),
+              SizedBox(width: 180, child: _checkboxMock('Detailed Pit Information', false)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Text('Total Cost:', style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w700)),
+              const SizedBox(width: 12),
+              _radioMock('Previous Total Cost', selected: true),
+              const SizedBox(width: 16),
+              _radioMock('Interval Total Cost', selected: false),
+            ],
+          ),
+          Row(
+            children: [
+              Text('Consumption:', style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w700)),
+              const SizedBox(width: 12),
+              _radioMock('Total', selected: true),
+              const SizedBox(width: 16),
+              _radioMock('Interval', selected: false),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _outputDetailOptionsMock() {
+    final left = <({String label, bool checked})>[
+      (label: 'Summary', checked: true),
+      (label: 'Detail', checked: false),
+      (label: 'Daily Cost', checked: true),
+      (label: 'Product Chart', checked: true),
+      (label: 'Other Categories Chart', checked: true),
+      (label: 'Usage Table', checked: false),
+      (label: 'Total Cost', checked: true),
+      (label: 'Cost Graph', checked: true),
+      (label: 'Cost Table', checked: false),
+      (label: 'Concentration', checked: true),
+      (label: 'Current Table', checked: true),
+      (label: 'History Table', checked: false),
+      (label: 'Time Distribution', checked: true),
+      (label: 'Time Graph', checked: true),
+    ];
+    final right = <({String label, bool checked})>[
+      (label: 'Survey', checked: true),
+      (label: 'Survey Graph', checked: true),
+      (label: 'Actual Survey Table', checked: false),
+      (label: 'Planned Survey Table', checked: false),
+      (label: 'Alert', checked: true),
+      (label: 'Alert Summary', checked: true),
+      (label: 'Alert Usage', checked: true),
+      (label: 'Alert Inventory', checked: true),
+      (label: 'Alert Table', checked: false),
+    ];
+
+    return _outputOptionsShell(
+      selected: 'Detail Report',
+      height: 370,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [for (final item in left) _checkboxMock(item.label, item.checked)],
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [for (final item in right) _checkboxMock(item.label, item.checked)],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _outputOptionsShell({
+    required String selected,
+    required double height,
+    required Widget child,
+  }) {
+    return Container(
+      width: 620,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.blue.shade300),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 28,
+            color: AppTheme.panelHeaderBlue,
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              'Options',
+              style: AppTheme.bodyLarge.copyWith(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 112,
+                  color: const Color(0xFFF3F6FA),
+                  child: Column(
+                    children: [
+                      for (final label in const ['Summary', 'Report', 'Detail Report'])
+                        _outputOptionNav(label, active: label == selected),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: child),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            _smallButton('Default'),
+                            const SizedBox(width: 8),
+                            _smallButton('OK'),
+                            const SizedBox(width: 8),
+                            _smallButton('Cancel'),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _outputOptionNav(String label, {required bool active}) {
+    return Container(
+      height: 34,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: active ? AppTheme.tableHeaderBlue : Colors.transparent,
+        border: const Border(bottom: BorderSide(color: AppTheme.tableBorderBlue)),
+      ),
+      child: Text(
+        label,
+        style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+      ),
+    );
+  }
+
+  Widget _optionsGroupTitle(String label) {
+    return Container(
+      height: 22,
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 7),
+      alignment: Alignment.centerLeft,
+      color: AppTheme.tableHeaderBlue,
+      child: Text(
+        label,
+        style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+      ),
+    );
+  }
+
+  Widget _outputGroupChoice(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5),
+      child: Row(
+        children: [
+          const Icon(Icons.check_box_outline_blank, size: 14, color: AppTheme.panelHeaderBlue),
+          const SizedBox(width: 5),
+          SizedBox(width: 46, child: Text(label, style: AppTheme.bodyLarge.copyWith(fontSize: 11))),
+          Container(
+            width: 92,
+            height: 20,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            alignment: Alignment.centerLeft,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: AppTheme.tableBorderBlue),
+            ),
+            child: Text(value, overflow: TextOverflow.ellipsis, style: AppTheme.bodyLarge.copyWith(fontSize: 10)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _outputDashboardPreview() {
+    return Container(
+      width: 620,
+      height: 245,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FA),
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      padding: const EdgeInsets.all(10),
+      child: Row(
+        children: [
+          _dashboardWellborePreview(),
+          const SizedBox(width: 8),
+          for (final title in const ['KPI', 'Cost Distribution', 'Progress']) ...[
+            Expanded(child: _dashboardColumnPreview(title)),
+            if (title != 'Progress') const SizedBox(width: 8),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _dashboardWellborePreview() {
+    return Container(
+      width: 120,
+      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade300)),
+      child: Column(
+        children: [
+          _optionsGroupTitle('Wellbore'),
+          Expanded(
+            child: CustomPaint(
+              painter: _ManualWellborePainter(),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dashboardColumnPreview(String title) {
+    return Container(
+      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade300)),
+      child: Column(
+        children: [
+          _optionsGroupTitle(title),
+          for (var i = 0; i < 3; i++)
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(7, 0, 7, 7),
+                decoration: BoxDecoration(
+                  color: i == 1 ? const Color(0xFFFFFDE7) : const Color(0xFFF4F8FC),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Center(
+                  child: Icon(
+                    title == 'Progress' ? Icons.show_chart : (title == 'KPI' ? Icons.speed : Icons.bar_chart),
+                    size: 24,
+                    color: AppTheme.panelHeaderBlue,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportRemarksInputMock() {
+    return Container(
+      width: 655,
+      height: 370,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.blue.shade300),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 24,
+            color: AppTheme.panelHeaderBlue,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'MSR2_DMR - Input',
+              style: AppTheme.bodyLarge.copyWith(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          Container(
+            height: 27,
+            color: AppTheme.tableHeaderBlue,
+            child: Row(
+              children: [
+                const SizedBox(width: 100),
+                for (final tab in const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Safety', 'Remarks'])
+                  Container(
+                    height: 27,
+                    padding: const EdgeInsets.symmetric(horizontal: 11),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: tab == 'Remarks' ? Colors.white : AppTheme.tableHeaderBlue,
+                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                    ),
+                    child: Text(
+                      tab,
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 105,
+                  color: const Color(0xFFF3F6FA),
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _treeLine('New Pad', 0),
+                      _treeLine('* BURGAN 1', 1),
+                      _treeLine('5/6/2022', 2),
+                      _treeLine('# 24 22482.0 ft', 2),
+                      _treeLine('5/7/2022', 2),
+                      _treeLine('# 25 22482.0 ft', 2),
+                      _treeLine('5/8/2022', 2),
+                      _treeLine('# 26 22482.0 ft', 2),
+                      _treeLine('5/9/2022', 2),
+                      _treeLine('# 27 22482.0 ft', 2),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Container(
+                    color: const Color(0xFFF0F0F0),
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _remarksLargeTextBox(
+                          'Recommended Tour Treatments',
+                          'Transferred out to FDF: 620 bbl of leased 15.2 ppg OBM\nTransferred in from Integrity: 584.9 bbl 15.3 ppg OBM\n\nScreens on location:\nNOV 140s - 16   Patriot 140s - 7\nNOV 170s - 22   Patriot 170s - 22',
+                        ),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          width: 230,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _remarksMediumTextBox(
+                                'Remarks',
+                                'Finished RIH before starting down, washed down from 7156.7 ft.\nLog sample temperature remained stable. Circulated and conditioned mud at report end.\n\nTotal Leased OBM: 2,295 bbls\nTotal OBM on Loc.: 3,114 bbls\nGain/Loss for well: +115 bbls',
+                              ),
+                              const SizedBox(height: 8),
+                              _remarksMediumTextBox(
+                                'Recap Remarks',
+                                'Finished RIH and circulated bottoms up. Maintained mud properties and monitored solids control equipment.',
+                              ),
+                              const SizedBox(height: 8),
+                              _remarksMediumTextBox('Internal Notes', '', height: 72),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 86,
+                          child: Column(
+                            children: [
+                              _remarksLogoMock(),
+                              const SizedBox(height: 6),
+                              _smallButton('Upload'),
+                              const SizedBox(height: 4),
+                              _smallButton('Delete'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            height: 18,
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            color: Colors.white,
+            child: Text(
+              'C:/MSR2_DMR/Current-Project.msr',
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _remarksLargeTextBox(String title, String text) {
+    return SizedBox(
+      width: 142,
+      child: _remarksTextBox(title, text, height: 250),
+    );
+  }
+
+  Widget _remarksMediumTextBox(String title, String text, {double height = 78}) {
+    return _remarksTextBox(title, text, height: height);
+  }
+
+  Widget _remarksTextBox(String title, String text, {required double height}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: AppTheme.bodyLarge.copyWith(fontSize: 8, fontWeight: FontWeight.w800),
+        ),
+        Container(
+          height: height,
+          width: double.infinity,
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: Colors.grey.shade300, width: 0.7),
+          ),
+          child: Text(
+            text,
+            overflow: TextOverflow.fade,
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 6.8,
+              height: 1.18,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _remarksLogoMock() {
+    return Container(
+      width: 84,
+      height: 82,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade400),
+      ),
+      child: Center(
+        child: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: AppTheme.panelHeaderBlue.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppTheme.panelHeaderBlue.withOpacity(0.45)),
+          ),
+          child: Icon(
+            Icons.image_outlined,
+            color: AppTheme.panelHeaderBlue,
+            size: 34,
+          ),
+        ),
+      ),
     );
   }
 
@@ -11795,6 +12446,10 @@ class _ManualTopicPage extends StatelessWidget {
   }
 
   void _goBack() {
+    if (topic == 'Output Options') {
+      onNavigate('Introduction');
+      return;
+    }
     if (topic == 'Pad Detail') {
       onNavigate('Pad');
       return;
@@ -11844,6 +12499,9 @@ class _ManualTopicPage extends StatelessWidget {
   }
 
   String get _breadcrumb {
+    if (topic == 'Output Options') {
+      return 'MSR2_DMR >> Output Windows >> Toolbar >>';
+    }
     if (topic == 'Introduction' ||
         topic == 'MSR2_DMR Structure' ||
         topic == 'Getting Started' ||
@@ -11894,6 +12552,9 @@ class _ManualTopicPage extends StatelessWidget {
   }
 
   String get _displayTitle {
+    if (topic == 'Output Options') {
+      return 'Options';
+    }
     if (topic == 'Pad Detail') {
       return 'Pad';
     }
@@ -11911,6 +12572,41 @@ class _ManualTopicPage extends StatelessWidget {
     }
     return topic;
   }
+}
+
+class _ManualWellborePainter extends CustomPainter {
+  const _ManualWellborePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.width / 2;
+    final line = Paint()
+      ..color = const Color(0xFF26384A)
+      ..strokeWidth = 1.4
+      ..style = PaintingStyle.stroke;
+    final casing = Paint()
+      ..color = const Color(0xFF5E88B5)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+    final marker = Paint()
+      ..color = const Color(0xFFE07B32)
+      ..strokeWidth = 4;
+
+    canvas.drawLine(Offset(center - 17, 10), Offset(center - 17, size.height - 10), line);
+    canvas.drawLine(Offset(center + 17, 10), Offset(center + 17, size.height - 10), line);
+    canvas.drawLine(Offset(center - 7, 18), Offset(center - 7, size.height - 18), casing);
+    canvas.drawLine(Offset(center + 7, 18), Offset(center + 7, size.height - 18), casing);
+    canvas.drawLine(Offset(center - 20, size.height * 0.28), Offset(center + 20, size.height * 0.28), marker);
+
+    final path = Path()..moveTo(center, size.height * 0.52);
+    for (var y = size.height * 0.52; y < size.height - 10; y += 8) {
+      path.lineTo(center + ((y ~/ 8).isEven ? 1.5 : -1.5), y);
+    }
+    canvas.drawPath(path, line);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _MainStructureArrowPainter extends CustomPainter {
