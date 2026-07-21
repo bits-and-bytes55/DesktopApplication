@@ -1882,9 +1882,9 @@ const normalizeExportSolidsSample = (sample) => {
       toNumber(sample.brineContent) ||
       toNumber(sample.brineVol) ||
       toNumber(sample.brineVolPct),
-    oilSg: toNumber(sample.oilSg) || toNumber(sample.oilSG) || 0.84,
-    hgsSg: toNumber(sample.hgsSg) || toNumber(sample.hgsSG) || 4.2,
-    lgsSg: toNumber(sample.lgsSg) || toNumber(sample.lgsSG) || 2.6,
+    oilSg: toNumber(sample.oilSg) || toNumber(sample.oilSG),
+    hgsSg: toNumber(sample.hgsSg) || toNumber(sample.hgsSG),
+    lgsSg: toNumber(sample.lgsSg) || toNumber(sample.lgsSG),
     lgsPercent: toNumber(sample.lgsPercent),
     lgsLb: toNumber(sample.lgsLb),
     hgsPercent: toNumber(sample.hgsPercent),
@@ -1952,25 +1952,31 @@ const calculateDmrSolidsSample = (mudReportState = {}, fallback = {}, index = 0)
     toNumber(fallback.brineVolPct);
   const oilSg =
     mudSampleNumber(mudReportState, [(key) => key === "oil sg" || key.includes("oil sg")], index) ||
-    toNumber(fallback.oilSg) ||
-    0.84;
+    toNumber(fallback.oilSg);
   const hgsSg =
     mudSampleNumber(mudReportState, [(key) => key === "hgs sg" || key.includes("hgs sg")], index) ||
-    toNumber(fallback.hgsSg) ||
-    4.2;
+    toNumber(fallback.hgsSg);
   const lgsSg =
     mudSampleNumber(mudReportState, [(key) => key === "lgs sg" || key.includes("lgs sg")], index) ||
-    toNumber(fallback.lgsSg) ||
-    2.6;
+    toNumber(fallback.lgsSg);
   const calculatedBrineContent =
     saltWtPct > 0 && waterVol > 0
-      ? Math.max(0, waterVol - ((waterVol * (saltWtPct / 100) * oilSg) / (hgsSg > 0 ? hgsSg : 4.2)))
-      : 0;
-  const brineContent = calculatedBrineContent || rawBrineContent;
+      ? waterVol / ((1 - saltWtPct / 100) * brineDensityPpg / 8.35)
+      : waterVol;
+  const brineContent = rawBrineContent || calculatedBrineContent;
   const brineSG = brineDensityPpg > 0 ? brineDensityPpg / 8.35 : toNumber(fallback.brineSG);
-  const balanceSolids = retortSolids > 0 ? retortSolids : toNumber(fallback.totalSolids) || toNumber(fallback.correctedSolids);
+  const dissolvedSolids = Math.max(0, brineContent - waterVol);
+  const correctedSolids =
+    mudSampleNumber(
+      mudReportState,
+      [(key) => key.includes("solids adjusted") || key.includes("corrected solids")],
+      index
+    ) ||
+    toNumber(fallback.correctedSolids) ||
+    (retortSolids > 0 ? Math.max(0, retortSolids - dissolvedSolids) : 0);
+  const balanceSolids = correctedSolids || toNumber(fallback.totalSolids);
 
-  if (mw <= 0 || balanceSolids <= 0 || brineSG <= 0 || hgsSg === lgsSg) {
+  if (mw <= 0 || balanceSolids <= 0 || brineSG <= 0 || oilSg <= 0 || hgsSg <= 0 || lgsSg <= 0 || hgsSg === lgsSg) {
     return {
       brineDensityPpg,
       brineContent,
@@ -2051,7 +2057,7 @@ const buildDmrSolidsExportSamples = (mudReportState = {}, solidsAnalysisRows = [
   const samples = normalizeSolidsAnalysisRows(solidsAnalysisRows).map(normalizeExportSolidsSample);
   return [0, 1, 2].map((index) => {
     const saved = samples[index];
-    return savedSolidsSampleMatchesMudState(mudReportState, saved, index)
+    return hasSavedSolidsSample(saved) || savedSolidsSampleMatchesMudState(mudReportState, saved, index)
       ? saved
       : calculateDmrSolidsSample(mudReportState, saved || {}, index);
   });
@@ -2206,14 +2212,63 @@ const hydraulicDepthValue = (...values) => {
   const parsed = firstHydraulicNumber(...values);
   return parsed > 0 ? parsed : 0;
 };
-const hydraulicSurveyTvdAtMd = (rows = [], md) => {
-  const targetMd = toNumber(md);
-  if (targetMd <= 0 || !Array.isArray(rows) || rows.length === 0) return 0;
+const hydraulicDegreesToRadians = (value) => (toNumber(value) * Math.PI) / 180;
+const normalizeHydraulicSurveyRows = (rows = []) => {
+  if (!Array.isArray(rows) || rows.length === 0) return [];
   const points = rows
     .map((row) => ({
       md: firstHydraulicNumber(row?.md),
-      tvd: firstHydraulicNumber(row?.tvd),
+      inc: toNumber(row?.inc),
+      azi: toNumber(row?.azi ?? row?.azimuth),
+      savedTvd: firstHydraulicNumber(row?.tvd),
     }))
+    .filter((row) => row.md > 0 || row.inc > 0 || row.azi > 0 || row.savedTvd > 0)
+    .sort((left, right) => left.md - right.md);
+  if (points.length === 0) return [];
+
+  let previous = null;
+  let cumulativeTvd = 0;
+  return points.map((point) => {
+    if (!previous) {
+      cumulativeTvd = point.savedTvd > 0 ? point.savedTvd : 0;
+      previous = { ...point, tvd: cumulativeTvd };
+      return { md: point.md, tvd: cumulativeTvd };
+    }
+
+    const deltaMd = point.md - previous.md;
+    if (deltaMd <= 0) {
+      const tvd = point.savedTvd > 0 ? point.savedTvd : previous.tvd;
+      previous = { ...point, tvd };
+      return { md: point.md, tvd };
+    }
+
+    const previousInc = hydraulicDegreesToRadians(previous.inc);
+    const previousAzi = hydraulicDegreesToRadians(previous.azi);
+    const currentInc = hydraulicDegreesToRadians(point.inc);
+    const currentAzi = hydraulicDegreesToRadians(point.azi);
+    const cosDogleg =
+      Math.cos(previousInc) * Math.cos(currentInc) +
+      Math.sin(previousInc) *
+        Math.sin(currentInc) *
+        Math.cos(currentAzi - previousAzi);
+    const doglegRadians = Math.acos(Math.max(-1, Math.min(1, cosDogleg)));
+    const ratioFactor =
+      Math.abs(doglegRadians) < 1e-9
+        ? 1
+        : (2 / doglegRadians) * Math.tan(doglegRadians / 2);
+    const deltaTvd =
+      (deltaMd / 2) *
+      (Math.cos(previousInc) + Math.cos(currentInc)) *
+      ratioFactor;
+    cumulativeTvd = point.savedTvd > 0 ? point.savedTvd : cumulativeTvd + deltaTvd;
+    previous = { ...point, tvd: cumulativeTvd };
+    return { md: point.md, tvd: cumulativeTvd };
+  });
+};
+const hydraulicSurveyTvdAtMd = (rows = [], md) => {
+  const targetMd = toNumber(md);
+  if (targetMd <= 0 || !Array.isArray(rows) || rows.length === 0) return 0;
+  const points = normalizeHydraulicSurveyRows(rows)
     .filter((row) => row.md > 0 && row.tvd > 0)
     .sort((left, right) => left.md - right.md);
   if (points.length === 0) return 0;
@@ -2643,7 +2698,7 @@ const fillDmrHydraulicsRows = (ws, {
   const mud = loadMudHydraulicValues({ mudReportState, activePits });
   const pumpFlow = summarizePumpFlow(pumps);
   const pumpRateAndPressure = report?.pumpRateAndPressure || {};
-  const pumpRate = firstHydraulicNumber(pumpFlow.rateGpm, pumpRateAndPressure.pumpRate);
+  const pumpRate = firstHydraulicNumber(pumpRateAndPressure.pumpRate, pumpFlow.rateGpm);
   const dhToolsLoss = firstHydraulicNumber(pumpRateAndPressure.dhToolsPressureLoss);
   const motorLoss = firstHydraulicNumber(pumpRateAndPressure.motorPressureLoss);
   const segments = buildHydraulicSegments({ drillStrings, casings, intervals, wellGeneral });
@@ -3302,8 +3357,8 @@ const fillDmrBottomSections = (ws, {
     pumpFlow.maxPumpP
   );
   const pumpRate = firstMeaningfulText(
-    pumpFlow.rateGpm,
-    pumpRateAndPressure.pumpRate
+    pumpRateAndPressure.pumpRate,
+    pumpFlow.rateGpm
   );
   const circulationPumpFlow = {
     ...pumpFlow,

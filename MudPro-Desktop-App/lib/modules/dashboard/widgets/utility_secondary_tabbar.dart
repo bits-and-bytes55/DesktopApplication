@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/base_secondary_tababr.dart';
@@ -34,13 +36,43 @@ class UtilitySecondaryTabbar extends StatelessWidget {
             controller.openOverlay(UnitConversionView());
             break;
           case 2:
-            controller.openOverlay(const Text("Calculator Page"));
+            controller.closeOverlay();
+            _openSystemCalculator();
             break;
           case 3:
-            controller.openOverlay(const Text("Notepad Page"));
+            controller.closeOverlay();
+            _openSystemNotepad();
             break;
         }
       },
     );
+  }
+
+  Future<void> _openSystemCalculator() async {
+    try {
+      await Process.start('calc.exe', const []);
+    } catch (_) {
+      try {
+        await Process.start('explorer.exe', const ['calculator:']);
+      } catch (_) {
+        Get.snackbar(
+          'Calculator',
+          'Unable to open system calculator.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    }
+  }
+
+  Future<void> _openSystemNotepad() async {
+    try {
+      await Process.start('notepad.exe', const []);
+    } catch (_) {
+      Get.snackbar(
+        'Notepad',
+        'Unable to open system notepad.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 }

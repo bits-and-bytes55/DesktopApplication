@@ -586,19 +586,55 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> getOperations({bool activeOnly = true}) async {
     try {
-      final uri = Uri.parse(
-        '${baseUrl}operations${activeOnly ? '?activeOnly=true' : ''}',
-      );
-      print('Hitting GET $uri');
-      final response = await http.get(uri, headers: _headers);
-      print('statuscode------${response.statusCode}');
-      print('response body------${response.body}');
-      final data = jsonDecode(response.body);
-      return {
-        'success': response.statusCode == 200,
-        'data': data,
-        'message': data['message'] ?? 'Operations fetched successfully',
-      };
+      final candidateUrls = <String>[
+        ...ApiEndpoint.candidateBaseUrls,
+        if (!ApiEndpoint.candidateBaseUrls.contains(
+          ApiEndpoint.localDevBaseUrl,
+        ))
+          ApiEndpoint.localDevBaseUrl,
+      ];
+
+      Map<String, dynamic>? lastFailure;
+      for (final apiBaseUrl in candidateUrls) {
+        final normalizedBaseUrl = apiBaseUrl.endsWith('/')
+            ? apiBaseUrl
+            : '$apiBaseUrl/';
+        final uri = Uri.parse('${normalizedBaseUrl}operations').replace(
+          queryParameters: activeOnly ? {'activeOnly': 'true'} : null,
+        );
+        print('Hitting GET $uri');
+        final response = await http.get(uri, headers: _headers);
+        print('statuscode------${response.statusCode}');
+        print('response body------${response.body}');
+
+        final contentType = response.headers['content-type'] ?? '';
+        if (!contentType.toLowerCase().contains('application/json')) {
+          lastFailure = {
+            'success': false,
+            'message':
+                'Operations API returned non-JSON response from $uri (${response.statusCode})',
+          };
+          continue;
+        }
+
+        final data = jsonDecode(response.body);
+        if (response.statusCode == 200) {
+          return {
+            'success': true,
+            'data': data,
+            'message': data['message'] ?? 'Operations fetched successfully',
+          };
+        }
+
+        lastFailure = {
+          'success': false,
+          'data': data,
+          'message': data['message'] ?? 'Failed to fetch operations',
+        };
+      }
+
+      return lastFailure ??
+          {'success': false, 'message': 'Failed to fetch operations'};
     } catch (e) {
       print('Error in getOperations: $e');
       return {'success': false, 'message': e.toString()};
