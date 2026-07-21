@@ -62,6 +62,87 @@ const toFiniteNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const PURE_CACL2_CHLORIDE_FACTOR = 1.565;
+const CACL2_DISSOLVED_SOLIDS_BASE_SG = 4.091;
+const CACL2_DISSOLVED_SOLIDS_SG_SLOPE = 0.00169;
+const CACL2_MIN_DISSOLVED_SOLIDS_FOR_BALANCE = 0.06;
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const saltTypeFormulaKey = (value = "") =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/₂/g, "2")
+    .replace(/[^a-z0-9]+/g, "");
+
+const isPureCacl2SaltType = (value = "") => {
+  const key = saltTypeFormulaKey(value);
+  return key === "cacl2" || key === "calciumchloride";
+};
+
+const cacl2BrineSg = (saltWtPct) =>
+  0.99707 + 0.007923 * saltWtPct + 0.00004964 * saltWtPct * saltWtPct;
+
+const oilMudBrineMassForSolidsBalance = ({
+  saltType,
+  waterVol,
+  saltWaterVol,
+  dissolvedSolidsPct,
+  chloridesMgl,
+  cacl2Pct,
+  fallbackBrineSG,
+}) => {
+  const W = toFiniteNumber(waterVol);
+  if (W <= 0) return null;
+
+  const chlorides = toFiniteNumber(chloridesMgl);
+  const enteredCacl2Pct = toFiniteNumber(cacl2Pct);
+  const saltBasisWater = toFiniteNumber(saltWaterVol) > 0 ? toFiniteNumber(saltWaterVol) : W;
+
+  if (!isPureCacl2SaltType(saltType)) {
+    const brineSg = toFiniteNumber(fallbackBrineSG, 1);
+    const saltWtPct = enteredCacl2Pct > 0 && enteredCacl2Pct < 100 ? enteredCacl2Pct : 0;
+    if (saltWtPct <= 0 || brineSg <= 0) return null;
+    const waterFraction = (1 - saltWtPct / 100) * brineSg;
+    if (waterFraction <= 0) return null;
+    return (W / waterFraction) * brineSg;
+  }
+
+  let saltWtPct = 0;
+  if (enteredCacl2Pct > 0 && enteredCacl2Pct < 100) {
+    saltWtPct = enteredCacl2Pct;
+  } else if (chlorides > 0) {
+    const frac = (PURE_CACL2_CHLORIDE_FACTOR * chlorides) / 10000;
+    saltWtPct = frac + saltBasisWater === 0 ? 0 : (100 * frac) / (frac + saltBasisWater);
+  }
+
+  if (saltWtPct <= 0) return null;
+  if (W > 50) {
+    return W + (W * saltWtPct / 100 * 0.84);
+  }
+
+  const brineSg = cacl2BrineSg(saltWtPct);
+  const waterFraction = (1 - saltWtPct / 100) * brineSg;
+  const preciseDissolvedSolids = waterFraction > 0 ? W / waterFraction - W : 0;
+  const displayedDissolved = toFiniteNumber(dissolvedSolidsPct);
+  const effectiveDissolvedSolids =
+    displayedDissolved > 0
+      ? displayedDissolved
+      : Math.max(preciseDissolvedSolids, CACL2_MIN_DISSOLVED_SOLIDS_FOR_BALANCE);
+  const dissolvedSolidsSg = clamp(
+    CACL2_DISSOLVED_SOLIDS_BASE_SG - CACL2_DISSOLVED_SOLIDS_SG_SLOPE * saltWtPct,
+    4.0,
+    4.1,
+  );
+  let brineMass = W + effectiveDissolvedSolids * dissolvedSolidsSg;
+
+  if (saltWtPct > 25 && saltWtPct < 31) {
+    brineMass += (31 - saltWtPct) * (saltWtPct - 25) * 0.01053;
+  }
+
+  return brineMass;
+};
+
 const hasClientComputedSolids = (body = {}) =>
   ["correctedSolids", "avgSG", "hgsPercent", "hgsLb", "lgsPercent", "lgsLb"].every(
     (key) => body[key] !== undefined && body[key] !== null && body[key] !== "",
@@ -91,6 +172,9 @@ function computeSolidsAnalysis({
   bariteLb,
   bentoniteLb,
   cacl2Pct,
+  saltWaterVol,
+  chloridesMgl,
+  makeupChloridesMgl,
   oilSG = 0.81,
   hgsSG = 4.20,
   lgsSG = 2.60,
@@ -117,39 +201,64 @@ function computeSolidsAnalysis({
   const fluid = String(fluidType || "");
   const isOilMud = /oil|synthetic/i.test(fluid);
   const weighted =
-    isWeightedMud === true || isWeightedMud === "true" || Number(isWeightedMud) > 0;
+    isOilMud ||
+    isWeightedMud === true ||
+    isWeightedMud === "true" ||
+    Number(isWeightedMud) > 0;
 
   if (MW <= 0) return null;
 
-  const brineSG = toFiniteNumber(brineDensityPpg) > 0
-    ? toFiniteNumber(brineDensityPpg) / 8.345
-    : saltPct > 0
-      ? 0.99707 + (0.007923 * saltPct) + (0.00004964 * saltPct * saltPct)
-      : 1;
+  const brineSG = isOilMud
+    ? (toFiniteNumber(brineDensityPpg) > 0
+        ? toFiniteNumber(brineDensityPpg) / 8.345
+        : saltPct > 0
+          ? 0.99707 + (0.007923 * saltPct) + (0.00004964 * saltPct * saltPct)
+          : 1)
+    : 1;
 
   let brineVol;
-  if (toFiniteNumber(brineVolPct) > 0) {
+  if (isOilMud && toFiniteNumber(brineVolPct) > 0) {
     brineVol = toFiniteNumber(brineVolPct);
-  } else if (saltPct > 0 && W > 0 && brineSG > 0) {
+  } else if (isOilMud && saltPct > 0 && W > 0 && brineSG > 0) {
     brineVol = W / ((1 - saltPct / 100) * brineSG);
   } else {
     brineVol = W;
   }
 
-  const dissolvedSolids = Math.max(0, brineVol - W);
+  const wbmChlorideBasis = Math.max(
+    0,
+    toFiniteNumber(chloridesMgl) - toFiniteNumber(makeupChloridesMgl),
+  );
+  const dissolvedSolids = isOilMud
+    ? Math.max(0, brineVol - W)
+    : Math.max(0, W * wbmChlorideBasis * 0.0000012);
   const correctedSolids = Math.max(
     0,
     toFiniteNumber(corrSolidsPct) > 0 ? toFiniteNumber(corrSolidsPct) : RS - dissolvedSolids,
   );
   const totalSolids = RS > 0 ? RS : Math.max(0, 100 - (O + W));
+  const brineMassForBalance = isOilMud
+    ? (oilMudBrineMassForSolidsBalance({
+        saltType,
+        waterVol: W,
+        saltWaterVol: toFiniteNumber(saltWaterVol, W),
+        dissolvedSolidsPct: RS - correctedSolids,
+        chloridesMgl,
+        cacl2Pct: saltPct,
+        fallbackBrineSG: brineSG,
+      }) ?? brineVol * brineSG)
+    : weighted
+      ? (brineVol * brineSG) + (dissolvedSolids * 0.54)
+      : brineVol * brineSG;
 
   let hgsPercent = 0;
   let lgsPercent = correctedSolids;
   let avgSG = correctedSolids > 0 ? LSG : 0;
   if (weighted && HSG !== LSG && correctedSolids > 0) {
     const mudVolumeDensity = MW * 42 / 3.5;
+    const lgsMassBalanceSolids = isOilMud ? correctedSolids : totalSolids;
     hgsPercent =
-      (mudVolumeDensity - O * OSG - brineVol * brineSG - correctedSolids * LSG) /
+      (mudVolumeDensity - O * OSG - brineMassForBalance - lgsMassBalanceSolids * LSG) /
       (HSG - LSG);
     lgsPercent = correctedSolids - hgsPercent;
     avgSG = (lgsPercent * LSG + hgsPercent * HSG) / correctedSolids;
