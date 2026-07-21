@@ -2017,12 +2017,14 @@ const savedSolidsSampleMatchesMudState = (mudReportState = {}, sample = {}, inde
     if (savedIsOil !== isOilMudState(mudReportState)) return false;
   }
 
-  if (sample.isWeightedMud !== undefined && sample.isWeightedMud !== null && text(mudReportState?.isWeightedMud)) {
+  if (sample.isWeightedMud !== undefined && sample.isWeightedMud !== null) {
     const savedWeighted =
       sample.isWeightedMud === true ||
       sample.isWeightedMud === "true" ||
       Number(sample.isWeightedMud) > 0;
-    if (savedWeighted !== Boolean(mudReportState.isWeightedMud)) return false;
+    const stateWeighted =
+      isOilMudState(mudReportState) || mudReportState.isWeightedMud === true;
+    if (savedWeighted !== stateWeighted) return false;
   }
 
   const currentBrineDensity = mudSampleNumber(

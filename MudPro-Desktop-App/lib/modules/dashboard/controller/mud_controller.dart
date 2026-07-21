@@ -83,6 +83,167 @@ class _SodiumFormateResult {
 class MudController extends GetxController {
   static const double _negativeHgsLgsFactor = 0.679;
   static const double _cacl2ChlorideConversionFactor = 1.8779963086;
+  static const double _pureCacl2ChlorideConversionFactor = 1.565;
+  static const double _cacl2DissolvedSolidsBaseSg = 4.091;
+  static const double _cacl2DissolvedSolidsSgSlope = 0.00169;
+  static const double _cacl2MinimumDissolvedSolidsForBalance = 0.06;
+  static const double _pureCacl2OilExcessLimeFactor = 0.26 / 75.0;
+  static final Map<double, double> _sodiumFormateMgLByWt = {
+    1.0: 3397.0,
+    2.0: 6829.0,
+    3.0: 10301.0,
+    4.0: 13813.0,
+    5.0: 17367.0,
+    6.0: 20966.0,
+    7.0: 24609.0,
+    8.0: 28297.0,
+    9.0: 32030.0,
+    10.0: 35808.0,
+    11.0: 39631.0,
+    12.0: 43600.0,
+    13.0: 47413.0,
+    14.0: 51372.0,
+    15.0: 55375.0,
+    16.0: 59424.0,
+    17.0: 63519.0,
+    18.0: 67660.0,
+    19.0: 71848.0,
+    20.0: 76084.0,
+    21.0: 80369.0,
+    22.0: 84704.0,
+    23.0: 89092.0,
+    24.0: 93532.0,
+    25.0: 98027.0,
+    26.0: 102579.0,
+    27.0: 107188.0,
+    28.0: 111857.0,
+    29.0: 116586.0,
+    30.0: 121376.0,
+    31.0: 126228.0,
+    32.0: 131143.0,
+    33.0: 136119.0,
+    34.0: 141157.0,
+    35.0: 146253.0,
+    36.0: 151407.0,
+    37.0: 156613.0,
+    38.0: 161868.0,
+    39.0: 167165.0,
+    40.0: 172497.0,
+    41.0: 177855.0,
+    42.0: 183227.0,
+    43.0: 188601.0,
+    44.0: 193962.0,
+    45.0: 199293.0,
+    46.0: 204574.0,
+    47.0: 209782.0,
+    48.0: 214891.0,
+    49.0: 219874.0,
+    49.5: 222307.0,
+  };
+  static final Map<double, double> _sodiumFormateSgByWt = {
+    1.0: 1.0049,
+    2.0: 1.0102,
+    3.0: 1.0157,
+    4.0: 1.0215,
+    5.0: 1.0275,
+    6.0: 1.0337,
+    7.0: 1.0400,
+    8.0: 1.0464,
+    9.0: 1.0528,
+    10.0: 1.0593,
+    11.0: 1.0668,
+    12.0: 1.0724,
+    13.0: 1.0789,
+    14.0: 1.0855,
+    15.0: 1.0921,
+    16.0: 1.0987,
+    17.0: 1.1053,
+    18.0: 1.1120,
+    19.0: 1.1187,
+    20.0: 1.1254,
+    21.0: 1.1322,
+    22.0: 1.1390,
+    23.0: 1.1459,
+    24.0: 1.1529,
+    25.0: 1.1600,
+    26.0: 1.1671,
+    27.0: 1.1744,
+    28.0: 1.1818,
+    29.0: 1.1893,
+    30.0: 1.1969,
+    31.0: 1.2046,
+    32.0: 1.2124,
+    33.0: 1.2202,
+    34.0: 1.2282,
+    35.0: 1.2362,
+    36.0: 1.2442,
+    37.0: 1.2522,
+    38.0: 1.2601,
+    39.0: 1.2680,
+    40.0: 1.2757,
+    41.0: 1.2833,
+    42.0: 1.2906,
+    43.0: 1.2975,
+    44.0: 1.3041,
+    45.0: 1.3101,
+    46.0: 1.3156,
+    47.0: 1.3204,
+    48.0: 1.3244,
+    49.0: 1.3274,
+    49.5: 1.3286,
+  };
+  static final Map<double, double> _sodiumFormateAwByWt = {
+    1.0: 0.99,
+    2.0: 0.99,
+    3.0: 0.98,
+    4.0: 0.97,
+    5.0: 0.97,
+    6.0: 0.96,
+    7.0: 0.95,
+    8.0: 0.95,
+    9.0: 0.94,
+    10.0: 0.93,
+    11.0: 0.93,
+    12.0: 0.92,
+    13.0: 0.91,
+    14.0: 0.91,
+    15.0: 0.90,
+    16.0: 0.89,
+    17.0: 0.89,
+    18.0: 0.88,
+    19.0: 0.87,
+    20.0: 0.87,
+    21.0: 0.86,
+    22.0: 0.85,
+    23.0: 0.84,
+    24.0: 0.84,
+    25.0: 0.83,
+    26.0: 0.82,
+    27.0: 0.81,
+    28.0: 0.80,
+    29.0: 0.79,
+    30.0: 0.78,
+    31.0: 0.77,
+    32.0: 0.76,
+    33.0: 0.75,
+    34.0: 0.74,
+    35.0: 0.73,
+    36.0: 0.71,
+    37.0: 0.70,
+    38.0: 0.69,
+    39.0: 0.68,
+    40.0: 0.67,
+    41.0: 0.66,
+    42.0: 0.65,
+    43.0: 0.64,
+    44.0: 0.64,
+    45.0: 0.63,
+    46.0: 0.63,
+    47.0: 0.62,
+    48.0: 0.62,
+    49.0: 0.62,
+    49.5: 0.62,
+  };
   final samples = ['1', '2', '3', 'Plan-L', 'Plan-H'];
 
   static final List<MudPropertyItem> _legacyWaterBasedRows = [
@@ -409,6 +570,13 @@ class MudController extends GetxController {
         k.contains('whole mud alkalinity') ||
         k.contains('alkalinity (pom)') ||
         k.contains('alkalinity(pom)') ||
+        k.contains('mud alkalinity (pm)'),
+  );
+
+  String? get _mudAlkalinityPmKey => _findKey(
+    (k) =>
+        k == 'mud alkalinity' ||
+        k == 'pm' ||
         k.contains('mud alkalinity (pm)'),
   );
 
@@ -947,6 +1115,36 @@ class MudController extends GetxController {
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
 
+  String _saltTypeFormulaKey([String? value]) {
+    return (value ?? selectedSaltType.value)
+        .toLowerCase()
+        .replaceAll('₂', '2')
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '');
+  }
+
+  bool _isPureCacl2SaltType([String? value]) {
+    final key = _saltTypeFormulaKey(value);
+    return key == 'cacl2' || key == 'calciumchloride';
+  }
+
+  bool _isNaclSaltType([String? value]) {
+    final key = _saltTypeFormulaKey(value);
+    return key == 'nacl' || key == 'sodiumchloride';
+  }
+
+  bool _isMixedSaltType([String? value]) {
+    final key = _saltTypeFormulaKey(value);
+    return key == 'naclcacl2' ||
+        key == 'cacl2nacl' ||
+        key == 'sodiumchloridecalciumchloride' ||
+        key == 'calciumchloridesodiumchloride';
+  }
+
+  bool _isSodiumFormateSaltType([String? value]) {
+    final key = _saltTypeFormulaKey(value);
+    return key == 'sodiumformate';
+  }
+
   String get _wellId => currentBackendWellId.trim();
   String get _reportId => reportContext.selectedReportId.value.trim();
   String get _effectiveReportId {
@@ -1209,7 +1407,7 @@ class MudController extends GetxController {
     'fluidName': fluidnameController.text.trim(),
     'fluidType': selectedFluidType.value,
     'isCompletionFluid': isCompletionFluid.value,
-    'isWeightedMud': isWeightedMud.value,
+    'isWeightedMud': _effectiveWeightedMudForSolids(),
     'saltType': selectedSaltType.value,
     'samples': samples,
     'propertyTable': _stringTable(propertyTable),
@@ -1303,6 +1501,15 @@ class MudController extends GetxController {
     ]) {
       controller.addListener(_scheduleMudReportSave);
     }
+    for (final controller in [
+      oilSgController,
+      hgsSgController,
+      lgsSgController,
+      shaleCecController,
+      bentCecController,
+    ]) {
+      controller.addListener(_scheduleAllSolidAnalysisSamples);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1366,16 +1573,18 @@ class MudController extends GetxController {
       _watchTwoOpt(i, _oilKey, _waterKey, owTarget, (a, b) {
         final oil = double.tryParse(a) ?? 0;
         final water = double.tryParse(b) ?? 0;
-        if (oil == 0 && water == 0) return '';
-        final total = oil + water;
-        if (total == 0) return '';
-        final rawOilPct = 100 * oil / total;
         final isOilMud =
             selectedFluidType.value == 'Oil-based' ||
             selectedFluidType.value == 'Synthetic';
-        final oilPct = isOilMud
-            ? ((rawOilPct / 5).round() * 5).clamp(0, 100)
-            : rawOilPct.round();
+        if (oil == 0 && water == 0) return '';
+        final total = oil + water;
+        if (total == 0) return '';
+        final rawOilPct = isOilMud && oil == 0
+            ? (water > 50 ? water : 100 - water)
+            : 100 * oil / total;
+        final oilPct = isOilMud && !_isSodiumFormateSaltType()
+            ? ((rawOilPct / 5).round() * 5).clamp(0, 100).toInt()
+            : rawOilPct.round().clamp(0, 100).toInt();
         final waterPct = 100 - oilPct;
         return '$oilPct/$waterPct';
       });
@@ -1463,10 +1672,6 @@ class MudController extends GetxController {
           final water = (waterVals != null && i < waterVals.length)
               ? _parseMudNumber(waterVals[i].value)
               : 0.0;
-          final oilVals = _oilKey != null ? propertyTable[_oilKey!] : null;
-          final oil = (oilVals != null && i < oilVals.length)
-              ? _parseMudNumber(oilVals[i].value)
-              : 0.0;
           final chlorideVals = _chloridesForSolidsKey != null
               ? propertyTable[_chloridesForSolidsKey!]
               : null;
@@ -1526,61 +1731,32 @@ class MudController extends GetxController {
             tgt[i].value = '';
           } else {
             double dissolvedSolids;
-            if (isOilMud && selectedSaltType.value == 'Sodium Formate') {
+            if (isOilMud && _isPureCacl2SaltType()) {
+              dissolvedSolids = water * chlorides * 0.0000012;
+            } else if (isOilMud) {
               final pmVals = _wholeMudAlkKey != null
                   ? propertyTable[_wholeMudAlkKey!]
                   : null;
               final pm = (pmVals != null && i < pmVals.length)
                   ? (double.tryParse(pmVals[i].value) ?? 0.0)
                   : 0.0;
-              dissolvedSolids = _sodiumFormateValues(
+              final saltWater = _isSodiumFormateSaltType()
+                  ? water
+                  : _oilSaltWaterBasisForSample(i, water);
+              final oilSalt = _oilSaltResult(
                 chloridesMgl: chlorides,
-                waterVol: water,
+                calciumMgl: calcium,
+                waterVol: saltWater,
+                retortSolids: retortSolids,
+                cacl2Pct: cacl2Pct,
+                naclPct: naclPct,
+                wpsPpm: wpsPpm,
                 pm: pm,
-              ).dissolvedSolidsPct;
-            } else if (isOilMud) {
-              final rawMixed = selectedSaltType.value == 'NaCl + CaCl2'
-                  ? _mixedSaltValues(chlorides, calcium, water)
-                  : null;
-              final rawNaclPct = selectedSaltType.value == 'NaCl'
-                  ? _naclWtFromChlorideWater(chlorides, water)
-                  : 0.0;
-              final saltWtPct = selectedSaltType.value == 'NaCl + CaCl2'
-                  ? (rawMixed?.saltContent ?? (cacl2Pct + naclPct))
-                  : selectedSaltType.value == 'NaCl'
-                  ? (rawNaclPct > 0
-                        ? rawNaclPct
-                        : (naclPct > 0 ? naclPct : wpsPpm / 10000))
-                  : (cacl2Pct > 0
-                        ? cacl2Pct
-                        : (naclPct > 0 ? naclPct : wpsPpm / 10000));
-              if (saltWtPct > 0 && water > 0) {
-                if (selectedSaltType.value == 'CaCl2') {
-                  final balanceSolids = 100 - oil - water;
-                  final saltCorrection = water * saltWtPct / 300;
-                  dissolvedSolids = retortSolids > 0
-                      ? retortSolids - balanceSolids + saltCorrection
-                      : saltCorrection;
-                } else {
-                  final brineSG = selectedSaltType.value == 'NaCl + CaCl2'
-                      ? (rawMixed?.brineSg ?? _mixedBrineSg(cacl2Pct, naclPct))
-                      : selectedSaltType.value == 'NaCl'
-                      ? _naclBrineSg(saltWtPct)
-                      : _cacl2BrineSg(saltWtPct);
-                  final brine = water / ((1 - saltWtPct / 100) * brineSG);
-                  dissolvedSolids = brine - water;
-                }
-              } else {
-                dissolvedSolids = 0.0;
-              }
+              );
+              dissolvedSolids = oilSalt?.dissolvedSolidsPct ?? 0.0;
             } else {
-              final excessChlorides = chlorides - makeupChlorides;
-              final chlorideCorrectionBasis = excessChlorides > 0
-                  ? excessChlorides
-                  : makeupChlorides > 0
-                  ? makeupChlorides / 4
-                  : chlorides;
-              dissolvedSolids = water * chlorideCorrectionBasis * 0.00012;
+              final chlorideBasis = math.max(0.0, chlorides - makeupChlorides);
+              dissolvedSolids = water * chlorideBasis * 0.0000012;
             }
             final solidsAdjusted = retortSolids - dissolvedSolids;
             tgt[i].value = _formatMudPropertyValue(
@@ -1653,6 +1829,13 @@ class MudController extends GetxController {
       final pmKey = _wholeMudAlkKey;
       if (elTarget != null && pmKey != null) {
         final pmList = pmKey != null ? propertyTable[pmKey] : null;
+        final exactPmList = _mudAlkalinityPmKey != null
+            ? propertyTable[_mudAlkalinityPmKey!]
+            : null;
+        final pfList = _filtAlkPfKey != null
+            ? propertyTable[_filtAlkPfKey!]
+            : null;
+        final waterList = _waterKey != null ? propertyTable[_waterKey!] : null;
         final elList = propertyTable[elTarget];
         if (elList != null && i < elList.length) {
           double valueAt(List<RxString>? list) {
@@ -1671,16 +1854,25 @@ class MudController extends GetxController {
                 selectedFluidType.value == 'Synthetic';
             final saltType = selectedSaltType.value;
             final mixedOrNacl =
-                saltType == 'NaCl' || saltType == 'NaCl + CaCl2';
-            final sodiumFormate = saltType == 'Sodium Formate';
-            final rawExcessLime = isOilMud
+                _isNaclSaltType(saltType) || _isMixedSaltType(saltType);
+            final sodiumFormate = _isSodiumFormateSaltType(saltType);
+            final pureCacl2Oil = isOilMud && _isPureCacl2SaltType(saltType);
+            final exactPm = valueAt(exactPmList);
+            final pf = valueAt(pfList);
+            final pureNaclOil = isOilMud && _isNaclSaltType(saltType);
+            final mixedOil = isOilMud && _isMixedSaltType(saltType);
+            final rawExcessLime = pureCacl2Oil || pureNaclOil || mixedOil
+                ? (exactPm > 0 && pf > 0
+                      ? 0.26 * (exactPm - ((valueAt(waterList) / 100) * pf))
+                      : pm * _pureCacl2OilExcessLimeFactor)
+                : isOilMud
                 ? pm * (mixedOrNacl || sodiumFormate ? 1.299 : 1.295)
-                : pm * 3.0222222222;
+                : 0.26 * (pm - ((valueAt(waterList) / 100) * valueAt(pfList)));
             final excessLime = rawExcessLime < 0 ? 0.0 : rawExcessLime;
             elList[i].value = _formatMudPropertyValue(
               elTarget,
               excessLime,
-              fallbackDigits: isOilMud && (mixedOrNacl || sodiumFormate)
+              fallbackDigits: isOilMud && !pureNaclOil && !mixedOil && (mixedOrNacl || sodiumFormate)
                   ? 1
                   : 2,
             );
@@ -1689,6 +1881,15 @@ class MudController extends GetxController {
           recalcExcessLime();
           if (pmList != null && i < pmList.length) {
             ever(pmList[i], (_) => recalcExcessLime());
+          }
+          if (exactPmList != null && i < exactPmList.length) {
+            ever(exactPmList[i], (_) => recalcExcessLime());
+          }
+          if (pfList != null && i < pfList.length) {
+            ever(pfList[i], (_) => recalcExcessLime());
+          }
+          if (waterList != null && i < waterList.length) {
+            ever(waterList[i], (_) => recalcExcessLime());
           }
         }
       }
@@ -1700,7 +1901,7 @@ class MudController extends GetxController {
             selectedFluidType.value == 'Oil-based' ||
             selectedFluidType.value == 'Synthetic';
         if (isOilMud &&
-            selectedSaltType.value == 'NaCl + CaCl2' &&
+            _isMixedSaltType() &&
             _wholeMudCaKey != null) {
           _watchOneOpt(i, _wholeMudCaKey, cacl2ConcTarget, (a) {
             final calcium = double.tryParse(a) ?? 0;
@@ -1713,16 +1914,20 @@ class MudController extends GetxController {
                   );
           });
         } else if (isOilMud &&
-            selectedSaltType.value != 'NaCl' &&
+            !_isNaclSaltType() &&
             _cacl2PctWtKey != null) {
           _watchTwoOpt(i, _wholeMudChlorideKey, _waterKey, cacl2ConcTarget, (
             a,
             b,
           ) {
             final chlorides = double.tryParse(a) ?? 0;
-            final water = double.tryParse(b) ?? 0;
+            final water = _pureCacl2WaterBasisForSample(
+              i,
+              double.tryParse(b) ?? 0,
+            );
             if (chlorides == 0 || water == 0) return '';
-            final frac = _cacl2ChlorideConversionFactor * chlorides / 10000;
+            final frac =
+                _pureCacl2ChlorideConversionFactor * chlorides / 10000;
             final cacl2Wt = 100 * frac / (frac + water);
             final brineSG = _cacl2BrineSg(cacl2Wt);
             return _formatMudPropertyValue(
@@ -1748,12 +1953,15 @@ class MudController extends GetxController {
       // ── 9. CaCl2 (% wt) = 100*(1.565*WMChl/10000)/((1.565*WMChl/10000)+Water%)
       final cacl2WtTarget = _cacl2PctWtKey;
       if (cacl2WtTarget != null &&
-          selectedSaltType.value == 'NaCl + CaCl2' &&
+          _isMixedSaltType() &&
           _wholeMudCaKey != null &&
           _waterKey != null) {
         _watchTwoOpt(i, _wholeMudCaKey, _waterKey, cacl2WtTarget, (a, b) {
           final calcium = double.tryParse(a) ?? 0;
-          final water = double.tryParse(b) ?? 0;
+          final rawWater = double.tryParse(b) ?? 0;
+          final water = (_isNaclSaltType() || _isMixedSaltType())
+              ? _oilSaltWaterBasisForSample(i, rawWater)
+              : _pureCacl2WaterBasisForSample(i, rawWater);
           if (calcium == 0 || water == 0) return '';
           final cacl2Mg = _cacl2MgFromCalcium(calcium);
           final naclMg = _naclMgForMixedSalt(i);
@@ -1765,13 +1973,18 @@ class MudController extends GetxController {
             fallbackDigits: 1,
           );
         });
-      } else if (cacl2WtTarget != null && selectedSaltType.value != 'NaCl') {
+      } else if (cacl2WtTarget != null && !_isNaclSaltType()) {
         _watchTwoOpt(i, _wholeMudChlorideKey, _waterKey, cacl2WtTarget, (a, b) {
           final chlorides = double.tryParse(a) ?? 0;
-          final water = double.tryParse(b) ?? 0;
+          final rawWater = double.tryParse(b) ?? 0;
+          final water = (_isNaclSaltType() || _isMixedSaltType())
+              ? _oilSaltWaterBasisForSample(i, rawWater)
+              : _pureCacl2WaterBasisForSample(i, rawWater);
           if (chlorides == 0) return '';
-          final factor = selectedSaltType.value == 'NaCl'
+          final factor = _isNaclSaltType()
               ? 1.648
+              : _isPureCacl2SaltType()
+              ? _pureCacl2ChlorideConversionFactor
               : _cacl2ChlorideConversionFactor;
           final frac = factor * chlorides / 10000;
           if (frac + water == 0) return '';
@@ -1788,16 +2001,21 @@ class MudController extends GetxController {
       //    (field name is "Water phase Salinity (WPS)" — no 'ppm' in it)
       final saltContentTarget = _saltContentWaterPhaseKey;
       if (saltContentTarget != null &&
-          selectedSaltType.value != 'Sodium Formate') {
+          !_isSodiumFormateSaltType()) {
         _watchTwoOpt(i, _wholeMudChlorideKey, _waterKey, saltContentTarget, (
           a,
           b,
         ) {
           final chlorides = double.tryParse(a) ?? 0;
-          final water = double.tryParse(b) ?? 0;
+          final rawWater = double.tryParse(b) ?? 0;
+          final water = (_isNaclSaltType() || _isMixedSaltType())
+              ? _oilSaltWaterBasisForSample(i, rawWater)
+              : _pureCacl2WaterBasisForSample(i, rawWater);
           if (chlorides == 0 || water == 0) return '';
-          final factor = selectedSaltType.value == 'NaCl'
+          final factor = _isNaclSaltType()
               ? 1.648
+              : _isPureCacl2SaltType()
+              ? _pureCacl2ChlorideConversionFactor
               : _cacl2ChlorideConversionFactor;
           final frac = factor * chlorides / 10000;
           if (frac + water == 0) return '';
@@ -1810,9 +2028,12 @@ class MudController extends GetxController {
       }
 
       final naclWtTarget = _naclPctWtKey;
-      if (naclWtTarget != null && selectedSaltType.value == 'NaCl + CaCl2') {
+      if (naclWtTarget != null && _isMixedSaltType()) {
         _watchTwoOpt(i, _wholeMudChlorideKey, _waterKey, naclWtTarget, (a, b) {
-          final water = double.tryParse(b) ?? 0;
+          final water = _oilSaltWaterBasisForSample(
+            i,
+            double.tryParse(b) ?? 0,
+          );
           if (water == 0) return '';
           final naclMg = _naclMgForMixedSalt(i);
           if (naclMg == 0) return '';
@@ -1834,10 +2055,13 @@ class MudController extends GetxController {
             fallbackDigits: 1,
           );
         });
-      } else if (naclWtTarget != null && selectedSaltType.value != 'CaCl2') {
+      } else if (naclWtTarget != null && !_isPureCacl2SaltType()) {
         _watchTwoOpt(i, _wholeMudChlorideKey, _waterKey, naclWtTarget, (a, b) {
           final chlorides = double.tryParse(a) ?? 0;
-          final water = double.tryParse(b) ?? 0;
+          final water = _oilSaltWaterBasisForSample(
+            i,
+            double.tryParse(b) ?? 0,
+          );
           if (chlorides == 0 || water == 0) return '';
           final frac = 1.648 * chlorides / 10000;
           if (frac + water == 0) return '';
@@ -1848,7 +2072,7 @@ class MudController extends GetxController {
           final cacl2 = cacl2Vals != null && i < cacl2Vals.length
               ? double.tryParse(cacl2Vals[i].value) ?? 0
               : 0;
-          final nacl = selectedSaltType.value == 'NaCl + CaCl2'
+          final nacl = _isMixedSaltType()
               ? totalSalt - cacl2
               : totalSalt;
           return _formatMudPropertyValue(
@@ -1861,7 +2085,7 @@ class MudController extends GetxController {
 
       final naclConcTarget = _naclConcKey;
       if (naclConcTarget != null && _naclPctWtKey != null) {
-        if (selectedSaltType.value == 'NaCl + CaCl2') {
+        if (_isMixedSaltType()) {
           _watchOneOpt(i, _wholeMudChlorideKey, naclConcTarget, (a) {
             final naclMg = _naclMgForMixedSalt(i);
             return naclMg == 0
@@ -1872,14 +2096,14 @@ class MudController extends GetxController {
                     fallbackDigits: 0,
                   );
           });
-        } else if (selectedSaltType.value == 'NaCl') {
+        } else if (_isNaclSaltType()) {
           _watchTwoOpt(i, _wholeMudChlorideKey, _waterKey, naclConcTarget, (
             a,
             b,
           ) {
             final naclWt = _naclWtFromChlorideWater(
               double.tryParse(a) ?? 0,
-              double.tryParse(b) ?? 0,
+              _oilSaltWaterBasisForSample(i, double.tryParse(b) ?? 0),
             );
             if (naclWt == 0) return '';
             return _formatMudPropertyValue(
@@ -1903,7 +2127,7 @@ class MudController extends GetxController {
 
       final insolubleNaclTarget = _insolubleNaclKey;
       if (insolubleNaclTarget != null && _naclConcKey != null) {
-        if (selectedSaltType.value == 'NaCl + CaCl2') {
+        if (_isMixedSaltType()) {
           _watchOneOpt(i, _naclPctWtKey, insolubleNaclTarget, (a) {
             final naclWt = double.tryParse(a) ?? 0;
             if (naclWt == 0) return '';
@@ -1932,24 +2156,29 @@ class MudController extends GetxController {
 
       final waterActivityTarget = _waterActivityKey;
       if (waterActivityTarget != null &&
-          selectedSaltType.value != 'NaCl + CaCl2' &&
-          selectedSaltType.value != 'Sodium Formate') {
+          !_isMixedSaltType() &&
+          !_isSodiumFormateSaltType()) {
         _watchTwoOpt(i, _wholeMudChlorideKey, _waterKey, waterActivityTarget, (
           a,
           b,
         ) {
           final chlorides = double.tryParse(a) ?? 0;
-          final water = double.tryParse(b) ?? 0;
+          final rawWater = double.tryParse(b) ?? 0;
+          final water = _isNaclSaltType()
+              ? _oilSaltWaterBasisForSample(i, rawWater)
+              : _pureCacl2WaterBasisForSample(i, rawWater);
           if (chlorides == 0 || water == 0) return '';
-          final factor = selectedSaltType.value == 'NaCl'
+          final factor = _isNaclSaltType()
               ? 1.648
+              : _isPureCacl2SaltType()
+              ? _pureCacl2ChlorideConversionFactor
               : _cacl2ChlorideConversionFactor;
           final frac = factor * chlorides / 10000;
           if (frac + water == 0) return '';
           final saltWtPct = 100 * frac / (frac + water);
-          final activity = selectedSaltType.value == 'NaCl'
+          final activity = _isNaclSaltType()
               ? _naclWaterActivity(saltWtPct)
-              : 1 - (0.0101626 * saltWtPct);
+              : _cacl2WaterActivity(saltWtPct);
           return _formatMudPropertyValue(
             waterActivityTarget,
             activity < 0 ? 0.0 : activity,
@@ -1960,13 +2189,13 @@ class MudController extends GetxController {
 
       final wpsTarget = _wpsSaltPercentKey;
       if (wpsTarget != null &&
-          selectedSaltType.value == 'NaCl' &&
+          _isNaclSaltType() &&
           _wholeMudChlorideKey != null &&
           _waterKey != null) {
         _watchTwoOpt(i, _wholeMudChlorideKey, _waterKey, wpsTarget, (a, b) {
           final naclWt = _naclWtFromChlorideWater(
             double.tryParse(a) ?? 0,
-            double.tryParse(b) ?? 0,
+            _oilSaltWaterBasisForSample(i, double.tryParse(b) ?? 0),
           );
           if (naclWt == 0) return '';
           return _formatMudPropertyValue(
@@ -1976,15 +2205,19 @@ class MudController extends GetxController {
           );
         });
       } else if (wpsTarget != null &&
-          selectedSaltType.value != 'Sodium Formate' &&
-          selectedSaltType.value != 'NaCl + CaCl2' &&
+          !_isSodiumFormateSaltType() &&
+          !_isMixedSaltType() &&
           _wholeMudChlorideKey != null &&
           _waterKey != null) {
         _watchTwoOpt(i, _wholeMudChlorideKey, _waterKey, wpsTarget, (a, b) {
           final chlorides = double.tryParse(a) ?? 0;
-          final water = double.tryParse(b) ?? 0;
+          final water = _pureCacl2WaterBasisForSample(
+            i,
+            double.tryParse(b) ?? 0,
+          );
           if (chlorides == 0 || water == 0) return '';
-          final frac = _cacl2ChlorideConversionFactor * chlorides / 10000;
+          final frac =
+              _pureCacl2ChlorideConversionFactor * chlorides / 10000;
           if (frac + water == 0) return '';
           return _formatMudPropertyValue(
             wpsTarget,
@@ -2054,24 +2287,24 @@ class MudController extends GetxController {
 
       // ── 12. Brine Density (SG) row ────────────────────────────────────────
       final bdTarget = _brineDensitySgKey;
-      if (bdTarget != null && selectedSaltType.value != 'NaCl + CaCl2') {
-        if (selectedSaltType.value == 'NaCl' &&
+      if (bdTarget != null && !_isMixedSaltType()) {
+        if (_isNaclSaltType() &&
             _wholeMudChlorideKey != null &&
             _waterKey != null) {
           _watchTwoOpt(i, _wholeMudChlorideKey, _waterKey, bdTarget, (a, b) {
             final naclWt = _naclWtFromChlorideWater(
               double.tryParse(a) ?? 0,
-              double.tryParse(b) ?? 0,
+              _oilSaltWaterBasisForSample(i, double.tryParse(b) ?? 0),
             );
             if (naclWt == 0) return '';
             return _formatMudPropertyValue(
               bdTarget,
-              _naclBrineSg(naclWt) * 8.35,
+              _naclBrineSg(naclWt) * 8.345,
               fallbackDigits: 2,
             );
           });
         } else {
-          final densitySource = selectedSaltType.value == 'NaCl + CaCl2'
+          final densitySource = _isMixedSaltType()
               ? (_naclPctWtKey ?? _cacl2PctWtKey)
               : (_cacl2PctWtKey ?? _naclPctWtKey);
           _watchOneOpt(i, densitySource, bdTarget, (a) {
@@ -2082,7 +2315,7 @@ class MudController extends GetxController {
                 : _cacl2BrineSg(s);
             return _formatMudPropertyValue(
               bdTarget,
-              brineSG * 8.35,
+              brineSG * 8.345,
               fallbackDigits: 2,
             );
           });
@@ -2092,15 +2325,18 @@ class MudController extends GetxController {
       // ── WBM-only ──────────────────────────────────────────────────────────
       final brineContentTarget = _brineContentKey;
       if (brineContentTarget != null &&
-          selectedSaltType.value != 'NaCl + CaCl2') {
-        if (selectedSaltType.value == 'NaCl' &&
+          !_isMixedSaltType()) {
+        if (_isNaclSaltType() &&
             _wholeMudChlorideKey != null &&
             _waterKey != null) {
           _watchTwoOpt(i, _wholeMudChlorideKey, _waterKey, brineContentTarget, (
             a,
             b,
           ) {
-            final water = double.tryParse(b) ?? 0;
+            final water = _oilSaltWaterBasisForSample(
+              i,
+              double.tryParse(b) ?? 0,
+            );
             final saltWtPct = _naclWtFromChlorideWater(
               double.tryParse(a) ?? 0,
               water,
@@ -2116,12 +2352,15 @@ class MudController extends GetxController {
             );
           });
         } else {
-          final brineSource = selectedSaltType.value == 'NaCl + CaCl2'
+          final brineSource = _isMixedSaltType()
               ? (_naclPctWtKey ?? _cacl2PctWtKey)
               : (_cacl2PctWtKey ?? _naclPctWtKey);
           _watchTwoOpt(i, brineSource, _waterKey, brineContentTarget, (a, b) {
             final saltWtPct = double.tryParse(a) ?? 0;
-            final water = double.tryParse(b) ?? 0;
+            final water = _pureCacl2WaterBasisForSample(
+              i,
+              double.tryParse(b) ?? 0,
+            );
             if (saltWtPct == 0 || water == 0) return '';
             final brineSG = brineSource == _naclPctWtKey
                 ? _naclBrineSg(saltWtPct)
@@ -2130,24 +2369,17 @@ class MudController extends GetxController {
             if (waterFraction <= 0) return '';
             return _formatMudPropertyValue(
               brineContentTarget,
-              brineSource == _cacl2PctWtKey
-                  ? (water -
-                        (water * (saltWtPct / 100) *
-                                (double.tryParse(oilSgController.text) ?? 0.84)) /
-                            ((double.tryParse(hgsSgController.text) ?? 4.2) > 0
-                                ? (double.tryParse(hgsSgController.text) ?? 4.2)
-                                : 4.2))
-                  : water / waterFraction,
+              water / waterFraction,
               fallbackDigits: 1,
             );
           });
         }
       }
 
-      if (selectedSaltType.value == 'NaCl + CaCl2') {
+      if (_isMixedSaltType()) {
         _setupMixedSaltCalculations(i);
       }
-      if (selectedSaltType.value == 'Sodium Formate') {
+      if (_isSodiumFormateSaltType()) {
         _setupSodiumFormateCalculations(i);
       }
 
@@ -2216,7 +2448,8 @@ class MudController extends GetxController {
     void recalc() {
       final chlorides = double.tryParse(chlorideList[sampleIndex].value) ?? 0;
       final calcium = double.tryParse(calciumList[sampleIndex].value) ?? 0;
-      final water = double.tryParse(waterList[sampleIndex].value) ?? 0;
+      final rawWater = double.tryParse(waterList[sampleIndex].value) ?? 0;
+      final water = _oilSaltWaterBasisForSample(sampleIndex, rawWater);
       if (chlorides == 0 || water == 0) {
         for (final key in [
           _cacl2ConcKey,
@@ -2332,10 +2565,8 @@ class MudController extends GetxController {
     final pmList = _wholeMudAlkKey != null ? propertyTable[_wholeMudAlkKey!] : null;
     if (chlorideList == null ||
         waterList == null ||
-        pmList == null ||
         sampleIndex >= chlorideList.length ||
-        sampleIndex >= waterList.length ||
-        sampleIndex >= pmList.length) {
+        sampleIndex >= waterList.length) {
       return;
     }
 
@@ -2349,8 +2580,10 @@ class MudController extends GetxController {
     void recalc() {
       final chlorides = double.tryParse(chlorideList[sampleIndex].value) ?? 0;
       final water = double.tryParse(waterList[sampleIndex].value) ?? 0;
-      final pm = double.tryParse(pmList[sampleIndex].value) ?? 0;
-      if (water <= 0 || pm <= 0) {
+      final pm = pmList != null && sampleIndex < pmList.length
+          ? double.tryParse(pmList[sampleIndex].value) ?? 0
+          : 0.0;
+      if (water <= 0) {
         for (final key in [
           _brinePhaseChlorideSalinityKey,
           _saltContentWaterPhaseKey,
@@ -2358,6 +2591,7 @@ class MudController extends GetxController {
           _sodiumFormateWtKey,
           _sodiumFormateConcKey,
           _brineDensitySgKey,
+          _waterActivityKey,
         ]) {
           setValue(key, '');
         }
@@ -2414,12 +2648,22 @@ class MudController extends GetxController {
           fallbackDigits: 5,
         ),
       );
+      setValue(
+        _waterActivityKey,
+        _formatMudPropertyValue(
+          _waterActivityKey,
+          data.waterActivity,
+          fallbackDigits: 2,
+        ),
+      );
     }
 
     recalc();
     ever(chlorideList[sampleIndex], (_) => recalc());
     ever(waterList[sampleIndex], (_) => recalc());
-    ever(pmList[sampleIndex], (_) => recalc());
+    if (pmList != null && sampleIndex < pmList.length) {
+      ever(pmList[sampleIndex], (_) => recalc());
+    }
   }
 
   bool isAutoCalc(String fieldName) {
@@ -2453,7 +2697,7 @@ class MudController extends GetxController {
         (k.startsWith('nacl') && k.contains('mg')) ||
         (k.contains('insoluble') && k.contains('nacl')))
       return true;
-    if (selectedSaltType.value == 'Sodium Formate' &&
+    if (_isSodiumFormateSaltType() &&
         (k.contains('water activity') ||
             k.contains('water phase salinity') ||
             k.contains('brine phase salinity') ||
@@ -2498,6 +2742,60 @@ class MudController extends GetxController {
     return double.tryParse(clean) ?? 0.0;
   }
 
+  double _oilWaterRatioWaterPercent(int sampleIndex) {
+    final ratioKey = _owRatioKey;
+    if (ratioKey != null) {
+      final row = propertyTable[ratioKey];
+      if (row != null && sampleIndex < row.length) {
+        final text = row[sampleIndex].value.trim();
+        if (text.isNotEmpty) {
+          final parts = text.split(RegExp(r'[/:\-]'));
+          if (parts.length >= 2) {
+            final ratioWater = _parseMudNumber(parts[1]);
+            if (ratioWater > 0 && ratioWater <= 100) return ratioWater;
+          }
+        }
+      }
+    }
+
+    final oilRow = _oilKey == null ? null : propertyTable[_oilKey!];
+    final waterRow = _waterKey == null ? null : propertyTable[_waterKey!];
+    final oil = oilRow != null && sampleIndex < oilRow.length
+        ? _parseMudNumber(oilRow[sampleIndex].value)
+        : 0.0;
+    final water = waterRow != null && sampleIndex < waterRow.length
+        ? _parseMudNumber(waterRow[sampleIndex].value)
+        : 0.0;
+    final total = oil + water;
+    if (total > 0) {
+      final oilPct = oil == 0
+          ? (water > 50 ? water : 100 - water)
+          : 100 * oil / total;
+      final roundedOil = ((oilPct / 5).round() * 5).clamp(0, 100).toDouble();
+      final ratioWater = 100 - roundedOil;
+      if (ratioWater > 0 && ratioWater <= 100) return ratioWater;
+    }
+    return 0.0;
+  }
+
+  double _pureCacl2WaterBasisForSample(int sampleIndex, double fallbackWater) {
+    final isOilMud =
+        selectedFluidType.value == 'Oil-based' ||
+        selectedFluidType.value == 'Synthetic';
+    if (!isOilMud || !_isPureCacl2SaltType()) return fallbackWater;
+    final ratioWater = _oilWaterRatioWaterPercent(sampleIndex);
+    return ratioWater > 0 ? ratioWater : fallbackWater;
+  }
+
+  double _oilSaltWaterBasisForSample(int sampleIndex, double fallbackWater) {
+    final isOilMud =
+        selectedFluidType.value == 'Oil-based' ||
+        selectedFluidType.value == 'Synthetic';
+    if (!isOilMud) return fallbackWater;
+    final ratioWater = _oilWaterRatioWaterPercent(sampleIndex);
+    return ratioWater > 0 ? ratioWater : fallbackWater;
+  }
+
   String _formatManualInputValue(num value, {int fallbackDigits = 2}) {
     final numeric = value.toDouble();
     if (numeric.isNaN || numeric.isInfinite) return '';
@@ -2531,14 +2829,26 @@ class MudController extends GetxController {
         _solidsKey,
         _oilKey,
         _waterKey,
+        _owRatioKey,
         _bariteKey,
         _bentoniteKey,
         _mbtKey,
+        _wholeMudChlorideKey,
+        _wholeMudCaKey,
+        _wholeMudAlkKey,
         _cacl2PctWtKey,
+        _cacl2ConcKey,
         _naclPctWtKey,
+        _naclConcKey,
+        _sodiumFormateWtKey,
+        _sodiumFormateConcKey,
         _dissolvedSodiumFormateKey,
         _chloridesForSolidsKey,
+        _saltContentWaterPhaseKey,
+        _brineContentKey,
+        _brineDensitySgKey,
         _brineVolPctKey,
+        _correctedSolidsKey,
         _corrSolidsValueKey,
       ];
       for (final key in sourceKeys) {
@@ -2565,6 +2875,12 @@ class MudController extends GetxController {
     );
   }
 
+  void _scheduleAllSolidAnalysisSamples() {
+    for (int i = 0; i < 3; i++) {
+      _scheduleSolidAnalysisSave(i);
+    }
+  }
+
   Future<void> _saveSolidAnalysis(int sampleIdx) async {
     final vals = _extractSampleValues(sampleIdx);
     if (!_hasSolidAnalysisInputs(vals)) {
@@ -2588,6 +2904,12 @@ class MudController extends GetxController {
         'bariteLb': vals['bariteLb'],
         'bentoniteLb': localResult?['bentoniteLb'] ?? vals['bentoniteLb'],
         'cacl2Pct': vals['cacl2Pct'],
+        'naclPct': vals['naclPct'],
+        'wpsPpm': vals['wpsPpm'],
+        'calciumMgl': vals['calciumMgl'],
+        'saltWaterVol': vals['saltWaterVol'],
+        'chloridesMgl': vals['chloridesMgl'],
+        'makeupChloridesMgl': vals['makeupChloridesMgl'],
         'brineVolPct': localResult?['brineVol'] ?? vals['brineVolPct'], // L62 Brine % vol
         'brineDensityPpg': localResult?['brineDensityPpg'] ?? vals['brineDensityPpg'],
         'corrSolidsPct': vals['corrSolidsPct'], // L45 Corrected Solids %
@@ -2598,7 +2920,7 @@ class MudController extends GetxController {
         'sampleIndex': sampleIdx,
         'fluidType': selectedFluidType.value,
         'saltType': selectedSaltType.value,
-        'isWeightedMud': isWeightedMud.value,
+        'isWeightedMud': (vals['isWeightedMud'] ?? 0) > 0,
         'wellId': _wellId,
         if (_reportId.isNotEmpty) 'reportId': _reportId,
       });
@@ -2645,6 +2967,7 @@ class MudController extends GetxController {
     final retortSolids = vals['retortSolids'] ?? 0;
     final oilVol = vals['oilVol'] ?? 0;
     final waterVol = vals['waterVol'] ?? 0;
+    final saltWaterVol = vals['saltWaterVol'] ?? waterVol;
     final bariteLb = vals['bariteLb'] ?? 0;
     final inputBentoniteLb = vals['bentoniteLb'] ?? 0;
     final mbt = vals['mbt'] ?? 0;
@@ -2652,6 +2975,7 @@ class MudController extends GetxController {
     final wpsPpm = vals['wpsPpm'] ?? 0;
     final cacl2Pct = vals['cacl2Pct'] ?? 0;
     final naclPct = vals['naclPct'] ?? 0;
+    final makeupChloridesMgl = vals['makeupChloridesMgl'] ?? 0;
     final brineDensityPpg = vals['brineDensityPpg'] ?? 0;
     final oilSG = vals['oilSG'] ?? 0.0;
     final hgsSG = vals['hgsSG'] ?? 0.0;
@@ -2661,12 +2985,15 @@ class MudController extends GetxController {
     final fluid = selectedFluidType.value.toLowerCase();
     final isOilMud = fluid.contains('oil') || fluid.contains('synthetic');
     final weightedMud = (vals['isWeightedMud'] ?? 0) > 0;
-    final wbmSaltMassFraction = chloridesMgl / 1000000;
+    final wbmChlorideBasis = math.max(0.0, chloridesMgl - makeupChloridesMgl);
+    final oilSaltWaterVol = isOilMud && _isSodiumFormateSaltType()
+        ? waterVol
+        : saltWaterVol;
     final oilSalt = isOilMud
         ? _oilSaltResult(
             chloridesMgl: chloridesMgl,
             calciumMgl: vals['calciumMgl'] ?? 0,
-            waterVol: waterVol,
+            waterVol: oilSaltWaterVol,
             retortSolids: retortSolids,
             cacl2Pct: cacl2Pct,
             naclPct: naclPct,
@@ -2675,30 +3002,33 @@ class MudController extends GetxController {
           )
         : null;
     final brineSG = isOilMud
-        ? (oilSalt?.brineSG ??
-              (brineDensityPpg > 0 ? brineDensityPpg / 8.35 : 1.0))
-        : 1.0 + wbmSaltMassFraction;
+        ? (brineDensityPpg > 0
+              ? brineDensityPpg / 8.345
+              : (oilSalt?.brineSG ?? 1.0))
+        : 1.0;
 
     double brineVol;
     final brineVolPct = vals['brineVolPct'] ?? 0;
-    if (isOilMud && oilSalt != null) {
-      brineVol = oilSalt.brineVolPct;
-    } else if (isOilMud && brineVolPct > 0) {
+    if (isOilMud && brineVolPct > 0) {
       brineVol = brineVolPct;
+    } else if (isOilMud && oilSalt != null) {
+      brineVol = oilSalt.brineVolPct;
     } else {
       brineVol = brineVolPct > 0 ? brineVolPct : waterVol;
     }
 
-    final dissolvedSolids = isOilMud
-        ? (oilSalt?.dissolvedSolidsPct ?? (brineVol - waterVol))
-        : waterVol * wbmSaltMassFraction * (1.0 / 2.16);
-    final safeDissolvedSolids = dissolvedSolids < 0 ? 0.0 : dissolvedSolids;
     final corrSolidsPct = vals['corrSolidsPct'] ?? 0;
+    final dissolvedSolids = isOilMud
+        ? (corrSolidsPct > 0
+              ? retortSolids - corrSolidsPct
+              : (oilSalt?.dissolvedSolidsPct ?? (brineVol - waterVol)))
+        : waterVol * wbmChlorideBasis * 0.0000012;
+    final safeDissolvedSolids = dissolvedSolids < 0 ? 0.0 : dissolvedSolids;
     final rawCorrectedSolids = isOilMud
-        ? (oilSalt?.correctedSolidsPct ??
-              (corrSolidsPct > 0
-                  ? corrSolidsPct
-                  : (retortSolids - safeDissolvedSolids)))
+        ? (corrSolidsPct > 0
+              ? corrSolidsPct
+              : (oilSalt?.correctedSolidsPct ??
+                    (retortSolids - safeDissolvedSolids)))
         : (retortSolids - safeDissolvedSolids);
     final correctedSolids = rawCorrectedSolids;
     final safeCorrected = correctedSolids < 0 ? 0 : correctedSolids;
@@ -2707,18 +3037,36 @@ class MudController extends GetxController {
         : (100 - (oilVol + waterVol));
 
     final balanceSolids = safeCorrected;
-    final brineVolForBalance = brineVol;
+    final brineMassForBalance = isOilMud
+        ? (_oilMudBrineMassForSolidsBalance(
+              waterVol: waterVol,
+              saltWaterVol: saltWaterVol,
+              dissolvedSolidsPct: safeDissolvedSolids,
+              chloridesMgl: chloridesMgl,
+              calciumMgl: vals['calciumMgl'] ?? 0,
+              cacl2Pct: cacl2Pct,
+              naclPct: naclPct,
+              wpsPpm: wpsPpm,
+              pm: vals['pm'] ?? 0,
+              fallbackBrineSG: brineSG,
+              lgsSG: lgsSG,
+            ) ??
+            (brineVol * brineSG))
+        : (weightedMud
+              ? ((brineVol * brineSG) + (safeDissolvedSolids * 0.54))
+              : (brineVol * brineSG));
 
     var hgsPercent = 0.0;
     var lgsPercent = balanceSolids;
     var avgSG = balanceSolids > 0 ? lgsSG : 0.0;
     if (weightedMud && hgsSG != lgsSG && balanceSolids > 0) {
       final mudVolumeDensity = mw * 42 / 3.5;
+      final lgsMassBalanceSolids = isOilMud ? balanceSolids : totalSolids;
       hgsPercent =
           (mudVolumeDensity -
               oilVol * oilSG -
-              brineVolForBalance * brineSG -
-              balanceSolids * lgsSG) /
+              brineMassForBalance -
+              lgsMassBalanceSolids * lgsSG) /
           (hgsSG - lgsSG);
       lgsPercent = balanceSolids - hgsPercent;
       avgSG = (lgsPercent * lgsSG + hgsPercent * hgsSG) / balanceSolids;
@@ -2779,6 +3127,122 @@ class MudController extends GetxController {
     final retortSolids = vals['retortSolids'] ?? 0;
     final water = vals['waterVol'] ?? 0;
     return mw > 0 && retortSolids > 0 && water > 0;
+  }
+
+  double? _oilMudBrineMassForSolidsBalance({
+    required double waterVol,
+    required double saltWaterVol,
+    required double dissolvedSolidsPct,
+    required double chloridesMgl,
+    required double calciumMgl,
+    required double cacl2Pct,
+    required double naclPct,
+    required double wpsPpm,
+    required double pm,
+    required double fallbackBrineSG,
+    required double lgsSG,
+  }) {
+    if (waterVol <= 0) {
+      return null;
+    }
+
+    final saltBasisWater = saltWaterVol > 0 ? saltWaterVol : waterVol;
+
+    if (_isSodiumFormateSaltType()) {
+      final formate = _sodiumFormateValues(
+        chloridesMgl: chloridesMgl,
+        waterVol: waterVol,
+        pm: pm,
+      );
+      final solidSg = lgsSG > 0 ? lgsSG : 2.6;
+      return waterVol + (formate.dissolvedSolidsPct * solidSg);
+    }
+
+    if (!_isPureCacl2SaltType()) {
+      double saltWtPct = 0;
+      double brineSG = fallbackBrineSG > 0 ? fallbackBrineSG : 1.0;
+
+      if (_isMixedSaltType()) {
+        final mixed = _mixedSaltValues(chloridesMgl, calciumMgl, saltBasisWater);
+        if (mixed != null) {
+          saltWtPct = mixed.saltContent;
+          brineSG = fallbackBrineSG > 0 ? fallbackBrineSG : mixed.brineSg;
+        } else {
+          saltWtPct = cacl2Pct > 0 ? cacl2Pct : naclPct;
+        }
+      } else if (_isNaclSaltType()) {
+        saltWtPct = _naclWtFromChlorideWater(chloridesMgl, saltBasisWater);
+        if (saltWtPct <= 0) {
+          saltWtPct = naclPct > 0 ? naclPct : (wpsPpm > 0 ? wpsPpm / 10000 : 0);
+        }
+        brineSG = fallbackBrineSG > 0
+            ? fallbackBrineSG
+            : (saltWtPct > 0 ? _naclBrineSg(saltWtPct) : brineSG);
+      } else {
+        saltWtPct = cacl2Pct > 0
+            ? cacl2Pct
+            : (wpsPpm > 0 ? wpsPpm / 10000 : naclPct);
+      }
+
+      if (saltWtPct <= 0 || brineSG <= 0) return null;
+      if (_isNaclSaltType() || _isMixedSaltType()) {
+        final dissolved = dissolvedSolidsPct > 0 ? dissolvedSolidsPct : 0.0;
+        return (waterVol + dissolved) * brineSG;
+      }
+      final waterFraction = (1 - saltWtPct / 100) * brineSG;
+      if (waterFraction <= 0) return null;
+      final rawBrineVol = waterVol / waterFraction;
+      return rawBrineVol * brineSG;
+    }
+
+    double saltWtPct = 0;
+    if (cacl2Pct > 0 && cacl2Pct < 100) {
+      saltWtPct = cacl2Pct;
+    } else if (chloridesMgl > 0) {
+      final frac = _pureCacl2ChlorideConversionFactor * chloridesMgl / 10000;
+      saltWtPct = frac + saltBasisWater == 0
+          ? 0
+          : 100 * frac / (frac + saltBasisWater);
+    }
+
+    if (saltWtPct <= 0) return null;
+    if (waterVol > 50) {
+      return waterVol + (waterVol * saltWtPct / 100 * 0.84);
+    }
+
+    final brineSG = _cacl2BrineSg(saltWtPct);
+    final waterFraction = (1 - saltWtPct / 100) * brineSG;
+    final preciseDissolvedSolids = waterFraction > 0
+        ? (waterVol / waterFraction) - waterVol
+        : 0.0;
+    final effectiveDissolvedSolids = dissolvedSolidsPct > 0
+        ? dissolvedSolidsPct
+        : math.max(
+            preciseDissolvedSolids,
+            chloridesMgl > 0 ? _cacl2MinimumDissolvedSolidsForBalance : 0.0,
+          );
+    final dissolvedSolidsSg =
+        (_cacl2DissolvedSolidsBaseSg -
+                (_cacl2DissolvedSolidsSgSlope * saltWtPct))
+            .clamp(4.0, 4.1)
+            .toDouble();
+    var brineMass = waterVol + (effectiveDissolvedSolids * dissolvedSolidsSg);
+
+    // The reference DMR engine applies a small CaCl2 balance correction in the
+    // mid-high salinity range before solving LGS/HGS. Keep it on mass only so
+    // the displayed Mud table values remain unchanged.
+    if (saltWtPct > 25 && saltWtPct < 31) {
+      brineMass += (31 - saltWtPct) * (saltWtPct - 25) * 0.01053;
+    }
+
+    return brineMass;
+  }
+
+  bool _effectiveWeightedMudForSolids() {
+    final fluid = selectedFluidType.value.toLowerCase();
+    return fluid.contains('oil') ||
+        fluid.contains('synthetic') ||
+        isWeightedMud.value;
   }
 
   void _clearSolidAnalysisSample(int sampleIdx) {
@@ -2922,7 +3386,21 @@ class MudController extends GetxController {
       if (key == null) return 0;
       final vals = propertyTable[key];
       if (vals == null || index >= vals.length) return 0;
-      return double.tryParse(vals[index].value) ?? 0;
+      return _parseMudNumber(vals[index].value);
+    }
+
+    double? readLastMatchingField(bool Function(String normalizedKey) test) {
+      double? value;
+      for (final entry in propertyTable.entries) {
+        if (!test(_normalizedKey(entry.key))) continue;
+        final vals = entry.value;
+        if (index >= vals.length) continue;
+        final text = vals[index].value.trim();
+        if (text.isEmpty) continue;
+        final parsed = double.tryParse(text.replaceAll(',', ''));
+        if (parsed != null) value = parsed;
+      }
+      return value;
     }
 
     // LGS/HGS SG: prefer table row values (L57/L58 in Excel),
@@ -2942,25 +3420,47 @@ class MudController extends GetxController {
         : (hgsTableSG > 0 ? hgsTableSG : hgsPanelSG);
     final chloridesMgl = readField(_chloridesForSolidsKey);
     final waterVol = readField(_waterKey);
-    final mixedSalt = selectedSaltType.value == 'NaCl + CaCl2'
-        ? _mixedSaltValues(chloridesMgl, readField(_wholeMudCaKey), waterVol)
+    final saltWaterVol = _oilSaltWaterBasisForSample(index, waterVol);
+    final calciumMgl = readField(_wholeMudCaKey);
+    final mixedSalt = _isMixedSaltType()
+        ? _mixedSaltValues(chloridesMgl, calciumMgl, saltWaterVol)
         : null;
     final cacl2Pct = mixedSalt?.cacl2Wt ?? readField(_cacl2PctWtKey);
     final sodiumFormateWt = readField(_sodiumFormateWtKey);
-    final rawNaclPct = selectedSaltType.value == 'NaCl'
-        ? _naclWtFromChlorideWater(chloridesMgl, waterVol)
+    final rawNaclPct = _isNaclSaltType()
+        ? _naclWtFromChlorideWater(chloridesMgl, saltWaterVol)
         : 0.0;
     final naclPct =
         mixedSalt?.naclWt ??
         (rawNaclPct > 0 ? rawNaclPct : readField(_naclPctWtKey));
     final wpsPpm = readField(_wpsSaltPercentKey);
-    final saltPctForSolids = selectedSaltType.value == 'NaCl + CaCl2'
+    final saltPctForSolids = _isMixedSaltType()
         ? (mixedSalt?.saltContent ?? (cacl2Pct + naclPct))
-        : selectedSaltType.value == 'Sodium Formate'
+        : _isSodiumFormateSaltType()
         ? sodiumFormateWt
         : (cacl2Pct > 0
               ? cacl2Pct
               : (naclPct > 0 ? naclPct : (wpsPpm > 0 ? wpsPpm / 10000 : 0.0)));
+    final displayedBrineContent = readLastMatchingField(
+      (k) =>
+          k == 'brine content' ||
+          k == 'brine content (%)' ||
+          (k.contains('brine') && k.contains('content')),
+    );
+    final displayedBrineDensity = readLastMatchingField(
+      (k) =>
+          k == 'brine density' ||
+          k.contains('brine density') ||
+          k == 'brine density (sg)' ||
+          k == 'brine sg',
+    );
+    final displayedCorrectedSolids = readLastMatchingField(
+      (k) =>
+          k.contains('solids adjusted') ||
+          k.contains('adjusted for salt') ||
+          k.contains('corrected solids') ||
+          k.contains('corr. solids'),
+    );
 
     return {
       'mudWeight': readField(_mwKey),
@@ -2971,22 +3471,27 @@ class MudController extends GetxController {
       'bentoniteLb': readField(_bentoniteKey),
       'mbt': readField(_mbtKey),
       'chloridesMgl': chloridesMgl,
-      'calciumMgl': readField(_wholeMudCaKey),
+      'makeupChloridesMgl': readField(_makeupWaterChloridesKey),
+      'calciumMgl': calciumMgl,
       'pm': readField(_wholeMudAlkKey),
       'wpsPpm': wpsPpm,
+      'saltWaterVol': saltWaterVol,
       'cacl2Pct': saltPctForSolids, // CaCl2 % wt, or derived from chlorides
       'naclPct': naclPct,
-      'brineVolPct': readField(_brineVolPctKey), // Brine % vol (L62) if exists
-      'brineDensityPpg': readField(_brineDensitySgKey),
-      'corrSolidsPct': readField(
-        _corrSolidsValueKey,
-      ), // Corrected Solids % (L45)
+      'brineVolPct':
+          displayedBrineContent ??
+          readField(_brineVolPctKey), // Brine % vol (L62) if exists
+      'brineDensityPpg':
+          displayedBrineDensity ?? readField(_brineDensitySgKey),
+      'corrSolidsPct':
+          displayedCorrectedSolids ??
+          readField(_corrSolidsValueKey), // Corrected Solids % (L45)
       'oilSG': double.tryParse(oilSgController.text) ?? 0.0,
       'hgsSG': hgsUsed, // L58 — HGS density
       'lgsSG': lgsUsed, // L57 — LGS density
       'shaleCec': double.tryParse(shaleCecController.text) ?? 0.0,
       'bentCec': double.tryParse(bentCecController.text) ?? 0.0,
-      'isWeightedMud': isWeightedMud.value ? 1.0 : 0.0,
+      'isWeightedMud': _effectiveWeightedMudForSolids() ? 1.0 : 0.0,
     };
   }
 
@@ -3006,6 +3511,7 @@ class MudController extends GetxController {
     _setupAutoCalculations();
     _setupSolidAnalysisWatchers();
     _setupMudStateWatchers();
+    _scheduleAllSolidAnalysisSamples();
     _scheduleMudReportSave();
   }
 
@@ -3025,12 +3531,17 @@ class MudController extends GetxController {
     final previousUnits = Map<String, String>.from(propertyUnits);
     _mudStateSaveTimer?.cancel();
     _isApplyingSavedState = true;
-    selectedFluidType.value = normalized;
-    await loadFluidTypeData(applySavedState: false);
-    _restorePropertyValues(previousTable, previousUnits);
-    _setupAutoCalculations();
-    _setupSolidAnalysisWatchers();
-    _setupMudStateWatchers();
+    try {
+      selectedFluidType.value = normalized;
+      await loadFluidTypeData(applySavedState: false);
+      _restorePropertyValues(previousTable, previousUnits);
+      _setupAutoCalculations();
+      _setupSolidAnalysisWatchers();
+      _setupMudStateWatchers();
+    } finally {
+      _isApplyingSavedState = false;
+    }
+    _scheduleAllSolidAnalysisSamples();
     _scheduleMudReportSave();
   }
 
@@ -3071,6 +3582,7 @@ class MudController extends GetxController {
     } finally {
       _isApplyingSavedState = false;
     }
+    _scheduleAllSolidAnalysisSamples();
     _scheduleMudReportSave();
   }
 
@@ -3519,6 +4031,18 @@ class MudController extends GetxController {
 
   double _naclWaterActivity(double saltWtPct) => 1 - (0.0094 * saltWtPct);
 
+  double _cacl2WaterActivity(double saltWtPct) {
+    const a = -3.5566e-3;
+    const b = -2.3126e-4;
+    const c = -1.4330e-6;
+    final aw =
+        1 +
+        (a * saltWtPct) +
+        (b * saltWtPct * saltWtPct) +
+        (c * saltWtPct * saltWtPct * saltWtPct);
+    return aw.clamp(0.0, 1.0).toDouble();
+  }
+
   double _mixedBrineSg(double cacl2Wt, double naclWt) {
     if (cacl2Wt <= 0) return _naclBrineSg(naclWt);
     if (naclWt <= 0) return _cacl2BrineSg(cacl2Wt);
@@ -3530,34 +4054,81 @@ class MudController extends GetxController {
         (0.00004964 * cacl2Wt * cacl2Wt);
   }
 
+  double _interpolateTable(Map<double, double> table, double x) {
+    if (table.isEmpty) return 0.0;
+    final keys = table.keys.toList()..sort();
+    if (keys.length == 1) return table[keys.first] ?? 0.0;
+
+    double interpolate(double lo, double hi) {
+      final loValue = table[lo] ?? 0.0;
+      final hiValue = table[hi] ?? loValue;
+      final t = hi == lo ? 0.0 : (x - lo) / (hi - lo);
+      return loValue + ((hiValue - loValue) * t);
+    }
+
+    if (x <= keys.first) return interpolate(keys[0], keys[1]);
+    if (x >= keys.last) {
+      return interpolate(keys[keys.length - 2], keys.last);
+    }
+
+    for (var i = 1; i < keys.length; i++) {
+      if (x <= keys[i]) return interpolate(keys[i - 1], keys[i]);
+    }
+    return table[keys.last] ?? 0.0;
+  }
+
+  double _inverseInterpolateTable(Map<double, double> table, double y) {
+    if (table.isEmpty) return 0.0;
+    final keys = table.keys.toList()..sort();
+    if (keys.length == 1) return keys.first;
+
+    double interpolateKey(double lo, double hi) {
+      final loValue = table[lo] ?? 0.0;
+      final hiValue = table[hi] ?? loValue;
+      final t = hiValue == loValue ? 0.0 : (y - loValue) / (hiValue - loValue);
+      return lo + ((hi - lo) * t);
+    }
+
+    final firstValue = table[keys.first] ?? 0.0;
+    final lastValue = table[keys.last] ?? firstValue;
+    if (y <= firstValue) return interpolateKey(keys[0], keys[1]);
+    if (y >= lastValue) {
+      return interpolateKey(keys[keys.length - 2], keys.last);
+    }
+
+    for (var i = 1; i < keys.length; i++) {
+      final hiValue = table[keys[i]] ?? 0.0;
+      if (y <= hiValue) return interpolateKey(keys[i - 1], keys[i]);
+    }
+    return keys.last;
+  }
+
   _SodiumFormateResult _sodiumFormateValues({
     required double chloridesMgl,
     required double waterVol,
     required double pm,
-    double formateWtOverride = 0,
   }) {
     final cleanWater = waterVol <= 0 ? 0.0 : waterVol;
-    final formateWt = formateWtOverride > 0
-        ? formateWtOverride
-        : math.max(0.0, 18 + (2 * pm));
-    final saltContent = math.max(0.0, 20.4 + (0.1 * formateWt));
-    const formateChlorideCorrection = 0.9959;
-    final brinePhaseChlorides = cleanWater <= 0
+    final waterPhaseSalinity = cleanWater <= 0
         ? 0.0
-        : chloridesMgl * 100 / cleanWater * formateChlorideCorrection;
-    final wpsPpm = brinePhaseChlorides <= 0
-        ? 0.0
-        : (brinePhaseChlorides / 1000).roundToDouble() * 1000;
-    final brineDensityPpg = math.max(0.0, 4.75775 + (0.201625 * formateWt));
-    final brineSg = brineDensityPpg > 0 ? brineDensityPpg / 8.345 : 1.0;
-    final formateMgL = math.max(0.0, (4523.5 * formateWt) - 15032);
+        : chloridesMgl * 100 / cleanWater;
+    const brinePhaseCorrection = 0.9981;
+    final brinePhaseChlorides = waterPhaseSalinity * brinePhaseCorrection;
+    final formateWt = _inverseInterpolateTable(
+      _sodiumFormateMgLByWt,
+      waterPhaseSalinity,
+    ).clamp(0.0, 49.5).toDouble();
+    final formateMgL = _interpolateTable(_sodiumFormateMgLByWt, formateWt);
+    final brineSg = _interpolateTable(_sodiumFormateSgByWt, formateWt);
+    final brineDensityPpg = brineSg * 8.345;
     final dissolvedSolidsPct = math.max(0.0, (0.1 * formateWt) + 0.4);
+    final saltContent = cleanWater + dissolvedSolidsPct;
     final waterActivity = _sodiumFormateWaterActivity(formateWt);
 
     return _SodiumFormateResult(
       brinePhaseChlorides: brinePhaseChlorides,
       saltContent: saltContent,
-      wpsPpm: wpsPpm,
+      wpsPpm: waterPhaseSalinity,
       formateWt: formateWt,
       formateMgL: formateMgL,
       brineDensityPpg: brineDensityPpg,
@@ -3568,14 +4139,9 @@ class MudController extends GetxController {
   }
 
   double _sodiumFormateWaterActivity(double wtPercent) {
-    const a = -3.5566e-3;
-    const b = -2.3126e-4;
-    const c = -1.4330e-6;
-    final aw = 1 +
-        (a * wtPercent) +
-        (b * wtPercent * wtPercent) +
-        (c * wtPercent * wtPercent * wtPercent);
-    return aw.clamp(0.0, 1.0).toDouble();
+    return _interpolateTable(_sodiumFormateAwByWt, wtPercent)
+        .clamp(0.0, 1.0)
+        .toDouble();
   }
 
   _OilSaltResult? _oilSaltResult({
@@ -3590,70 +4156,68 @@ class MudController extends GetxController {
   }) {
     if (waterVol <= 0) return null;
 
-    final saltType = selectedSaltType.value;
     double saltWtPct = 0;
     double brineSG = 1;
     double waterActivity = 0;
 
-    if (saltType == 'NaCl + CaCl2') {
+    if (_isMixedSaltType()) {
       final mixed = _mixedSaltValues(chloridesMgl, calciumMgl, waterVol);
       if (mixed != null) {
         saltWtPct = mixed.saltContent;
         brineSG = mixed.brineSg;
         waterActivity = mixed.waterActivity;
       } else {
-        saltWtPct = cacl2Pct + naclPct;
-        brineSG = _mixedBrineSg(cacl2Pct, naclPct);
+        saltWtPct = cacl2Pct > 0 ? cacl2Pct : naclPct;
+        brineSG = cacl2Pct > 0 ? _cacl2BrineSg(cacl2Pct) : _naclBrineSg(naclPct);
         waterActivity = _naclWaterActivity(saltWtPct);
       }
-    } else if (saltType == 'NaCl') {
+    } else if (_isNaclSaltType()) {
       saltWtPct = _naclWtFromChlorideWater(chloridesMgl, waterVol);
       if (saltWtPct <= 0) {
         saltWtPct = naclPct > 0 ? naclPct : (wpsPpm > 0 ? wpsPpm / 10000 : 0);
       }
       brineSG = saltWtPct > 0 ? _naclBrineSg(saltWtPct) : 1;
       waterActivity = _naclWaterActivity(saltWtPct);
-    } else if (saltType == 'Sodium Formate') {
+    } else if (_isSodiumFormateSaltType()) {
       final formate = _sodiumFormateValues(
         chloridesMgl: chloridesMgl,
         waterVol: waterVol,
         pm: pm,
-        formateWtOverride: cacl2Pct,
       );
-      saltWtPct = formate.saltContent;
+      saltWtPct = formate.formateWt;
       brineSG = formate.brineSg;
       waterActivity = formate.waterActivity;
       final correctedSolidsPct = retortSolids - formate.dissolvedSolidsPct;
       return _OilSaltResult(
         saltWtPct: saltWtPct,
         brineSG: brineSG,
-        brineVolPct: waterVol + formate.dissolvedSolidsPct,
+        brineVolPct: formate.saltContent,
         dissolvedSolidsPct: formate.dissolvedSolidsPct,
         correctedSolidsPct: correctedSolidsPct < 0 ? 0 : correctedSolidsPct,
         waterActivity: waterActivity < 0 ? 0 : waterActivity,
       );
     } else {
-      if (chloridesMgl > 0) {
-        final frac = _cacl2ChlorideConversionFactor * chloridesMgl / 10000;
+      if (cacl2Pct > 0) {
+        saltWtPct = cacl2Pct;
+      } else if (wpsPpm > 0) {
+        saltWtPct = wpsPpm / 10000;
+      } else if (chloridesMgl > 0) {
+        final frac =
+            _pureCacl2ChlorideConversionFactor * chloridesMgl / 10000;
         saltWtPct = frac + waterVol == 0 ? 0 : 100 * frac / (frac + waterVol);
       }
-      if (saltWtPct <= 0) {
-        saltWtPct = cacl2Pct > 0 ? cacl2Pct : (wpsPpm > 0 ? wpsPpm / 10000 : 0);
-      }
       brineSG = saltWtPct > 0 ? _cacl2BrineSg(saltWtPct) : 1;
-      waterActivity = 1 - (0.0101626 * saltWtPct);
+      waterActivity = _cacl2WaterActivity(saltWtPct);
     }
 
     if (saltWtPct <= 0 || brineSG <= 0) return null;
     final waterFraction = (1 - saltWtPct / 100) * brineSG;
     if (waterFraction <= 0) return null;
-    final oilSg = double.tryParse(oilSgController.text) ?? 0.84;
-    final dissolvedSolidsPct = waterVol * (saltWtPct / 100) * oilSg;
-    final hgsSg = double.tryParse(hgsSgController.text) ?? 4.2;
     final calculatedBrineVolPct = waterVol / waterFraction;
-    final brineVolPct = selectedSaltType.value == 'CaCl2'
-        ? math.max(0.0, waterVol - (dissolvedSolidsPct / (hgsSg > 0 ? hgsSg : 4.2)))
-        : calculatedBrineVolPct;
+    final brineVolPct = calculatedBrineVolPct;
+    final dissolvedSolidsPct = (_isNaclSaltType() || _isMixedSaltType())
+        ? brineVolPct * saltWtPct / 100
+        : brineVolPct - waterVol;
     final correctedSolidsPct = retortSolids - dissolvedSolidsPct;
 
     return _OilSaltResult(
@@ -3680,10 +4244,10 @@ class MudController extends GetxController {
   ) {
     if (chlorides <= 0 || water <= 0) return null;
     final chlorideFromNacl = chlorides - _cacl2ChlorideFromCalcium(calcium);
-    final hasNacl = chlorideFromNacl > 0;
+    final hasNacl = calcium > 0 && chlorideFromNacl > 0;
     final cacl2WholeMudMg = hasNacl
         ? (calcium > 0 ? _cacl2MgFromCalcium(calcium) : 0.0)
-        : _cacl2ChlorideConversionFactor * chlorides;
+        : _pureCacl2ChlorideConversionFactor * chlorides;
     final naclWholeMudMg = hasNacl ? 1.648 * chlorideFromNacl : 0.0;
     final denominator = cacl2WholeMudMg + naclWholeMudMg + (10000 * water);
     if (denominator <= 0) return null;
@@ -3726,7 +4290,7 @@ class MudController extends GetxController {
       (0.000052238 * cacl2Wt * cacl2Wt * cacl2Wt);
 
   double _mixedWaterActivity(double cacl2Wt, double naclWt) {
-    final cacl2Aw = 1 - (0.0101626 * cacl2Wt);
+    final cacl2Aw = _cacl2WaterActivity(cacl2Wt);
     final naclAw = _naclWaterActivity(naclWt);
     final total = cacl2Wt + naclWt;
     if (total <= 0) return 0;
