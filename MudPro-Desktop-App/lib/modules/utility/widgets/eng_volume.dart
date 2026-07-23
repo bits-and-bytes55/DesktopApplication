@@ -114,8 +114,16 @@ class VolumePage extends StatelessWidget {
             ),
           ],
           outputs: [
-            _VolumeOutput(label: 'Hole capacity ${AppUnits.fluidVolume}', value: _format(c.holeCapacity.value)),
-            _VolumeOutput(label: 'Hole volume ${AppUnits.fluidVolume}', value: _format(c.holeVolume.value)),
+            _VolumeOutput(
+              label: 'Hole capacity ${AppUnits.pipeCapacityVolumeLength}',
+              value: c.holeCapacity,
+              decimals: 2,
+            ),
+            _VolumeOutput(
+              label: 'Hole volume ${AppUnits.fluidVolume}',
+              value: c.holeVolume,
+              decimals: 2,
+            ),
           ],
           onCalculate: () => c.calculateHoleVolume(),
           leftWidth: widths.left,
@@ -132,8 +140,11 @@ class VolumePage extends StatelessWidget {
             ),
           ],
           outputs: [
-            _VolumeOutput(label: 'Hole capacity ${AppUnits.fluidVolume}', value: _format(c.annularHoleCapacity.value)),
-            _VolumeOutput(label: 'Annular volume ${AppUnits.fluidVolume}', value: _format(c.annularVolume.value)),
+            _VolumeOutput(
+              label: 'Hole capacity ${AppUnits.pipeCapacityVolumeLength}',
+              value: c.annularHoleCapacity,
+            ),
+            _VolumeOutput(label: 'Annular volume ${AppUnits.fluidVolume}', value: c.annularVolume),
           ],
           onCalculate: () => c.calculateAnnularVolume(),
           leftWidth: widths.left,
@@ -146,7 +157,7 @@ class VolumePage extends StatelessWidget {
             _VolumeInput(label: 'Pipe length ${AppUnits.length}', value: c.capacityPipeLength),
           ],
           outputs: [
-            _VolumeOutput(label: 'Pipe capacity ${AppUnits.fluidVolume}', value: _format(c.pipeCapacity.value)),
+            _VolumeOutput(label: 'Pipe capacity ${AppUnits.fluidVolume}', value: c.pipeCapacity),
           ],
           onCalculate: () => c.calculatePipeCapacity(),
           leftWidth: widths.left,
@@ -159,7 +170,7 @@ class VolumePage extends StatelessWidget {
             _VolumeInput(label: 'Pipe length ${AppUnits.length}', value: c.displacementPipeLength),
           ],
           outputs: [
-            _VolumeOutput(label: 'Pipe displacement ${AppUnits.fluidVolume}', value: _format(c.pipeDisplacement.value)),
+            _VolumeOutput(label: 'Pipe displacement ${AppUnits.fluidVolume}', value: c.pipeDisplacement),
           ],
           onCalculate: () => c.calculatePipeDisplacement(),
           leftWidth: widths.left,
@@ -173,9 +184,9 @@ class VolumePage extends StatelessWidget {
             _VolumeInput(label: 'Pit depth ${AppUnits.length}', value: c.rectangularPitDepth),
           ],
           outputs: [
-            _VolumeOutput(label: 'Total volume ${AppUnits.fluidVolume}', value: _format(c.rectangularTotalVolume.value)),
-            _VolumeOutput(label: 'Volume per inch ${AppUnits.fluidVolume}', value: _format(c.rectangularVolumePerInch.value)),
-            _VolumeOutput(label: 'Volume per foot ${AppUnits.fluidVolume}', value: _format(c.rectangularVolumePerFoot.value)),
+            _VolumeOutput(label: 'Total volume ${AppUnits.fluidVolume}', value: c.rectangularTotalVolume),
+            _VolumeOutput(label: 'Volume per inch ${AppUnits.fluidVolume}', value: c.rectangularVolumePerInch),
+            _VolumeOutput(label: 'Volume per foot ${AppUnits.fluidVolume}', value: c.rectangularVolumePerFoot),
           ],
           onCalculate: () => c.calculateRectangularPits(),
           leftWidth: widths.left,
@@ -189,8 +200,8 @@ class VolumePage extends StatelessWidget {
             _VolumeInput(label: 'Fluid depth (bottom to surface) ${AppUnits.diameter}', value: c.verticalTankFluidDepth),
           ],
           outputs: [
-            _VolumeOutput(label: 'Tank capacity ${AppUnits.fluidVolume}', value: _format(c.verticalTankCapacity.value)),
-            _VolumeOutput(label: 'Fluid volume ${AppUnits.fluidVolume}', value: _format(c.verticalTankFluidVolume.value)),
+            _VolumeOutput(label: 'Tank capacity ${AppUnits.fluidVolume}', value: c.verticalTankCapacity),
+            _VolumeOutput(label: 'Fluid volume ${AppUnits.fluidVolume}', value: c.verticalTankFluidVolume),
           ],
           onCalculate: () => c.calculateVerticalTank(),
           leftWidth: widths.left,
@@ -205,8 +216,8 @@ class VolumePage extends StatelessWidget {
             _VolumeInput(label: 'Fluid depth (bottom to surface) ${AppUnits.diameter}', value: c.horizontalTankFluidDepth),
           ],
           outputs: [
-            _VolumeOutput(label: 'Tank capacity ${AppUnits.fluidVolume}', value: _format(c.horizontalTankCapacity.value)),
-            _VolumeOutput(label: 'Fluid volume ${AppUnits.fluidVolume}', value: _format(c.horizontalTankFluidVolume.value)),
+            _VolumeOutput(label: 'Tank capacity ${AppUnits.fluidVolume}', value: c.horizontalTankCapacity),
+            _VolumeOutput(label: 'Fluid volume ${AppUnits.fluidVolume}', value: c.horizontalTankFluidVolume),
           ],
           onCalculate: () => c.calculateHorizontalTank(),
           leftWidth: widths.left,
@@ -310,7 +321,13 @@ class VolumePage extends StatelessWidget {
       child: Row(
         children: [
           _labelCell(row.label, width: width * 0.70),
-          Expanded(child: _resultCell(row.value)),
+          Expanded(
+            child: Obx(
+              () => _resultCell(
+                _format(row.value.value, decimals: row.decimals),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -381,8 +398,9 @@ class VolumePage extends StatelessWidget {
     );
   }
 
-  String _format(double? value) {
+  String _format(double? value, {int? decimals}) {
     if (value == null || value.isNaN || value.isInfinite) return '';
+    if (decimals != null) return value.toStringAsFixed(decimals);
     return formatOperationNumber(
       value,
       fallbackDecimals: 2,
@@ -399,10 +417,15 @@ class _VolumeInput {
 }
 
 class _VolumeOutput {
-  const _VolumeOutput({required this.label, required this.value});
+  const _VolumeOutput({
+    required this.label,
+    required this.value,
+    this.decimals,
+  });
 
   final String label;
-  final String value;
+  final RxnDouble value;
+  final int? decimals;
 }
 
 class _VolumeWidths {

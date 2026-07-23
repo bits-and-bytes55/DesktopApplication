@@ -101,7 +101,8 @@ class PressurePage extends StatelessWidget {
             ),
           ],
           outputLabel: 'Surface test pressure ${AppUnits.pressure}',
-          outputValue: _format(c.surfaceTestPressure.value),
+          outputValue: c.surfaceTestPressure,
+          outputDecimals: 1,
           onCalculate: () => c.calculatePressureTest(),
           leftWidth: widths.left,
           outputWidth: widths.right,
@@ -114,7 +115,7 @@ class PressurePage extends StatelessWidget {
               value: c.leakOffMwInHole,
             ),
             _PressureInput(
-              label: 'Surface pressure ${AppUnits.pressure}',
+              label: 'Surface weight ${AppUnits.mudWeight}',
               value: c.leakOffSurfacePressure,
             ),
             _PressureInput(
@@ -123,7 +124,8 @@ class PressurePage extends StatelessWidget {
             ),
           ],
           outputLabel: 'Fracture gradient ${AppUnits.mudWeight}',
-          outputValue: _format(c.fractureGradient.value),
+          outputValue: c.fractureGradient,
+          outputDecimals: 1,
           onCalculate: () => c.calculateLeakOffTest(),
           leftWidth: widths.left,
           outputWidth: widths.right,
@@ -143,7 +145,8 @@ class PressurePage extends StatelessWidget {
             ),
           ],
           outputLabel: 'Max. allowable SICP ${AppUnits.pressure}',
-          outputValue: _format(c.maxAllowableSicp.value),
+          outputValue: c.maxAllowableSicp,
+          outputDecimals: 1,
           onCalculate: () => c.calculateMaxAllowableSicp(),
           leftWidth: widths.left,
           outputWidth: widths.right,
@@ -165,7 +168,8 @@ class PressurePage extends StatelessWidget {
   Widget _layout({
     required List<_PressureInput> inputs,
     required String outputLabel,
-    required String outputValue,
+    required RxnDouble outputValue,
+    int? outputDecimals,
     required VoidCallback onCalculate,
     required double leftWidth,
     required double outputWidth,
@@ -177,7 +181,12 @@ class PressurePage extends StatelessWidget {
         const SizedBox(width: 12),
         _calculateButton(onCalculate),
         const SizedBox(width: 12),
-        _outputTable(outputLabel, outputValue, width: outputWidth),
+        _outputTable(
+          outputLabel,
+          outputValue,
+          width: outputWidth,
+          decimals: outputDecimals,
+        ),
       ],
     );
   }
@@ -227,7 +236,12 @@ class PressurePage extends StatelessWidget {
     );
   }
 
-  Widget _outputTable(String label, String value, {required double width}) {
+  Widget _outputTable(
+    String label,
+    RxnDouble value, {
+    required double width,
+    int? decimals,
+  }) {
     return Container(
       width: width,
       decoration: BoxDecoration(
@@ -239,7 +253,13 @@ class PressurePage extends StatelessWidget {
         child: Row(
           children: [
             _labelCell(label, width: width * 0.70),
-            Expanded(child: _resultCell(value)),
+            Expanded(
+              child: Obx(
+                () => _resultCell(
+                  _format(value.value, decimals: decimals),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -311,8 +331,9 @@ class PressurePage extends StatelessWidget {
     );
   }
 
-  String _format(double? value) {
+  String _format(double? value, {int? decimals}) {
     if (value == null || value.isNaN || value.isInfinite) return '';
+    if (decimals != null) return value.toStringAsFixed(decimals);
     return formatOperationNumber(
       value,
       fallbackDecimals: 2,

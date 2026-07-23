@@ -97,7 +97,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        "Where: AV = Annular Velocity ${AppUnits.velocity}, Pump Output ${AppUnits.drillingFlowRate}, Hole Size & Pipe OD ${AppUnits.diameter}",
+                        "Where: AV = Annular Velocity ${AppUnits.velocity}, Pump Output ${AppUnits.cementingFlowRate}, Hole Size & Pipe OD ${AppUnits.diameter}",
                         style: AppTheme.caption.copyWith(
                           color: AppTheme.textSecondary,
                           fontSize: 9,
@@ -150,7 +150,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                 // Input fields with labels and text fields in rows
                 _inputFieldWithRow(
                   "Pump Output",
-                  AppUnits.strip(AppUnits.drillingFlowRate),
+                  AppUnits.strip(AppUnits.cementingFlowRate),
                   c.pumpOutput,
                   "567",
                 ),
@@ -345,7 +345,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                                 const SizedBox(height: 12),
                                 _inputSummaryRow(
                                   "Pump Output",
-                                  "${c.pumpOutput.value} ${AppUnits.strip(AppUnits.drillingFlowRate)}",
+                                  "${c.pumpOutput.value} ${AppUnits.strip(AppUnits.cementingFlowRate)}",
                                 ),
                                 const SizedBox(height: 8),
                                 _inputSummaryRow(
@@ -405,7 +405,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                 const SizedBox(height: 16),
                 _inputFieldWithRow(
                   "Pump Output",
-                  AppUnits.strip(AppUnits.drillingFlowRate),
+                  AppUnits.strip(AppUnits.cementingFlowRate),
                   c.pumpOutput,
                   "567",
                 ),
@@ -569,7 +569,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                               const SizedBox(height: 12),
                               _inputSummaryRow(
                                 "Pump Output",
-                                "${c.pumpOutput.value} ${AppUnits.strip(AppUnits.drillingFlowRate)}",
+                                "${c.pumpOutput.value} ${AppUnits.strip(AppUnits.cementingFlowRate)}",
                               ),
                               const SizedBox(height: 8),
                               _inputSummaryRow(

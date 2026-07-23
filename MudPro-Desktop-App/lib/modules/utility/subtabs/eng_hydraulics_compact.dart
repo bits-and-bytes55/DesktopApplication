@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
@@ -45,7 +47,7 @@ class HydraulicsCompactTool extends StatelessWidget {
         return _layout(
           inputs: [
             _HydraulicInput(
-              label: 'Pump output ${AppUnits.drillingFlowRate}',
+              label: 'Pump output ${AppUnits.cementingFlowRate}',
               value: engineering.pumpOutput,
             ),
             _HydraulicInput(
@@ -60,7 +62,8 @@ class HydraulicsCompactTool extends StatelessWidget {
           outputs: [
             _HydraulicOutput(
               label: 'Annular velocity ${AppUnits.velocity}',
-              value: _format(engineering.annularVelocity.value),
+              value: engineering.annularVelocity,
+              decimals: 1,
             ),
           ],
           onCalculate: () => engineering.calculateAnnularVelocity(),
@@ -86,7 +89,7 @@ class HydraulicsCompactTool extends StatelessWidget {
             ...List.generate(
               bit.jetNozzles.length,
               (index) => _HydraulicInput(
-                label: 'Jet nozzle ${index + 1} (1/32in)',
+                label: 'Jet nozzle ${index + 1} ${AppUnits.nozzleDiameter}',
                 value: bit.jetNozzles[index],
               ),
             ),
@@ -94,31 +97,41 @@ class HydraulicsCompactTool extends StatelessWidget {
           outputs: [
             _HydraulicOutput(
               label: 'Nozzle area ${AppUnits.crossSection}',
-              value: _format(bit.nozzleArea.value),
+              value: bit.nozzleArea,
+              decimals: 3,
             ),
             _HydraulicOutput(
               label: 'Nozzle velocity ${AppUnits.nozzleVelocity}',
-              value: _format(bit.nozzleVelocity.value),
+              value: bit.nozzleVelocity,
+              decimals: 0,
             ),
             _HydraulicOutput(
               label: 'Bit P. drop ${AppUnits.pressure}',
-              value: _format(bit.bitPressureDrop.value),
+              value: bit.bitPressureDrop,
+              decimals: 1,
+              trimZeros: true,
+              truncate: true,
             ),
             _HydraulicOutput(
               label: 'Hydraulic horsepower ${AppUnits.power}',
-              value: _format(bit.hydraulicHP.value),
+              value: bit.hydraulicHP,
+              decimals: 1,
             ),
             _HydraulicOutput(
               label: 'Bit HHP / unit bit area',
-              value: _format(bit.hhpPerArea.value),
+              value: bit.hhpPerArea,
+              decimals: 2,
             ),
             _HydraulicOutput(
               label: 'P. drop (%)',
-              value: _format(bit.pressureDropPercent.value),
+              value: bit.pressureDropPercent,
+              decimals: 1,
+              truncate: true,
             ),
             _HydraulicOutput(
               label: 'Jet impact force ${AppUnits.force}',
-              value: _format(bit.jetImpactForce.value),
+              value: bit.jetImpactForce,
+              decimals: 0,
             ),
           ],
           onCalculate: () => bit.calculateBitHydraulics(),
@@ -152,7 +165,8 @@ class HydraulicsCompactTool extends StatelessWidget {
           outputs: [
             _HydraulicOutput(
               label: 'Critical velocity ${AppUnits.velocity}',
-              value: _format(engineering.criticalAnnulusVelocity.value),
+              value: engineering.criticalAnnulusVelocity,
+              decimals: 1,
             ),
           ],
           onCalculate: () => engineering.calculateCriticalAnnulus(),
@@ -182,7 +196,8 @@ class HydraulicsCompactTool extends StatelessWidget {
           outputs: [
             _HydraulicOutput(
               label: 'Critical velocity ${AppUnits.velocity}',
-              value: _format(engineering.criticalPipeVelocity.value),
+              value: engineering.criticalPipeVelocity,
+              decimals: 1,
             ),
           ],
           onCalculate: () => engineering.calculateCriticalPipe(),
@@ -213,7 +228,7 @@ class HydraulicsCompactTool extends StatelessWidget {
           outputs: [
             _HydraulicOutput(
               label: 'ECD ${AppUnits.mudWeight}',
-              value: _format(engineering.ecd.value),
+              value: engineering.ecd,
             ),
           ],
           onCalculate: () => engineering.calculateEcd(),
@@ -320,7 +335,18 @@ class HydraulicsCompactTool extends StatelessWidget {
       child: Row(
         children: [
           _labelCell(row.label, width: width * 0.70),
-          Expanded(child: _resultCell(row.value)),
+          Expanded(
+            child: Obx(
+              () => _resultCell(
+                _format(
+                  row.value.value,
+                  decimals: row.decimals,
+                  trimZeros: row.trimZeros,
+                  truncate: row.truncate,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -391,8 +417,22 @@ class HydraulicsCompactTool extends StatelessWidget {
     );
   }
 
-  String _format(double? value) {
+  String _format(
+    double? value, {
+    int? decimals,
+    bool trimZeros = false,
+    bool truncate = false,
+  }) {
     if (value == null || value.isNaN || value.isInfinite) return '';
+    if (decimals != null) {
+      final factor = math.pow(10, decimals).toDouble();
+      final displayValue = truncate ? (value * factor).truncate() / factor : value;
+      final formatted = displayValue.toStringAsFixed(decimals);
+      if (!trimZeros) return formatted;
+      return formatted
+          .replaceFirst(RegExp(r'\.0+$'), '')
+          .replaceFirst(RegExp(r'(\.\d*?)0+$'), r'$1');
+    }
     return formatOperationNumber(
       value,
       fallbackDecimals: 2,
@@ -409,10 +449,19 @@ class _HydraulicInput {
 }
 
 class _HydraulicOutput {
-  const _HydraulicOutput({required this.label, required this.value});
+  const _HydraulicOutput({
+    required this.label,
+    required this.value,
+    this.decimals,
+    this.trimZeros = false,
+    this.truncate = false,
+  });
 
   final String label;
-  final String value;
+  final RxnDouble value;
+  final int? decimals;
+  final bool trimZeros;
+  final bool truncate;
 }
 
 class _HydraulicWidths {

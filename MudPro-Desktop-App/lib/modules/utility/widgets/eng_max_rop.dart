@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/utility/controller/engineering_tools_controller.dart';
 import 'package:mudpro_desktop_app/modules/utility/engineering_tools_ui_pattern.dart';
@@ -43,7 +42,10 @@ class MaxRopPage extends StatelessWidget {
                     label: 'MW ${AppUnits.mudWeight}',
                     value: c.maxRopMw,
                   ),
-                  _MaxRopInput(label: 'PV (cP)', value: c.maxRopPv),
+                  _MaxRopInput(
+                    label: 'PV ${AppUnits.viscosity}',
+                    value: c.maxRopPv,
+                  ),
                   _MaxRopInput(
                     label: 'YP ${AppUnits.yieldPoint}',
                     value: c.maxRopYp,
@@ -58,7 +60,7 @@ class MaxRopPage extends StatelessWidget {
                   ),
                 ],
                 outputLabel: 'Max. ROP ${AppUnits.rop}',
-                outputValue: _format(c.maxRop.value),
+                outputValue: c.maxRop,
                 onCalculate: () => c.calculateMaxRop(),
                 leftWidth: widths.left,
                 outputWidth: widths.right,
@@ -84,7 +86,7 @@ class MaxRopPage extends StatelessWidget {
   Widget _layout({
     required List<_MaxRopInput> inputs,
     required String outputLabel,
-    required String outputValue,
+    required RxnDouble outputValue,
     required VoidCallback onCalculate,
     required double leftWidth,
     required double outputWidth,
@@ -146,7 +148,11 @@ class MaxRopPage extends StatelessWidget {
     );
   }
 
-  Widget _outputTable(String label, String value, {required double width}) {
+  Widget _outputTable(
+    String label,
+    RxnDouble value, {
+    required double width,
+  }) {
     return Container(
       width: width,
       decoration: BoxDecoration(
@@ -158,7 +164,7 @@ class MaxRopPage extends StatelessWidget {
         child: Row(
           children: [
             _labelCell(label, width: width * 0.70),
-            Expanded(child: _resultCell(value)),
+            Expanded(child: Obx(() => _resultCell(_format(value.value)))),
           ],
         ),
       ),
@@ -232,11 +238,7 @@ class MaxRopPage extends StatelessWidget {
 
   String _format(double? value) {
     if (value == null || value.isNaN || value.isInfinite) return '';
-    return formatOperationNumber(
-      value,
-      fallbackDecimals: 2,
-      trimFallback: true,
-    );
+    return value.toStringAsFixed(0);
   }
 }
 

@@ -28,7 +28,7 @@ class CostEffectivenessScePage extends StatelessWidget {
                     value: c.sceDailyOperatingTime,
                   ),
                   _SceInput(
-                    label: 'Equipment discard flow rate (bpm)',
+                    label: 'Equipment discard flow rate ${AppUnits.drillingFlowRate}',
                     value: c.sceDiscardFlowRate,
                   ),
                   _SceInput(
@@ -87,87 +87,87 @@ class CostEffectivenessScePage extends StatelessWidget {
                 outputs: [
                   _SceOutput(
                     label: 'Corrected liquid content (%)',
-                    value: _format(c.sceCorrectedLiquidContent.value),
+                    value: c.sceCorrectedLiquidContent,
                   ),
                   _SceOutput(
                     label: 'Corrected solids content (%)',
-                    value: _format(c.sceCorrectedSolidsContent.value),
+                    value: c.sceCorrectedSolidsContent,
                   ),
                   _SceOutput(
                     label: 'Liquid phase density (SG)',
-                    value: _format(c.sceLiquidPhaseDensity.value),
+                    value: c.sceLiquidPhaseDensity,
                   ),
                   _SceOutput(
                     label: 'Solids density (SG)',
-                    value: _format(c.sceSolidsDensity.value),
+                    value: c.sceSolidsDensity,
                   ),
                   _SceOutput(
                     label: 'Weighting material content (lb/bbl)',
-                    value: _format(c.sceWeightingMaterialContent.value),
+                    value: c.sceWeightingMaterialContent,
                   ),
                   _SceOutput(
                     label: 'Weighting material percentage (%)',
-                    value: _format(c.sceWeightingMaterialPercentage.value),
+                    value: c.sceWeightingMaterialPercentage,
                   ),
                   _SceOutput(
                     label: 'LGS content (%)',
-                    value: _format(c.sceLgsContent.value),
+                    value: c.sceLgsContent,
                   ),
                   _SceOutput(
                     label: 'Drilled solids percentage (%)',
-                    value: _format(c.sceDrilledSolidsPercentage.value),
+                    value: c.sceDrilledSolidsPercentage,
                   ),
                   _SceOutput(
                     label: 'Drilled solids content (lb/bbl)',
-                    value: _format(c.sceDrilledSolidsContent.value),
+                    value: c.sceDrilledSolidsContent,
                   ),
                   _SceOutput(
                     label: 'Volume per day ${AppUnits.fluidVolume}',
-                    value: _format(c.sceVolumePerDay.value),
+                    value: c.sceVolumePerDay,
                   ),
                   _SceOutput(
                     label: 'Liquid volume ${AppUnits.fluidVolume}',
-                    value: _format(c.sceLiquidVolume.value),
+                    value: c.sceLiquidVolume,
                   ),
                   _SceOutput(
                     label: 'Drilled solids volume ${AppUnits.fluidVolume}',
-                    value: _format(c.sceDrilledSolidsVolume.value),
+                    value: c.sceDrilledSolidsVolume,
                   ),
                   _SceOutput(
                     label: 'Weighting material volume ${AppUnits.fluidVolume}',
-                    value: _format(c.sceWeightingMaterialVolume.value),
+                    value: c.sceWeightingMaterialVolume,
                   ),
                   _SceOutput(
                     label: 'Weighting material cost per day (Kwd)',
-                    value: _format(c.sceWeightingMaterialCostPerDay.value),
+                    value: c.sceWeightingMaterialCostPerDay,
                   ),
                   _SceOutput(
                     label: 'Chemicals cost per day (Kwd)',
-                    value: _format(c.sceChemicalsCostPerDay.value),
+                    value: c.sceChemicalsCostPerDay,
                   ),
                   _SceOutput(
                     label: 'Liquid cost per day (Kwd)',
-                    value: _format(c.sceLiquidCostPerDay.value),
+                    value: c.sceLiquidCostPerDay,
                   ),
                   _SceOutput(
                     label: 'Dispose cost per day (Kwd)',
-                    value: _format(c.sceDisposeCostPerDay.value),
+                    value: c.sceDisposeCostPerDay,
                   ),
                   _SceOutput(
                     label: 'Total cost per day (Kwd)',
-                    value: _format(c.sceTotalCostPerDay.value),
+                    value: c.sceTotalCostPerDay,
                   ),
                   _SceOutput(
                     label: 'Dilution volume ${AppUnits.fluidVolume}',
-                    value: _format(c.sceDilutionVolume.value),
+                    value: c.sceDilutionVolume,
                   ),
                   _SceOutput(
                     label: 'Dilution cost per day (Kwd)',
-                    value: _format(c.sceDilutionCostPerDay.value),
+                    value: c.sceDilutionCostPerDay,
                   ),
                   _SceOutput(
                     label: 'Cost Effectiveness',
-                    value: _format(c.sceCostEffectiveness.value),
+                    textValue: c.sceCostEffectivenessText,
                   ),
                 ],
                 onCalculate: () => c.calculateCostEffectivenessSce(),
@@ -276,7 +276,13 @@ class CostEffectivenessScePage extends StatelessWidget {
       child: Row(
         children: [
           _labelCell(row.label, width: width * 0.70),
-          Expanded(child: _resultCell(row.value)),
+          Expanded(
+            child: Obx(
+              () => _resultCell(
+                row.textValue?.value ?? _format(row.value?.value),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -365,10 +371,11 @@ class _SceInput {
 }
 
 class _SceOutput {
-  const _SceOutput({required this.label, required this.value});
+  const _SceOutput({required this.label, this.value, this.textValue});
 
   final String label;
-  final String value;
+  final RxnDouble? value;
+  final RxString? textValue;
 }
 
 class _SceWidths {

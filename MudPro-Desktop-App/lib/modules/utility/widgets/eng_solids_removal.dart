@@ -47,23 +47,23 @@ class SolidsRemovalPage extends StatelessWidget {
                 outputs: [
                   _SolidsOutput(
                     label: 'Mud built volume ${AppUnits.fluidVolume}',
-                    value: _format(c.solidsMudBuiltVolume.value),
+                    value: c.solidsMudBuiltVolume,
                   ),
                   _SolidsOutput(
                     label: 'Solids drilled volume ${AppUnits.fluidVolume}',
-                    value: _format(c.solidsDrilledVolume.value),
+                    value: c.solidsDrilledVolume,
                   ),
                   _SolidsOutput(
                     label: 'Total dilution ${AppUnits.fluidVolume}',
-                    value: _format(c.solidsTotalDilution.value),
+                    value: c.solidsTotalDilution,
                   ),
                   _SolidsOutput(
                     label: 'Dilution factor',
-                    value: _format(c.solidsDilutionFactor.value),
+                    value: c.solidsDilutionFactor,
                   ),
                   _SolidsOutput(
                     label: 'Drilled solids performance (%)',
-                    value: _format(c.solidsPerformance.value),
+                    value: c.solidsPerformance,
                   ),
                 ],
                 onCalculate: () => c.calculateSolidsRemovalPerformance(),
@@ -172,7 +172,7 @@ class SolidsRemovalPage extends StatelessWidget {
       child: Row(
         children: [
           _labelCell(row.label, width: width * 0.70),
-          Expanded(child: _resultCell(row.value)),
+          Expanded(child: Obx(() => _resultCell(_format(row.value.value)))),
         ],
       ),
     );
@@ -264,7 +264,7 @@ class _SolidsOutput {
   const _SolidsOutput({required this.label, required this.value});
 
   final String label;
-  final String value;
+  final RxnDouble value;
 }
 
 class _SolidsWidths {

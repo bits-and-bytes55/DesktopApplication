@@ -1,148 +1,238 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class UserManualPage extends StatefulWidget {
   const UserManualPage({super.key});
 
   static const _contents = <_ManualNode>[
-    _ManualNode('MSR2_DMR', children: [
-      _ManualNode('Introduction', children: [
-        _ManualNode('Background'),
-        _ManualNode('Engineering Features'),
-        _ManualNode('Copyright and Disclaimer'),
-        _ManualNode('Technical Support'),
-      ]),
-      _ManualNode('MSR2_DMR Structure', children: [
-        _ManualNode('Main Structure'),
-        _ManualNode('Pad (Well)/Report Management'),
-      ]),
-      _ManualNode('Getting Started', children: [
-        _ManualNode('Hardware and System Requirements'),
-        _ManualNode('Installing the Software'),
-        _ManualNode('Licensing the Software'),
-        _ManualNode('Quick Tour'),
-      ]),
-      _ManualNode('Input Windows', children: [
-        _ManualNode('Menu/Toolbar', children: [
-          _ManualNode('Home'),
-          _ManualNode('Report', topic: 'Toolbar Report'),
-          _ManualNode('Utility & Help'),
-        ]),
-        _ManualNode('Pad', children: [
-          _ManualNode('Pad', topic: 'Pad Detail'),
-          _ManualNode('Inventory'),
-          _ManualNode('Pit'),
-          _ManualNode('Pump'),
-          _ManualNode('SCE'),
-          _ManualNode('Formation'),
-          _ManualNode('Report', topic: 'Pad Report'),
-          _ManualNode('Alert'),
-        ]),
-        _ManualNode('Well', children: [
-          _ManualNode('Well', topic: 'Well Detail'),
-          _ManualNode('Casing'),
-          _ManualNode('Interval'),
-          _ManualNode('Plan'),
-          _ManualNode('Survey'),
-        ]),
-        _ManualNode('Report', topic: 'Input Report', children: [
-          _ManualNode('Well', topic: 'Report Well'),
-          _ManualNode('Mud', topic: 'Report Mud'),
-          _ManualNode('Pump', topic: 'Report Pump'),
-          _ManualNode('Operation', topic: 'Report Operation', children: [
-            _ManualNode('Consume Product'),
-            _ManualNode('Consume Services'),
-            _ManualNode('Receive Product'),
-            _ManualNode('Return Product'),
-            _ManualNode('Transfer Mud'),
-            _ManualNode('Receive Mud'),
-            _ManualNode('Return/Lost Mud'),
-            _ManualNode('Add Water'),
-            _ManualNode('Switch Pits'),
-            _ManualNode('Switch Mud Type'),
-            _ManualNode('Other Volume Addition-Active System'),
-            _ManualNode('Mud Loss-Active System'),
-            _ManualNode('Mud Loss-Reserve Pits'),
-          ]),
-          _ManualNode('Snapshots', topic: 'Report Snapshots'),
-          _ManualNode('Pits', topic: 'Report Pits', children: [
-            _ManualNode('Active Pits'),
-            _ManualNode('Reserve Pits'),
-          ]),
-          _ManualNode('Safety', topic: 'Report Safety'),
-          _ManualNode('Remarks', topic: 'Report Remarks'),
-        ]),
-      ]),
-      _ManualNode('Output Windows', children: [
-        _ManualNode('Toolbar', children: [
-          _ManualNode('Home'),
-          _ManualNode('Report'),
-          _ManualNode('Options', topic: 'Output Options'),
-          _ManualNode('Utility & Help'),
-        ]),
-        _ManualNode('Output Job Explorer', children: [
-          _ManualNode('Summary'),
-          _ManualNode('Detail'),
-          _ManualNode('Daily Cost'),
-          _ManualNode('Total Cost'),
-          _ManualNode('Concentration'),
-          _ManualNode('Time Distribution'),
-          _ManualNode('Survey'),
-          _ManualNode('Alert'),
-        ]),
-      ]),
-      _ManualNode('Recap Windows', children: [
-        _ManualNode('Toolbar', children: [
-          _ManualNode('Home & Report'),
-          _ManualNode('Options'),
-        ]),
-        _ManualNode('Recap Job Explorer', children: [
-          _ManualNode('Summary'),
-          _ManualNode('Cost Distribution'),
-          _ManualNode('Daily Cost'),
-          _ManualNode('Depth Cost'),
-          _ManualNode('Cumulative Cost'),
-          _ManualNode('Drilling Data'),
-          _ManualNode('Mud Properties'),
-          _ManualNode('Hydraulics'),
-          _ManualNode('Solid Analysis'),
-          _ManualNode('Volume'),
-          _ManualNode('Usage'),
-          _ManualNode('Concentration'),
-          _ManualNode('Time Distribution'),
-          _ManualNode('Solid Control Equipment'),
-          _ManualNode('Bit'),
-          _ManualNode('Remarks'),
-          _ManualNode('Interval'),
-          _ManualNode('Survey'),
-          _ManualNode('Customized'),
-          _ManualNode('Engineer'),
-          _ManualNode('Safety'),
-        ]),
-      ]),
-      _ManualNode('Well Comparison Windows', children: [
-        _ManualNode('Toolbar'),
-        _ManualNode('Comparison Job Explorer', children: [
-          _ManualNode('Summary'),
-          _ManualNode('Cost'),
-          _ManualNode('Drilling Data'),
-          _ManualNode('Mud Properties'),
-          _ManualNode('Hydraulics'),
-          _ManualNode('Solids'),
-          _ManualNode('Volume'),
-          _ManualNode('Time Distribution'),
-          _ManualNode('Bit'),
-          _ManualNode('Remarks'),
-          _ManualNode('Survey'),
-          _ManualNode('Engineer'),
-        ]),
-      ]),
-      _ManualNode('References'),
-      _ManualNode('About Bits and Bytes IT Solution'),
-    ]),
+    _ManualNode(
+      'MSR2_DMR',
+      children: [
+        _ManualNode(
+          'Introduction',
+          children: [
+            _ManualNode('Background'),
+            _ManualNode('Engineering Features'),
+            _ManualNode('Copyright and Disclaimer'),
+            _ManualNode('Technical Support'),
+          ],
+        ),
+        _ManualNode(
+          'MSR2_DMR Structure',
+          children: [
+            _ManualNode('Main Structure'),
+            _ManualNode('Pad (Well)/Report Management'),
+          ],
+        ),
+        _ManualNode(
+          'Getting Started',
+          children: [
+            _ManualNode('Hardware and System Requirements'),
+            _ManualNode('Installing the Software'),
+            _ManualNode('Licensing the Software'),
+            _ManualNode('Quick Tour'),
+          ],
+        ),
+        _ManualNode(
+          'Input Windows',
+          children: [
+            _ManualNode(
+              'Menu/Toolbar',
+              children: [
+                _ManualNode('Home'),
+                _ManualNode('Report', topic: 'Toolbar Report'),
+                _ManualNode('Utility & Help'),
+              ],
+            ),
+            _ManualNode(
+              'Pad',
+              children: [
+                _ManualNode('Pad', topic: 'Pad Detail'),
+                _ManualNode('Inventory'),
+                _ManualNode('Pit'),
+                _ManualNode('Pump'),
+                _ManualNode('SCE'),
+                _ManualNode('Formation'),
+                _ManualNode('Report', topic: 'Pad Report'),
+              ],
+            ),
+            _ManualNode(
+              'Well',
+              children: [
+                _ManualNode('Well', topic: 'Well Detail'),
+                _ManualNode('Casing'),
+                _ManualNode('Interval'),
+                _ManualNode('Plan'),
+                _ManualNode('Survey'),
+              ],
+            ),
+            _ManualNode(
+              'Report',
+              topic: 'Input Report',
+              children: [
+                _ManualNode('Well', topic: 'Report Well'),
+                _ManualNode('Mud', topic: 'Report Mud'),
+                _ManualNode('Pump', topic: 'Report Pump'),
+                _ManualNode(
+                  'Operation',
+                  topic: 'Report Operation',
+                  children: [
+                    _ManualNode('Consume Product'),
+                    _ManualNode('Consume Services'),
+                    _ManualNode('Receive Product'),
+                    _ManualNode('Return Product'),
+                    _ManualNode('Transfer Mud'),
+                    _ManualNode('Receive Mud'),
+                    _ManualNode('Return/Lost Mud'),
+                    _ManualNode('Add Water'),
+                    _ManualNode('Switch Pits'),
+                    _ManualNode('Switch Mud Type'),
+                    _ManualNode('Other Volume Addition-Active System'),
+                    _ManualNode('Mud Loss-Active System'),
+                    _ManualNode('Mud Loss-Reserve Pits'),
+                  ],
+                ),
+                _ManualNode(
+                  'Snapshots',
+                  topic: 'Report Snapshots',
+                  children: [
+                    _ManualNode('Inventory Snapshot'),
+                    _ManualNode('Volume Snapshot'),
+                    _ManualNode('Mud Treated'),
+                  ],
+                ),
+                _ManualNode(
+                  'Pits',
+                  topic: 'Report Pits',
+                  children: [
+                    _ManualNode('Active Pits'),
+                    _ManualNode('Reserve Pits'),
+                  ],
+                ),
+                _ManualNode('Remarks', topic: 'Report Remarks'),
+              ],
+            ),
+          ],
+        ),
+        _ManualNode(
+          'Output Windows',
+          children: [
+            _ManualNode(
+              'Toolbar',
+              topic: 'Output Toolbar',
+              children: [
+                _ManualNode('Home', topic: 'Output Home'),
+                _ManualNode('Report'),
+                _ManualNode('Options', topic: 'Output Options'),
+                _ManualNode('Utility & Help'),
+              ],
+            ),
+            _ManualNode(
+              'Output Job Explorer',
+              topic: 'Output Job Explorer',
+              children: [
+                _ManualNode('Summary', topic: 'Output Summary'),
+                _ManualNode('Detail', topic: 'Output Detail'),
+                _ManualNode('Daily Cost', topic: 'Output Daily Cost'),
+                _ManualNode('Total Cost', topic: 'Output Total Cost'),
+                _ManualNode('Concentration', topic: 'Output Concentration'),
+                _ManualNode(
+                  'Time Distribution',
+                  topic: 'Output Time Distribution',
+                ),
+                _ManualNode('Survey', topic: 'Output Survey'),
+              ],
+            ),
+          ],
+        ),
+        _ManualNode(
+          'Recap Windows',
+          children: [
+            _ManualNode(
+              'Toolbar',
+              topic: 'Recap Toolbar',
+              children: [
+                _ManualNode('Home & Report', topic: 'Recap Home & Report'),
+                _ManualNode('Options', topic: 'Recap Options'),
+              ],
+            ),
+            _ManualNode(
+              'Recap Job Explorer',
+              topic: 'Recap Job Explorer',
+              children: [
+                _ManualNode('Summary', topic: 'Recap Summary'),
+                _ManualNode(
+                  'Cost Distribution',
+                  topic: 'Recap Cost Distribution',
+                ),
+                _ManualNode('Daily Cost', topic: 'Recap Daily Cost'),
+                _ManualNode('Depth Cost', topic: 'Recap Depth Cost'),
+                _ManualNode('Cumulative Cost', topic: 'Recap Cumulative Cost'),
+                _ManualNode('Drilling Data', topic: 'Recap Drilling Data'),
+                _ManualNode('Mud Properties', topic: 'Recap Mud Properties'),
+                _ManualNode('Hydraulics', topic: 'Recap Hydraulics'),
+                _ManualNode('Solid Analysis', topic: 'Recap Solid Analysis'),
+                _ManualNode('Volume', topic: 'Recap Volume'),
+                _ManualNode('Usage', topic: 'Recap Usage'),
+                _ManualNode('Concentration', topic: 'Recap Concentration'),
+                _ManualNode(
+                  'Time Distribution',
+                  topic: 'Recap Time Distribution',
+                ),
+                _ManualNode(
+                  'Solid Control Equipment',
+                  topic: 'Recap Solid Control Equipment',
+                ),
+                _ManualNode('Bit', topic: 'Recap Bit'),
+                _ManualNode('Remarks', topic: 'Recap Remarks'),
+                _ManualNode('Interval', topic: 'Recap Interval'),
+                _ManualNode('Survey', topic: 'Recap Survey'),
+                _ManualNode('Customized', topic: 'Recap Customized'),
+                _ManualNode('Engineer', topic: 'Recap Engineer'),
+              ],
+            ),
+          ],
+        ),
+        _ManualNode(
+          'Well Comparison Windows',
+          topic: 'Well Comparison Windows',
+          children: [
+            _ManualNode('Toolbar', topic: 'Comparison Toolbar'),
+            _ManualNode(
+              'Comparison Job Explorer',
+              topic: 'Comparison Job Explorer',
+              children: [
+                _ManualNode('Summary', topic: 'Comparison Summary'),
+                _ManualNode('Cost', topic: 'Comparison Cost'),
+                _ManualNode('Drilling Data', topic: 'Comparison Drilling Data'),
+                _ManualNode('Mud Properties', topic: 'Comparison Mud Properties'),
+                _ManualNode('Hydraulics', topic: 'Comparison Hydraulics'),
+                _ManualNode('Solids', topic: 'Comparison Solids'),
+                _ManualNode('Volume', topic: 'Comparison Volume'),
+                _ManualNode(
+                  'Time Distribution',
+                  topic: 'Comparison Time Distribution',
+                ),
+                _ManualNode('Bit', topic: 'Comparison Bit'),
+                _ManualNode('Remarks', topic: 'Comparison Remarks'),
+                _ManualNode('Survey', topic: 'Comparison Survey'),
+                _ManualNode('Engineer', topic: 'Comparison Engineer'),
+              ],
+            ),
+          ],
+        ),
+      ],
+    ),
   ];
 
   @override
@@ -151,6 +241,7 @@ class UserManualPage extends StatefulWidget {
 
 class _UserManualPageState extends State<UserManualPage> {
   final _contentScrollController = ScrollController();
+  final _printBoundaryKey = GlobalKey();
   var _sidebarVisible = true;
   var _searchHighlightOn = true;
   var _refreshKey = 0;
@@ -187,7 +278,13 @@ class _UserManualPageState extends State<UserManualPage> {
     if (_contentScrollController.hasClients) {
       _contentScrollController.jumpTo(0);
     }
-    setState(() => _selectedManualTopic = topic);
+    setState(() => _selectedManualTopic = topic.isEmpty ? null : topic);
+  }
+
+  String get _currentManualTopicLabel {
+    final topic = _selectedManualTopic;
+    if (topic == null) return 'MSR2_DMR';
+    return _findManualNode(UserManualPage._contents, topic)?.title ?? topic;
   }
 
   void _toggleSidebar() {
@@ -207,10 +304,10 @@ class _UserManualPageState extends State<UserManualPage> {
 
   Future<void> _openInternetOptions() async {
     try {
-      await Process.start(
-        'rundll32.exe',
-        const ['shell32.dll,Control_RunDLL', 'inetcpl.cpl'],
-      );
+      await Process.start('rundll32.exe', const [
+        'shell32.dll,Control_RunDLL',
+        'inetcpl.cpl',
+      ]);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -220,10 +317,309 @@ class _UserManualPageState extends State<UserManualPage> {
   }
 
   Future<void> _showPrintTopicsDialog() async {
-    await showDialog<void>(
+    final selection = await showDialog<_PrintTopicSelection>(
       context: context,
       builder: (context) => const _PrintTopicsDialog(),
     );
+    if (selection == null || !mounted) return;
+    await _printManualTopics(selection);
+  }
+
+  Future<void> _printManualTopics(_PrintTopicSelection selection) async {
+    final selectedTopic = _selectedManualTopic;
+    final selectedNode = selectedTopic == null
+        ? null
+        : _findManualNode(UserManualPage._contents, selectedTopic);
+    final nodes = <_ManualNode>[];
+
+    if (selection == _PrintTopicSelection.headingAndSubtopics) {
+      if (selectedNode == null) {
+        for (final node in UserManualPage._contents) {
+          _collectManualNodes(node, nodes);
+        }
+      } else {
+        _collectManualNodes(selectedNode, nodes);
+      }
+    } else if (selectedNode != null) {
+      nodes.add(selectedNode);
+    }
+
+    final topics = nodes
+        .where((node) => _ManualTopicPage.supports(node.topic))
+        .toList();
+    if (topics.isEmpty && selectedTopic != null) {
+      topics.add(_ManualNode(selectedTopic, topic: selectedTopic));
+    }
+
+    try {
+      final originalTopic = _selectedManualTopic;
+      final screenshots = <Uint8List>[];
+      if (topics.isEmpty && selectedTopic == null) {
+        screenshots.addAll(await _captureManualTopic(null));
+      } else {
+        for (final node in topics) {
+          screenshots.addAll(await _captureManualTopic(node.topic));
+        }
+      }
+      if (mounted) {
+        setState(() => _selectedManualTopic = originalTopic);
+        await WidgetsBinding.instance.endOfFrame;
+      }
+
+      final pdfBytes = await _buildScreenshotPdf(
+        screenshots,
+        PdfPageFormat.a4,
+      );
+      try {
+        await Printing.layoutPdf(
+          name: 'MSR2_DMR_User_Manual.pdf',
+          format: PdfPageFormat.a4,
+          dynamicLayout: false,
+          onLayout: (_) async => pdfBytes,
+        );
+      } on MissingPluginException {
+        await _openPrintablePdf(pdfBytes);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'PDF opened in the default viewer. Restart the rebuilt app to use the native print dialog directly.',
+            ),
+          ),
+        );
+      }
+    } catch (error, stackTrace) {
+      debugPrint('User manual PDF print failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF print failed: $error')),
+      );
+    }
+  }
+
+  Future<List<Uint8List>> _captureManualTopic(String? topic) async {
+    if (!mounted) return const [];
+    setState(() => _selectedManualTopic = topic);
+    await WidgetsBinding.instance.endOfFrame;
+    await WidgetsBinding.instance.endOfFrame;
+
+    if (_contentScrollController.hasClients) {
+      _contentScrollController.jumpTo(0);
+      await WidgetsBinding.instance.endOfFrame;
+    }
+
+    final captures = <Uint8List>[];
+    final positions = <double>[0];
+    if (_contentScrollController.hasClients) {
+      final position = _contentScrollController.position;
+      final maxExtent = position.maxScrollExtent;
+      final step = math.max(1.0, position.viewportDimension - 24);
+      var offset = step;
+      while (offset < maxExtent) {
+        positions.add(offset);
+        offset += step;
+      }
+      if (maxExtent > 0 && positions.last != maxExtent) {
+        positions.add(maxExtent);
+      }
+    }
+
+    for (final offset in positions) {
+      if (_contentScrollController.hasClients) {
+        _contentScrollController.jumpTo(
+          offset
+              .clamp(0, _contentScrollController.position.maxScrollExtent)
+              .toDouble(),
+        );
+        await WidgetsBinding.instance.endOfFrame;
+      }
+      final boundary = _printBoundaryKey.currentContext?.findRenderObject();
+      if (boundary is! RenderRepaintBoundary) continue;
+      final image = await boundary.toImage(pixelRatio: 1.25);
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+      if (bytes != null) {
+        captures.add(bytes.buffer.asUint8List());
+      }
+    }
+    return captures;
+  }
+
+  Future<Uint8List> _buildScreenshotPdf(
+    List<Uint8List> screenshots,
+    PdfPageFormat pageFormat,
+  ) async {
+    if (screenshots.isEmpty) {
+      throw StateError('No manual content was available to print.');
+    }
+    final document = pw.Document(title: 'MSR2_DMR User Manual');
+    for (final screenshot in screenshots) {
+      final image = pw.MemoryImage(screenshot);
+      document.addPage(
+        pw.Page(
+          pageFormat: pageFormat,
+          margin: const pw.EdgeInsets.all(18),
+          build: (_) => pw.Center(
+            child: pw.Image(image, fit: pw.BoxFit.contain),
+          ),
+        ),
+      );
+    }
+    return document.save();
+  }
+
+  _ManualNode? _findManualNode(List<_ManualNode> nodes, String topic) {
+    for (final node in nodes) {
+      if (node.topic == topic) return node;
+      final child = _findManualNode(node.children, topic);
+      if (child != null) return child;
+    }
+    return null;
+  }
+
+  void _collectManualNodes(_ManualNode node, List<_ManualNode> result) {
+    result.add(node);
+    for (final child in node.children) {
+      _collectManualNodes(child, result);
+    }
+  }
+
+  void _collectPrintableText(Widget widget, List<String> lines) {
+    if (widget is Text) {
+      final value = widget.data ?? widget.textSpan?.toPlainText() ?? '';
+      final text = value.trim();
+      if (text.isNotEmpty && (lines.isEmpty || lines.last != text)) {
+        lines.add(text);
+      }
+      return;
+    }
+    if (widget is RichText) {
+      final text = widget.text.toPlainText().trim();
+      if (text.isNotEmpty && (lines.isEmpty || lines.last != text)) {
+        lines.add(text);
+      }
+      return;
+    }
+    if (widget is Flex) {
+      for (final child in widget.children) {
+        _collectPrintableText(child, lines);
+      }
+      return;
+    }
+    if (widget is Wrap) {
+      for (final child in widget.children) {
+        _collectPrintableText(child, lines);
+      }
+      return;
+    }
+    if (widget is Stack) {
+      for (final child in widget.children) {
+        _collectPrintableText(child, lines);
+      }
+      return;
+    }
+    if (widget is Container && widget.child != null) {
+      _collectPrintableText(widget.child!, lines);
+      return;
+    }
+    if (widget is SingleChildScrollView && widget.child != null) {
+      _collectPrintableText(widget.child!, lines);
+      return;
+    }
+    if (widget is InkWell && widget.child != null) {
+      _collectPrintableText(widget.child!, lines);
+      return;
+    }
+    if (widget is Tooltip && widget.child != null) {
+      _collectPrintableText(widget.child!, lines);
+      return;
+    }
+    if (widget is SingleChildRenderObjectWidget && widget.child != null) {
+      _collectPrintableText(widget.child!, lines);
+      return;
+    }
+    if (widget is ProxyWidget && widget.child != null) {
+      _collectPrintableText(widget.child!, lines);
+    }
+  }
+
+  Future<Uint8List> _buildPrintablePdf(
+    List<({String title, String breadcrumb, List<String> lines})> sections,
+    PdfPageFormat pageFormat,
+  ) async {
+    final document = pw.Document(title: 'MSR2_DMR User Manual');
+    late final pw.ThemeData theme;
+    try {
+      final regular = await File(
+        r'C:\Windows\Fonts\segoeui.ttf',
+      ).readAsBytes();
+      final bold = await File(
+        r'C:\Windows\Fonts\segoeuib.ttf',
+      ).readAsBytes();
+      theme = pw.ThemeData.withFont(
+        base: pw.Font.ttf(ByteData.sublistView(regular)),
+        bold: pw.Font.ttf(ByteData.sublistView(bold)),
+      );
+    } catch (_) {
+      theme = pw.ThemeData.withFont(
+        base: pw.Font.helvetica(),
+        bold: pw.Font.helveticaBold(),
+      );
+    }
+
+    for (final section in sections) {
+      document.addPage(
+        pw.MultiPage(
+          pageFormat: pageFormat,
+          maxPages: 200,
+          theme: theme,
+          margin: const pw.EdgeInsets.all(42),
+          build: (_) => [
+            pw.Text(
+              section.title,
+              style: pw.TextStyle(
+                color: PdfColor.fromHex('#3F73AA'),
+                fontSize: 22,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.SizedBox(height: 6),
+            pw.Divider(color: PdfColor.fromHex('#6D9DCC'), thickness: 1.5),
+            pw.SizedBox(height: 5),
+            pw.Text(
+              section.breadcrumb,
+              style: pw.TextStyle(
+                color: PdfColor.fromHex('#60758D'),
+                fontSize: 10,
+              ),
+            ),
+            pw.SizedBox(height: 16),
+            for (final line in section.lines)
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(bottom: 6),
+                child: pw.Text(
+                  line,
+                  style: const pw.TextStyle(fontSize: 10.5, lineSpacing: 2),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+    return document.save();
+  }
+
+  Future<void> _openPrintablePdf(Uint8List pdfBytes) async {
+    final file = File(
+      '${Directory.systemTemp.path}${Platform.pathSeparator}'
+      'MSR2_DMR_User_Manual.pdf',
+    );
+    await file.writeAsBytes(pdfBytes, flush: true);
+    await Process.start('rundll32.exe', [
+      'url.dll,FileProtocolHandler',
+      file.path,
+    ]);
   }
 
   void _handleOption(_ManualOptionAction action) {
@@ -273,10 +669,12 @@ class _UserManualPageState extends State<UserManualPage> {
               children: [
                 if (_sidebarVisible) ...[
                   SizedBox(
-                    width: 330,
+                    width: 270,
                     child: _ManualSidebar(
                       key: ValueKey(_refreshKey),
                       nodes: UserManualPage._contents,
+                      currentTopic: _selectedManualTopic ?? '',
+                      currentTopicLabel: _currentManualTopicLabel,
                       onTopicSelected: _selectManualTopic,
                     ),
                   ),
@@ -286,12 +684,15 @@ class _UserManualPageState extends State<UserManualPage> {
                   ),
                 ],
                 Expanded(
-                  child: _ManualHomeContent(
-                    key: ValueKey('manual-content-$_refreshKey'),
-                    scrollController: _contentScrollController,
-                    searchHighlightOn: _searchHighlightOn,
-                    selectedTopic: _selectedManualTopic,
-                    onNavigate: _selectManualTopic,
+                  child: RepaintBoundary(
+                    key: _printBoundaryKey,
+                    child: _ManualHomeContent(
+                      key: ValueKey('manual-content-$_refreshKey'),
+                      scrollController: _contentScrollController,
+                      searchHighlightOn: _searchHighlightOn,
+                      selectedTopic: _selectedManualTopic,
+                      onNavigate: _selectManualTopic,
+                    ),
                   ),
                 ),
               ],
@@ -347,12 +748,7 @@ class _ManualToolbar extends StatelessWidget {
         true,
         _ManualOptionAction.print,
       ),
-      const _ToolbarAction(
-        Icons.settings_outlined,
-        'Options',
-        true,
-        null,
-      ),
+      const _ToolbarAction(Icons.settings_outlined, 'Options', true, null),
     ];
 
     return Container(
@@ -515,9 +911,9 @@ class _OptionsToolbarButton extends StatelessWidget {
 class _ManualOptionItem {
   const _ManualOptionItem(this.label, this.action) : isDivider = false;
   const _ManualOptionItem.divider()
-      : label = '',
-        action = _ManualOptionAction.stop,
-        isDivider = true;
+    : label = '',
+      action = _ManualOptionAction.stop,
+      isDivider = true;
 
   final String label;
   final _ManualOptionAction action;
@@ -549,10 +945,14 @@ class _ManualSidebar extends StatefulWidget {
   const _ManualSidebar({
     super.key,
     required this.nodes,
+    required this.currentTopic,
+    required this.currentTopicLabel,
     required this.onTopicSelected,
   });
 
   final List<_ManualNode> nodes;
+  final String currentTopic;
+  final String currentTopicLabel;
   final ValueChanged<String> onTopicSelected;
 
   @override
@@ -587,8 +987,15 @@ class _ManualSidebarState extends State<_ManualSidebar> {
                   nodes: widget.nodes,
                   onTopicSelected: widget.onTopicSelected,
                 ),
-                const _ManualSearchPanel(),
-                const _ManualFavoritesPanel(),
+                _ManualSearchPanel(
+                  nodes: widget.nodes,
+                  onTopicSelected: widget.onTopicSelected,
+                ),
+                _ManualFavoritesPanel(
+                  currentTopic: widget.currentTopic,
+                  currentTopicLabel: widget.currentTopicLabel,
+                  onTopicSelected: widget.onTopicSelected,
+                ),
               ],
             ),
           ),
@@ -609,8 +1016,9 @@ class _ManualSidebarState extends State<_ManualSidebar> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: active ? AppTheme.primaryColor : AppTheme.tableHeaderBlue,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(5)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(5),
+              ),
               border: Border.all(color: AppTheme.tableBorderBlue),
             ),
             child: Text(
@@ -629,7 +1037,13 @@ class _ManualSidebarState extends State<_ManualSidebar> {
 }
 
 class _ManualSearchPanel extends StatefulWidget {
-  const _ManualSearchPanel();
+  const _ManualSearchPanel({
+    required this.nodes,
+    required this.onTopicSelected,
+  });
+
+  final List<_ManualNode> nodes;
+  final ValueChanged<String> onTopicSelected;
 
   @override
   State<_ManualSearchPanel> createState() => _ManualSearchPanelState();
@@ -640,7 +1054,9 @@ class _ManualSearchPanelState extends State<_ManualSearchPanel> {
   var _searchPreviousResults = true;
   var _matchSimilarWords = true;
   var _searchTitlesOnly = true;
-  var _foundCount = 0;
+  var _operator = 'AND';
+  var _results = <({String title, String topic, String location})>[];
+  int? _selectedIndex;
 
   @override
   void dispose() {
@@ -649,11 +1065,83 @@ class _ManualSearchPanelState extends State<_ManualSearchPanel> {
   }
 
   void _listTopics() {
-    setState(() => _foundCount = _searchController.text.trim().isEmpty ? 0 : 1);
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) {
+      setState(() {
+        _results = [];
+        _selectedIndex = null;
+      });
+      return;
+    }
+
+    final terms = query
+        .split(RegExp(r'\s+'))
+        .where((term) => term.isNotEmpty)
+        .toList();
+    final candidates = _searchPreviousResults && _results.isNotEmpty
+        ? _results
+        : _allTopics();
+    final matches = candidates.where((entry) {
+      final text = (_searchTitlesOnly
+              ? entry.title
+              : '${entry.title} ${entry.topic} ${entry.location}')
+          .toLowerCase();
+      return _matchesSearch(text, terms);
+    }).toList();
+
+    setState(() {
+      _results = matches;
+      _selectedIndex = matches.isEmpty ? null : 0;
+    });
   }
 
   void _displayTopic() {
-    _listTopics();
+    final index = _selectedIndex;
+    if (index == null || index < 0 || index >= _results.length) return;
+    widget.onTopicSelected(_results[index].topic);
+  }
+
+  List<({String title, String topic, String location})> _allTopics() {
+    final topics = <({String title, String topic, String location})>[];
+
+    void addNodes(List<_ManualNode> nodes, List<String> parents) {
+      for (final node in nodes) {
+        topics.add((
+          title: node.title,
+          topic: node.topic,
+          location: parents.isEmpty ? 'MSR2_DMR' : parents.join(' > '),
+        ));
+        addNodes(node.children, [...parents, node.title]);
+      }
+    }
+
+    addNodes(widget.nodes, const []);
+    return topics;
+  }
+
+  bool _matchesSearch(String text, List<String> terms) {
+    bool contains(String term) {
+      if (_matchSimilarWords) return text.contains(term);
+      return RegExp(
+        '(^|[^a-z0-9])${RegExp.escape(term)}(?=[^a-z0-9]|\$)',
+      ).hasMatch(text);
+    }
+
+    switch (_operator) {
+      case 'OR':
+        return terms.any(contains);
+      case 'NOT':
+        return terms.length == 1
+            ? !contains(terms.first)
+            : contains(terms.first) &&
+                  terms.skip(1).every((term) => !contains(term));
+      case 'NEAR':
+        if (!terms.every(contains)) return false;
+        final positions = terms.map(text.indexOf).toList()..sort();
+        return positions.last - positions.first <= 40;
+      default:
+        return terms.every(contains);
+    }
   }
 
   @override
@@ -686,11 +1174,6 @@ class _ManualSearchPanelState extends State<_ManualSearchPanel> {
                         horizontal: 6,
                         vertical: 7,
                       ),
-                      suffixIcon: const Icon(Icons.arrow_drop_down, size: 18),
-                      suffixIconConstraints: const BoxConstraints(
-                        minWidth: 22,
-                        minHeight: 22,
-                      ),
                       filled: true,
                       fillColor: AppTheme.surfaceColor,
                       border: const OutlineInputBorder(
@@ -712,17 +1195,39 @@ class _ManualSearchPanelState extends State<_ManualSearchPanel> {
               ),
               const SizedBox(width: 3),
               SizedBox(
-                width: 25,
+                width: 72,
                 height: 28,
-                child: OutlinedButton(
-                  onPressed: _listTopics,
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.zero,
+                child: PopupMenuButton<String>(
+                  tooltip: 'Select search operator',
+                  onSelected: (value) {
+                    setState(() => _operator = value);
+                    if (_searchController.text.trim().isNotEmpty) {
+                      _listTopics();
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'AND', child: Text('AND')),
+                    PopupMenuItem(value: 'OR', child: Text('OR')),
+                    PopupMenuItem(value: 'NEAR', child: Text('NEAR')),
+                    PopupMenuItem(value: 'NOT', child: Text('NOT')),
+                  ],
+                  child: Container(
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceColor,
+                      border: Border.all(color: Colors.grey),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _operator,
+                          style: AppTheme.bodyLarge.copyWith(fontSize: 11),
+                        ),
+                        const Icon(Icons.arrow_drop_down, size: 17),
+                      ],
                     ),
                   ),
-                  child: const Icon(Icons.arrow_right, size: 18),
                 ),
               ),
             ],
@@ -730,27 +1235,28 @@ class _ManualSearchPanelState extends State<_ManualSearchPanel> {
           const SizedBox(height: 8),
           Row(
             children: [
-              const Spacer(),
-              SizedBox(
-                width: 104,
-                height: 34,
-                child: OutlinedButton(
-                  onPressed: _listTopics,
-                  child: Text(
-                    'List Topics',
-                    style: AppTheme.bodyLarge.copyWith(fontSize: 12),
+              Expanded(
+                child: SizedBox(
+                  height: 34,
+                  child: OutlinedButton(
+                    onPressed: _listTopics,
+                    child: Text(
+                      'List Topics',
+                      style: AppTheme.bodyLarge.copyWith(fontSize: 12),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 72),
-              SizedBox(
-                width: 96,
-                height: 34,
-                child: OutlinedButton(
-                  onPressed: _displayTopic,
-                  child: Text(
-                    'Display',
-                    style: AppTheme.bodyLarge.copyWith(fontSize: 12),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(
+                  height: 34,
+                  child: OutlinedButton(
+                    onPressed: _selectedIndex == null ? null : _displayTopic,
+                    child: Text(
+                      'Display',
+                      style: AppTheme.bodyLarge.copyWith(fontSize: 12),
+                    ),
                   ),
                 ),
               ),
@@ -768,14 +1274,11 @@ class _ManualSearchPanelState extends State<_ManualSearchPanel> {
                   ),
                 ),
               ),
-              SizedBox(
-                width: 172,
-                child: Text(
-                  'Found: $_foundCount',
-                  style: AppTheme.bodyLarge.copyWith(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
+              Text(
+                'Found: ${_results.length}',
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -817,16 +1320,37 @@ class _ManualSearchPanelState extends State<_ManualSearchPanel> {
               _tableHeader('Rank', width: 54),
             ],
           ),
-          if (_foundCount > 0)
-            Row(
-              children: [
-                _resultCell(_searchController.text.trim(), flex: 5),
-                _resultCell('MSR2_DMR', flex: 4),
-                _resultCell('1', width: 54),
-              ],
-            )
-          else
-            const Expanded(child: SizedBox()),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _results.length,
+              itemBuilder: (context, index) {
+                final result = _results[index];
+                final selected = _selectedIndex == index;
+                return InkWell(
+                  onTap: () => setState(() => _selectedIndex = index),
+                  onDoubleTap: () {
+                    setState(() => _selectedIndex = index);
+                    widget.onTopicSelected(result.topic);
+                  },
+                  child: Row(
+                    children: [
+                      _resultCell(result.title, flex: 5, selected: selected),
+                      _resultCell(
+                        result.location,
+                        flex: 4,
+                        selected: selected,
+                      ),
+                      _resultCell(
+                        '${index + 1}',
+                        width: 54,
+                        selected: selected,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -859,30 +1383,35 @@ class _ManualSearchPanelState extends State<_ManualSearchPanel> {
     return Expanded(flex: flex ?? 1, child: cell);
   }
 
-  Widget _resultCell(String text, {int? flex, double? width}) {
+  Widget _resultCell(
+    String text, {
+    int? flex,
+    double? width,
+    bool selected = false,
+  }) {
     final cell = Container(
       width: width,
       height: 26,
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
+        color: selected ? AppTheme.primaryColor : AppTheme.surfaceColor,
         border: Border(right: BorderSide(color: Colors.grey.shade300)),
       ),
       child: Text(
         text,
         overflow: TextOverflow.ellipsis,
-        style: AppTheme.bodyLarge.copyWith(fontSize: 12),
+        style: AppTheme.bodyLarge.copyWith(
+          fontSize: 12,
+          color: selected ? Colors.white : AppTheme.textPrimary,
+        ),
       ),
     );
     if (width != null) return cell;
     return Expanded(flex: flex ?? 1, child: cell);
   }
 
-  Widget _searchCheck(
-    String label,
-    bool value,
-    ValueChanged<bool> onChanged,
-  ) {
+  Widget _searchCheck(String label, bool value, ValueChanged<bool> onChanged) {
     return SizedBox(
       height: 24,
       child: Row(
@@ -912,16 +1441,40 @@ class _ManualSearchPanelState extends State<_ManualSearchPanel> {
 }
 
 class _ManualFavoritesPanel extends StatefulWidget {
-  const _ManualFavoritesPanel();
+  const _ManualFavoritesPanel({
+    required this.currentTopic,
+    required this.currentTopicLabel,
+    required this.onTopicSelected,
+  });
+
+  final String currentTopic;
+  final String currentTopicLabel;
+  final ValueChanged<String> onTopicSelected;
 
   @override
   State<_ManualFavoritesPanel> createState() => _ManualFavoritesPanelState();
 }
 
 class _ManualFavoritesPanelState extends State<_ManualFavoritesPanel> {
-  final _currentTopicController = TextEditingController(text: 'MSR2_DMR');
-  final _favorites = <String>[];
+  late final TextEditingController _currentTopicController;
+  final _favorites = <({String topic, String label})>[];
   int? _selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentTopicController = TextEditingController(
+      text: widget.currentTopicLabel,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _ManualFavoritesPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentTopicLabel != widget.currentTopicLabel) {
+      _currentTopicController.text = widget.currentTopicLabel;
+    }
+  }
 
   @override
   void dispose() {
@@ -930,13 +1483,16 @@ class _ManualFavoritesPanelState extends State<_ManualFavoritesPanel> {
   }
 
   void _addFavorite() {
-    final topic = _currentTopicController.text.trim();
-    if (topic.isEmpty) return;
+    final topic = widget.currentTopic;
+    final label = widget.currentTopicLabel.trim();
+    if (label.isEmpty) return;
     setState(() {
-      if (!_favorites.contains(topic)) {
-        _favorites.add(topic);
+      var index = _favorites.indexWhere((favorite) => favorite.topic == topic);
+      if (index == -1) {
+        _favorites.add((topic: topic, label: label));
+        index = _favorites.length - 1;
       }
-      _selectedIndex = _favorites.indexOf(topic);
+      _selectedIndex = index;
     });
   }
 
@@ -952,7 +1508,7 @@ class _ManualFavoritesPanelState extends State<_ManualFavoritesPanel> {
   void _displayFavorite() {
     final index = _selectedIndex;
     if (index == null || index < 0 || index >= _favorites.length) return;
-    setState(() => _currentTopicController.text = _favorites[index]);
+    widget.onTopicSelected(_favorites[index].topic);
   }
 
   @override
@@ -1014,6 +1570,7 @@ class _ManualFavoritesPanelState extends State<_ManualFavoritesPanel> {
             height: 30,
             child: TextField(
               controller: _currentTopicController,
+              readOnly: true,
               style: AppTheme.bodyLarge.copyWith(fontSize: 12),
               decoration: const InputDecoration(
                 isDense: true,
@@ -1076,7 +1633,7 @@ class _ManualFavoritesPanelState extends State<_ManualFavoritesPanel> {
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                     color: selected ? Colors.blue.shade700 : Colors.white,
                     child: Text(
-                      _favorites[index],
+                      _favorites[index].label,
                       overflow: TextOverflow.ellipsis,
                       style: AppTheme.bodyLarge.copyWith(
                         fontSize: 12,
@@ -1109,10 +1666,7 @@ class _ManualFavoritesPanelState extends State<_ManualFavoritesPanel> {
 }
 
 class _ContentsTree extends StatelessWidget {
-  const _ContentsTree({
-    required this.nodes,
-    required this.onTopicSelected,
-  });
+  const _ContentsTree({required this.nodes, required this.onTopicSelected});
 
   final List<_ManualNode> nodes;
   final ValueChanged<String> onTopicSelected;
@@ -1120,7 +1674,7 @@ class _ContentsTree extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(8, 6, 4, 12),
+      padding: const EdgeInsets.fromLTRB(3, 5, 3, 10),
       children: [
         for (final node in nodes)
           _ManualTreeNode(node: node, onTopicSelected: onTopicSelected),
@@ -1129,7 +1683,7 @@ class _ContentsTree extends StatelessWidget {
   }
 }
 
-class _ManualTreeNode extends StatelessWidget {
+class _ManualTreeNode extends StatefulWidget {
   const _ManualTreeNode({
     required this.node,
     required this.onTopicSelected,
@@ -1141,50 +1695,91 @@ class _ManualTreeNode extends StatelessWidget {
   final int depth;
 
   @override
+  State<_ManualTreeNode> createState() => _ManualTreeNodeState();
+}
+
+class _ManualTreeNodeState extends State<_ManualTreeNode> {
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = true;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final node = widget.node;
     final children = node.children;
     if (children.isEmpty) {
       return _ManualLeaf(
         node: node,
-        depth: depth,
-        onTopicSelected: onTopicSelected,
+        depth: widget.depth,
+        onTopicSelected: widget.onTopicSelected,
       );
     }
 
-    return Theme(
-      data: Theme.of(context).copyWith(
-        dividerColor: Colors.transparent,
-        visualDensity: VisualDensity.compact,
-      ),
-      child: ExpansionTile(
-        initiallyExpanded: depth < 2,
-        onExpansionChanged: (_) => onTopicSelected(node.topic),
-        tilePadding: EdgeInsets.only(left: 6.0 + depth * 14, right: 6),
-        childrenPadding: EdgeInsets.zero,
-        iconColor: AppTheme.textSecondary,
-        collapsedIconColor: AppTheme.textSecondary,
-        leading: Icon(
-          depth == 0 ? Icons.menu_book_outlined : Icons.folder_open_outlined,
-          size: 15,
-          color: depth == 0 ? AppTheme.primaryColor : AppTheme.warningColor,
-        ),
-        title: Text(
-          node.title,
-          style: AppTheme.bodyLarge.copyWith(
-            fontSize: depth == 0 ? 13 : 12,
-            fontWeight: depth == 0 ? FontWeight.w800 : FontWeight.w600,
-            color: depth == 0 ? AppTheme.primaryColor : AppTheme.textPrimary,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 20,
+          child: Row(
+            children: [
+              SizedBox(width: 3.0 + widget.depth * 10),
+              InkWell(
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Icon(
+                  _expanded
+                      ? Icons.indeterminate_check_box_outlined
+                      : Icons.add_box_outlined,
+                  size: 13,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              const SizedBox(width: 2),
+              Icon(
+                widget.depth == 0
+                    ? Icons.menu_book_outlined
+                    : Icons.folder_open_outlined,
+                size: 13,
+                color: widget.depth == 0
+                    ? AppTheme.primaryColor
+                    : AppTheme.warningColor,
+              ),
+              const SizedBox(width: 3),
+              Expanded(
+                child: InkWell(
+                  onTap: () => widget.onTopicSelected(node.topic),
+                  child: Text(
+                    node.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.bodyLarge.copyWith(
+                      fontSize: widget.depth == 0 ? 11 : 10,
+                      fontWeight: widget.depth == 0
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                      color: widget.depth == 0
+                          ? AppTheme.primaryColor
+                          : AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 3),
+            ],
           ),
         ),
-        children: [
+        if (_expanded)
           for (final child in children)
             _ManualTreeNode(
               node: child,
-              depth: depth + 1,
-              onTopicSelected: onTopicSelected,
+              depth: widget.depth + 1,
+              onTopicSelected: widget.onTopicSelected,
             ),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -1205,23 +1800,23 @@ class _ManualLeaf extends StatelessWidget {
     return InkWell(
       onTap: () => onTopicSelected(node.topic),
       child: Padding(
-        padding: EdgeInsets.only(left: 28.0 + depth * 14, right: 6),
+        padding: EdgeInsets.only(left: 21.0 + depth * 10, right: 3),
         child: SizedBox(
-          height: 22,
+          height: 18,
           child: Row(
             children: [
               const Icon(
                 Icons.description_outlined,
-                size: 14,
+                size: 12,
                 color: AppTheme.infoColor,
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 3),
               Expanded(
                 child: Text(
                   node.title,
                   overflow: TextOverflow.ellipsis,
                   style: AppTheme.bodyLarge.copyWith(
-                    fontSize: 12,
+                    fontSize: 10,
                     color: AppTheme.textPrimary,
                   ),
                 ),
@@ -1248,17 +1843,15 @@ class _ManualHomeContent extends StatelessWidget {
   final String? selectedTopic;
   final ValueChanged<String> onNavigate;
 
-  static const links = [
-    'INTRODUCTION',
-    'MSR2_DMR STRUCTURE',
-    'GETTING STARTED',
-    'INPUT WINDOWS',
-    'OUTPUT WINDOWS',
-    'RECAP WINDOWS',
-    'WELL COMPARISON WINDOWS',
-    'REFERENCES',
-    'ABOUT BITS AND BYTES IT SOLUTION',
-  ];
+  static const links = <String, String>{
+    'INTRODUCTION': 'Introduction',
+    'MSR2_DMR STRUCTURE': 'MSR2_DMR Structure',
+    'GETTING STARTED': 'Getting Started',
+    'INPUT WINDOWS': 'Input Windows',
+    'OUTPUT WINDOWS': 'Output Toolbar',
+    'RECAP WINDOWS': 'Recap Windows',
+    'WELL COMPARISON WINDOWS': 'Well Comparison Windows',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -1323,27 +1916,30 @@ class _ManualHomeContent extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 28),
-                for (final link in links)
+                for (final link in links.entries)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 7),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: searchHighlightOn
-                            ? AppTheme.calculatedCell
-                            : Colors.transparent,
-                      ),
-                      child: Text(
-                        link,
-                        textAlign: TextAlign.center,
-                        style: AppTheme.bodyLarge.copyWith(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.textPrimary,
-                          decoration: TextDecoration.underline,
+                    child: InkWell(
+                      onTap: () => onNavigate(link.value),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: searchHighlightOn
+                              ? AppTheme.calculatedCell
+                              : Colors.transparent,
+                        ),
+                        child: Text(
+                          link.key,
+                          textAlign: TextAlign.center,
+                          style: AppTheme.bodyLarge.copyWith(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.textPrimary,
+                            decoration: TextDecoration.underline,
+                          ),
                         ),
                       ),
                     ),
@@ -1387,12 +1983,7 @@ class _ManualTopicPage extends StatelessWidget {
     'Quick Tour',
   ];
 
-  static const _inputWindowLinks = [
-    'Menu/Toolbar',
-    'Pad',
-    'Well',
-    'Report',
-  ];
+  static const _inputWindowLinks = ['Menu/Toolbar', 'Pad', 'Well', 'Report'];
 
   static const _padLevelLinks = [
     'Pad',
@@ -1430,16 +2021,58 @@ class _ManualTopicPage extends StatelessWidget {
     'Mud Treated',
   ];
 
-  static const _reportPitsLinks = [
-    'Active Pits',
-    'Reserve Pits',
-  ];
+  static const _reportPitsLinks = ['Active Pits', 'Reserve Pits'];
 
-  static const _menuToolbarLinks = [
-    'Home',
-    'Toolbar Report',
-    'Utility & Help',
-  ];
+  static const _menuToolbarLinks = ['Home', 'Toolbar Report', 'Utility & Help'];
+
+  static const _outputJobExplorerLinks = <String, String>{
+    'Summary': 'Output Summary',
+    'Detail': 'Output Detail',
+    'Daily Cost': 'Output Daily Cost',
+    'Total Cost': 'Output Total Cost',
+    'Concentration': 'Output Concentration',
+    'Time Distribution': 'Output Time Distribution',
+    'Survey': 'Output Survey',
+    'Alert': 'Output Alert',
+  };
+
+  static const _recapJobExplorerLinks = <String, String>{
+    'Summary': 'Recap Summary',
+    'Cost Distribution': 'Recap Cost Distribution',
+    'Daily Cost': 'Recap Daily Cost',
+    'Depth Cost': 'Recap Depth Cost',
+    'Cumulative Cost': 'Recap Cumulative Cost',
+    'Drilling Data': 'Recap Drilling Data',
+    'Mud Properties': 'Recap Mud Properties',
+    'Hydraulics': 'Recap Hydraulics',
+    'Solid Analysis': 'Recap Solid Analysis',
+    'Volume': 'Recap Volume',
+    'Usage': 'Recap Usage',
+    'Concentration': 'Recap Concentration',
+    'Time Distribution': 'Recap Time Distribution',
+    'Solid Control Equipment': 'Recap Solid Control Equipment',
+    'Bit': 'Recap Bit',
+    'Remarks': 'Recap Remarks',
+    'Interval': 'Recap Interval',
+    'Survey': 'Recap Survey',
+    'Customized': 'Recap Customized',
+    'Engineer': 'Recap Engineer',
+  };
+
+  static const _comparisonJobExplorerLinks = <String, String>{
+    'Summary': 'Comparison Summary',
+    'Cost': 'Comparison Cost',
+    'Drilling Data': 'Comparison Drilling Data',
+    'Mud Properties': 'Comparison Mud Properties',
+    'Hydraulics': 'Comparison Hydraulics',
+    'Solids': 'Comparison Solids',
+    'Volume': 'Comparison Volume',
+    'Time Distribution': 'Comparison Time Distribution',
+    'Bit': 'Comparison Bit',
+    'Remarks': 'Comparison Remarks',
+    'Survey': 'Comparison Survey',
+    'Engineer': 'Comparison Engineer',
+  };
 
   static bool supports(String topic) {
     return topic == 'Introduction' ||
@@ -1468,7 +2101,27 @@ class _ManualTopicPage extends StatelessWidget {
         _reportPitsLinks.contains(topic) ||
         topic == 'Report Safety' ||
         topic == 'Report Remarks' ||
+        topic == 'Output Toolbar' ||
+        topic == 'Output Home' ||
         topic == 'Output Options' ||
+        topic == 'Output Job Explorer' ||
+        topic == 'Output Summary' ||
+        topic == 'Output Detail' ||
+        topic == 'Output Daily Cost' ||
+        topic == 'Output Total Cost' ||
+        topic == 'Output Concentration' ||
+        topic == 'Output Time Distribution' ||
+        topic == 'Output Survey' ||
+        topic == 'Recap Windows' ||
+        topic == 'Recap Toolbar' ||
+        topic == 'Recap Home & Report' ||
+        topic == 'Recap Options' ||
+        topic == 'Recap Job Explorer' ||
+        _recapJobExplorerLinks.containsValue(topic) ||
+        topic == 'Well Comparison Windows' ||
+        topic == 'Comparison Toolbar' ||
+        topic == 'Comparison Job Explorer' ||
+        _comparisonJobExplorerLinks.containsValue(topic) ||
         _menuToolbarLinks.contains(topic);
   }
 
@@ -1566,7 +2219,11 @@ class _ManualTopicPage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 22),
             child: InkWell(
-              onTap: () => onNavigate(_inputWindowLinks.contains(link) ? _inputWindowTopic(link) : link),
+              onTap: () => onNavigate(
+                _inputWindowLinks.contains(link)
+                    ? _inputWindowTopic(link)
+                    : link,
+              ),
               child: Text(
                 link,
                 style: AppTheme.bodyLarge.copyWith(
@@ -1685,8 +2342,158 @@ class _ManualTopicPage extends StatelessWidget {
     if (topic == 'Report Remarks') {
       return _reportRemarksPage();
     }
+    if (topic == 'Output Toolbar') {
+      return _outputToolbarPage();
+    }
+    if (topic == 'Output Home') {
+      return _outputHomePage();
+    }
     if (topic == 'Output Options') {
       return _outputOptionsPage();
+    }
+    if (topic == 'Output Job Explorer') {
+      return _outputJobExplorerPage();
+    }
+    if (topic == 'Output Summary') {
+      return _outputSummaryPage();
+    }
+    if (topic == 'Output Detail') {
+      return _outputDetailPage();
+    }
+    if (topic == 'Output Daily Cost') {
+      return _outputDailyCostPage();
+    }
+    if (topic == 'Output Total Cost') {
+      return _outputTotalCostPage();
+    }
+    if (topic == 'Output Concentration') {
+      return _outputConcentrationPage();
+    }
+    if (topic == 'Output Time Distribution') {
+      return _outputTimeDistributionPage();
+    }
+    if (topic == 'Output Survey') {
+      return _outputSurveyPage();
+    }
+    if (topic == 'Recap Windows') {
+      return _recapWindowsPage();
+    }
+    if (topic == 'Recap Toolbar') {
+      return _recapToolbarPage();
+    }
+    if (topic == 'Recap Home & Report') {
+      return _recapHomeReportPage();
+    }
+    if (topic == 'Recap Options') {
+      return _recapOptionsPage();
+    }
+    if (topic == 'Recap Job Explorer') {
+      return _recapJobExplorerPage();
+    }
+    if (topic == 'Recap Summary') {
+      return _recapSummaryPage();
+    }
+    if (topic == 'Recap Cost Distribution') {
+      return _recapCostDistributionPage();
+    }
+    if (topic == 'Recap Daily Cost') {
+      return _recapDailyCostPage();
+    }
+    if (topic == 'Recap Depth Cost') {
+      return _recapDepthCostPage();
+    }
+    if (topic == 'Recap Cumulative Cost') {
+      return _recapCumulativeCostPage();
+    }
+    if (topic == 'Recap Drilling Data') {
+      return _recapDrillingDataPage();
+    }
+    if (topic == 'Recap Mud Properties') {
+      return _recapMudPropertiesPage();
+    }
+    if (topic == 'Recap Hydraulics') {
+      return _recapHydraulicsPage();
+    }
+    if (topic == 'Recap Solid Analysis') {
+      return _recapSolidAnalysisPage();
+    }
+    if (topic == 'Recap Volume') {
+      return _recapVolumePage();
+    }
+    if (topic == 'Recap Usage') {
+      return _recapUsagePage();
+    }
+    if (topic == 'Recap Concentration') {
+      return _recapConcentrationPage();
+    }
+    if (topic == 'Recap Time Distribution') {
+      return _recapTimeDistributionPage();
+    }
+    if (topic == 'Recap Solid Control Equipment') {
+      return _recapSolidControlEquipmentPage();
+    }
+    if (topic == 'Recap Bit') {
+      return _recapBitPage();
+    }
+    if (topic == 'Recap Remarks') {
+      return _recapRemarksPage();
+    }
+    if (topic == 'Recap Interval') {
+      return _recapIntervalPage();
+    }
+    if (topic == 'Recap Survey') {
+      return _recapSurveyPage();
+    }
+    if (topic == 'Recap Customized') {
+      return _recapCustomizedPage();
+    }
+    if (topic == 'Recap Engineer') {
+      return _recapEngineerPage();
+    }
+    if (topic == 'Well Comparison Windows') {
+      return _wellComparisonWindowsPage();
+    }
+    if (topic == 'Comparison Toolbar') {
+      return _comparisonToolbarPage();
+    }
+    if (topic == 'Comparison Job Explorer') {
+      return _comparisonJobExplorerPage();
+    }
+    if (topic == 'Comparison Summary') {
+      return _comparisonSummaryPage();
+    }
+    if (topic == 'Comparison Cost') {
+      return _comparisonCostPage();
+    }
+    if (topic == 'Comparison Drilling Data') {
+      return _comparisonDrillingDataPage();
+    }
+    if (topic == 'Comparison Mud Properties') {
+      return _comparisonMudPropertiesPage();
+    }
+    if (topic == 'Comparison Hydraulics') {
+      return _comparisonHydraulicsPage();
+    }
+    if (topic == 'Comparison Solids') {
+      return _comparisonSolidsPage();
+    }
+    if (topic == 'Comparison Volume') {
+      return _comparisonVolumePage();
+    }
+    if (topic == 'Comparison Time Distribution') {
+      return _comparisonTimeDistributionPage();
+    }
+    if (topic == 'Comparison Bit') {
+      return _comparisonBitPage();
+    }
+    if (topic == 'Comparison Remarks') {
+      return _comparisonRemarksPage();
+    }
+    if (topic == 'Comparison Survey') {
+      return _comparisonSurveyPage();
+    }
+    if (topic == 'Comparison Engineer') {
+      return _comparisonEngineerPage();
     }
     if (topic == 'Pad Detail') {
       return _padDetailPage();
@@ -1770,7 +2577,9 @@ class _ManualTopicPage extends StatelessWidget {
         height: 560,
         child: Stack(
           children: [
-            const Positioned.fill(child: CustomPaint(painter: _MainStructureArrowPainter())),
+            const Positioned.fill(
+              child: CustomPaint(painter: _MainStructureArrowPainter()),
+            ),
             _diagramWindow(
               left: 24,
               top: 16,
@@ -1794,7 +2603,13 @@ class _ManualTopicPage extends StatelessWidget {
               width: 220,
               height: 150,
               title: 'Input Window',
-              lines: const ['Pad', '  Well 1', '    Report 1', '  Well 2', '    Report 1'],
+              lines: const [
+                'Pad',
+                '  Well 1',
+                '    Report 1',
+                '  Well 2',
+                '    Report 1',
+              ],
               menu: const ['Report', 'DMR', 'Recap'],
             ),
             _diagramWindow(
@@ -1861,7 +2676,9 @@ class _ManualTopicPage extends StatelessWidget {
                 color: AppTheme.textPrimary,
               ),
             ),
-            const Positioned.fill(child: CustomPaint(painter: _PadReportArrowPainter())),
+            const Positioned.fill(
+              child: CustomPaint(painter: _PadReportArrowPainter()),
+            ),
             _diagramWindow(
               left: 12,
               top: 138,
@@ -1940,9 +2757,19 @@ class _ManualTopicPage extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: Colors.blueGrey.shade200),
-          boxShadow: const [BoxShadow(color: Colors.black12, offset: Offset(1, 1), blurRadius: 2)],
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              offset: Offset(1, 1),
+              blurRadius: 2,
+            ),
+          ],
         ),
-        child: Icon(Icons.description_outlined, color: Colors.blue.shade600, size: 24),
+        child: Icon(
+          Icons.description_outlined,
+          color: Colors.blue.shade600,
+          size: 24,
+        ),
       ),
     );
   }
@@ -2039,7 +2866,10 @@ class _ManualTopicPage extends StatelessWidget {
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                border: Border.all(color: Colors.grey.shade500, width: 0.6),
+                                border: Border.all(
+                                  color: Colors.grey.shade500,
+                                  width: 0.6,
+                                ),
                               ),
                               child: Text(
                                 item,
@@ -2060,7 +2890,13 @@ class _ManualTopicPage extends StatelessWidget {
                         decoration: const BoxDecoration(
                           color: Color(0xFF35A23B),
                           shape: BoxShape.circle,
-                          boxShadow: [BoxShadow(color: Colors.black26, offset: Offset(2, 2), blurRadius: 2)],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              offset: Offset(2, 2),
+                              blurRadius: 2,
+                            ),
+                          ],
                         ),
                         child: Text(
                           badge,
@@ -2101,7 +2937,13 @@ class _ManualTopicPage extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border.all(color: Colors.blueGrey.shade100),
-              boxShadow: const [BoxShadow(color: Colors.black12, offset: Offset(1, 1), blurRadius: 2)],
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black12,
+                  offset: Offset(1, 1),
+                  blurRadius: 2,
+                ),
+              ],
             ),
             child: Icon(Icons.table_chart_outlined, color: accent, size: 34),
           ),
@@ -2141,7 +2983,14 @@ class _ManualTopicPage extends StatelessWidget {
           title: 'MSR2_DMR - Input',
           leftMenu: const ['Pad', 'Well', 'Report 1', 'Report 2', 'Report 3'],
           tabs: const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Remarks'],
-          panels: const ['General', 'Casing', 'Open Hole', 'Bit Data', 'Drilling String', 'Time Distribution'],
+          panels: const [
+            'General',
+            'Casing',
+            'Open Hole',
+            'Bit Data',
+            'Drilling String',
+            'Time Distribution',
+          ],
         ),
         const SizedBox(height: 18),
         _tourStep(
@@ -2155,9 +3004,21 @@ class _ManualTopicPage extends StatelessWidget {
         const SizedBox(height: 10),
         _mockAppScreenshot(
           title: 'MSR2_DMR - Daily Report',
-          leftMenu: const ['Summary', 'Detail', 'Daily Cost', 'Total Cost', 'Survey', 'Alert'],
+          leftMenu: const [
+            'Summary',
+            'Detail',
+            'Daily Cost',
+            'Total Cost',
+            'Survey',
+            'Alert',
+          ],
           tabs: const ['Report Output'],
-          panels: const ['Wellbore Schematic', 'KPI Dashboard', 'Cost Distribution', 'Progress'],
+          panels: const [
+            'Wellbore Schematic',
+            'KPI Dashboard',
+            'Cost Distribution',
+            'Progress',
+          ],
         ),
         const SizedBox(height: 18),
         _tourStep(
@@ -2175,9 +3036,22 @@ class _ManualTopicPage extends StatelessWidget {
         const SizedBox(height: 10),
         _mockAppScreenshot(
           title: 'MSR2_DMR - Recap',
-          leftMenu: const ['Summary', 'Cost', 'Usage', 'Concentration', 'Hydraulics', 'Solids', 'Survey'],
+          leftMenu: const [
+            'Summary',
+            'Cost',
+            'Usage',
+            'Concentration',
+            'Hydraulics',
+            'Solids',
+            'Survey',
+          ],
           tabs: const ['Home', 'Report'],
-          panels: const ['Wellbore Schematic', 'KPI Dashboard', 'Top Products', 'Progress Charts'],
+          panels: const [
+            'Wellbore Schematic',
+            'KPI Dashboard',
+            'Top Products',
+            'Progress Charts',
+          ],
         ),
         const SizedBox(height: 18),
         _tourStep(
@@ -2209,7 +3083,8 @@ class _ManualTopicPage extends StatelessWidget {
             ),
             for (var i = 0; i < _inputWindowLinks.length; i++) ...[
               InkWell(
-                onTap: () => onNavigate(_inputWindowTopic(_inputWindowLinks[i])),
+                onTap: () =>
+                    onNavigate(_inputWindowTopic(_inputWindowLinks[i])),
                 child: Text(
                   _inputWindowLinks[i],
                   style: AppTheme.bodyLarge.copyWith(
@@ -2221,10 +3096,7 @@ class _ManualTopicPage extends StatelessWidget {
                 ),
               ),
               if (i < _inputWindowLinks.length - 1)
-                Text(
-                  ', ',
-                  style: AppTheme.bodyLarge.copyWith(fontSize: 15),
-                ),
+                Text(', ', style: AppTheme.bodyLarge.copyWith(fontSize: 15)),
             ],
           ],
         ),
@@ -2236,9 +3108,30 @@ class _ManualTopicPage extends StatelessWidget {
             children: [
               _mockAppScreenshot(
                 title: 'MSR2_DMR - Input',
-                leftMenu: const ['New Pad', 'Well 1', 'Report 1', 'Report 2', 'Well 2'],
-                tabs: const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Safety', 'Remarks'],
-                panels: const ['General', 'Cased Hole', 'Open Hole', 'Bit', 'Drill String', 'Time Distribution'],
+                leftMenu: const [
+                  'New Pad',
+                  'Well 1',
+                  'Report 1',
+                  'Report 2',
+                  'Well 2',
+                ],
+                tabs: const [
+                  'Well',
+                  'Mud',
+                  'Pump',
+                  'Operation',
+                  'Pit',
+                  'Safety',
+                  'Remarks',
+                ],
+                panels: const [
+                  'General',
+                  'Cased Hole',
+                  'Open Hole',
+                  'Bit',
+                  'Drill String',
+                  'Time Distribution',
+                ],
               ),
               const SizedBox(width: 18),
               Column(
@@ -2323,16 +3216,15 @@ class _ManualTopicPage extends StatelessWidget {
                 ),
               ),
               if (i < _padLevelLinks.length - 1)
-                Text(
-                  ', ',
-                  style: AppTheme.bodyLarge.copyWith(fontSize: 15),
-                ),
+                Text(', ', style: AppTheme.bodyLarge.copyWith(fontSize: 15)),
             ],
           ],
         ),
         const SizedBox(height: 18),
         _manualBullet('Add and manage wells under the selected pad.'),
-        _manualBullet('Define pad information that is shared by wells and daily reports.'),
+        _manualBullet(
+          'Define pad information that is shared by wells and daily reports.',
+        ),
         _manualBullet('Select inventory from the mud company database.'),
         _manualBullet('List pits available at the pad location.'),
         _manualBullet('List pumps to be used for pad drilling.'),
@@ -2407,10 +3299,7 @@ class _ManualTopicPage extends StatelessWidget {
                 ),
               ),
               if (i < _wellLevelLinks.length - 1)
-                Text(
-                  ', ',
-                  style: AppTheme.bodyLarge.copyWith(fontSize: 15),
-                ),
+                Text(', ', style: AppTheme.bodyLarge.copyWith(fontSize: 15)),
             ],
           ],
         ),
@@ -2502,18 +3391,68 @@ class _ManualTopicPage extends StatelessWidget {
   }
 
   Widget _casingSetupMock() {
-    final headers = const ['Description', 'Type', 'OD\n(in)', 'Wt.\n(lb/ft)', 'ID\n(in)', 'Top\n(ft)', 'Shoe\n(ft)', 'Bit\n(in)', 'TOC\n(ft)'];
+    final headers = const [
+      'Description',
+      'Type',
+      'OD\n(in)',
+      'Wt.\n(lb/ft)',
+      'ID\n(in)',
+      'Top\n(ft)',
+      'Shoe\n(ft)',
+      'Bit\n(in)',
+      'TOC\n(ft)',
+    ];
     final rows = const [
-      ['Conductor', 'Casing', '20.000', '94.000', '18.000', '0.0', '80.0', '', ''],
-      ['Surface', 'Casing', '13.375', '54.000', '12.615', '0.0', '1965.0', '', ''],
-      ['Intermediate', 'Casing', '9.625', '40.000', '8.681', '0.0', '10870.0', '', ''],
+      [
+        'Conductor',
+        'Casing',
+        '20.000',
+        '94.000',
+        '18.000',
+        '0.0',
+        '80.0',
+        '',
+        '',
+      ],
+      [
+        'Surface',
+        'Casing',
+        '13.375',
+        '54.000',
+        '12.615',
+        '0.0',
+        '1965.0',
+        '',
+        '',
+      ],
+      [
+        'Intermediate',
+        'Casing',
+        '9.625',
+        '40.000',
+        '8.681',
+        '0.0',
+        '10870.0',
+        '',
+        '',
+      ],
       ['Production', 'Casing', '5.500', '', '5.000', '0.0', '10845.0', '', ''],
-      ['Production 5', 'Casing', '5.000', '', '4.000', '0.0', '22482.0', '', ''],
+      [
+        'Production 5',
+        'Casing',
+        '5.000',
+        '',
+        '4.000',
+        '0.0',
+        '22482.0',
+        '',
+        '',
+      ],
     ];
 
     return _wellInputFrame(
       activeTab: 'Casing',
-      height: 365,
+      height: 525,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
         child: _casingGrid(headers: headers, rows: rows, minRows: 20),
@@ -2540,7 +3479,7 @@ class _ManualTopicPage extends StatelessWidget {
 
     return _wellInputFrame(
       activeTab: 'Well',
-      height: 365,
+      height: 410,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
         child: Row(
@@ -2573,9 +3512,7 @@ class _ManualTopicPage extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: _reportCasingTable(casingRows),
-                      ),
+                      Expanded(child: _reportCasingTable(casingRows)),
                       const SizedBox(width: 8),
                       _casingDropdownMock(),
                     ],
@@ -2628,7 +3565,7 @@ class _ManualTopicPage extends StatelessWidget {
   Widget _intervalMock() {
     return _wellInputFrame(
       activeTab: 'Interval',
-      height: 370,
+      height: 495,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
         child: Column(
@@ -2652,9 +3589,21 @@ class _ManualTopicPage extends StatelessWidget {
                             child: Column(
                               children: [
                                 _intervalInfoRow('Formation', 'Booster'),
-                                _intervalInfoRow('Bit Size', '12.250', unit: '(in)'),
-                                _intervalInfoRow('Casing', '9.625', unit: '(in)'),
-                                _intervalInfoRow('Interval FIT', '12.50', unit: '(ppg)'),
+                                _intervalInfoRow(
+                                  'Bit Size',
+                                  '12.250',
+                                  unit: '(in)',
+                                ),
+                                _intervalInfoRow(
+                                  'Casing',
+                                  '9.625',
+                                  unit: '(in)',
+                                ),
+                                _intervalInfoRow(
+                                  'Interval FIT',
+                                  '12.50',
+                                  unit: '(ppg)',
+                                ),
                                 _intervalInfoRow('Mud Description', ''),
                                 _intervalInfoRow('Mud Type', ''),
                               ],
@@ -2662,7 +3611,10 @@ class _ManualTopicPage extends StatelessWidget {
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: _intervalTextBox('Interval Conclusion and Recommendations', height: 66),
+                            child: _intervalTextBox(
+                              'Interval Conclusion and Recommendations',
+                              height: 66,
+                            ),
                           ),
                         ],
                       ),
@@ -2679,7 +3631,9 @@ class _ManualTopicPage extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          Expanded(child: _intervalTextBox('Sweeps', height: 78)),
+                          Expanded(
+                            child: _intervalTextBox('Sweeps', height: 78),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -2690,11 +3644,14 @@ class _ManualTopicPage extends StatelessWidget {
                             child: _intervalTextBox(
                               'Solid Control',
                               height: 58,
-                              text: 'Shakers operated with API screens. Dumped and cleaned sand traps as needed.',
+                              text:
+                                  'Shakers operated with API screens. Dumped and cleaned sand traps as needed.',
                             ),
                           ),
                           const SizedBox(width: 10),
-                          Expanded(child: _intervalTextBox('Lab Testing', height: 58)),
+                          Expanded(
+                            child: _intervalTextBox('Lab Testing', height: 58),
+                          ),
                         ],
                       ),
                     ],
@@ -2703,7 +3660,10 @@ class _ManualTopicPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            _intervalTextBox('End of Well Conclusion and Recommendations', height: 54),
+            _intervalTextBox(
+              'End of Well Conclusion and Recommendations',
+              height: 54,
+            ),
           ],
         ),
       ),
@@ -2738,7 +3698,9 @@ class _ManualTopicPage extends StatelessWidget {
               height: 20,
               alignment: Alignment.centerLeft,
               padding: EdgeInsets.only(left: i == 0 ? 2 : 12),
-              color: items[i] == '2 - Int.' ? const Color(0xFFB7C8DA) : Colors.transparent,
+              color: items[i] == '2 - Int.'
+                  ? const Color(0xFFB7C8DA)
+                  : Colors.transparent,
               child: Text(
                 items[i],
                 overflow: TextOverflow.ellipsis,
@@ -2789,7 +3751,11 @@ class _ManualTopicPage extends StatelessWidget {
     );
   }
 
-  Widget _intervalTextBox(String title, {required double height, String text = ''}) {
+  Widget _intervalTextBox(
+    String title, {
+    required double height,
+    String text = '',
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2847,7 +3813,7 @@ class _ManualTopicPage extends StatelessWidget {
   Widget _planMock() {
     return _wellInputFrame(
       activeTab: 'Plan',
-      height: 370,
+      height: 530,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
         child: Column(
@@ -2944,7 +3910,7 @@ class _ManualTopicPage extends StatelessWidget {
     ];
 
     return SizedBox(
-      height: 224,
+      height: 350,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Column(
@@ -2967,8 +3933,8 @@ class _ManualTopicPage extends StatelessWidget {
                     _gridCell(
                       rowIndex < rows.length
                           ? col < rows[rowIndex].length
-                              ? rows[rowIndex][col]
-                              : ''
+                                ? rows[rowIndex][col]
+                                : ''
                           : '',
                       width: widths[col],
                       yellow: col >= 3 && col <= 6,
@@ -3033,12 +3999,18 @@ class _ManualTopicPage extends StatelessWidget {
             _inlineComma(),
             Text(
               ' and ',
-              style: AppTheme.bodyLarge.copyWith(fontSize: 15, color: AppTheme.textPrimary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 15,
+                color: AppTheme.textPrimary,
+              ),
             ),
             _inlineManualLink('Point Calculation'),
             Text(
               '.',
-              style: AppTheme.bodyLarge.copyWith(fontSize: 15, color: AppTheme.textPrimary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 15,
+                color: AppTheme.textPrimary,
+              ),
             ),
           ],
         ),
@@ -3049,7 +4021,7 @@ class _ManualTopicPage extends StatelessWidget {
   Widget _surveyInputMock() {
     return _wellInputFrame(
       activeTab: 'Survey',
-      height: 345,
+      height: 510,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
         child: Row(
@@ -3091,11 +4063,7 @@ class _ManualTopicPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      _checkboxMock('Annotation', true),
-                    ],
-                  ),
+                  Row(children: [_checkboxMock('Annotation', true)]),
                   const SizedBox(height: 8),
                   _surveyAnnotationTable(),
                 ],
@@ -3140,7 +4108,7 @@ class _ManualTopicPage extends StatelessWidget {
     const widths = [44.0, 34.0, 38.0, 44.0, 34.0, 34.0, 42.0, 48.0];
 
     return SizedBox(
-      height: 216,
+      height: 350,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Column(
@@ -3148,7 +4116,12 @@ class _ManualTopicPage extends StatelessWidget {
             Row(
               children: [
                 for (var i = 0; i < headers.length; i++)
-                  _gridCell(headers[i], width: widths[i], header: true, alignCenter: true),
+                  _gridCell(
+                    headers[i],
+                    width: widths[i],
+                    header: true,
+                    alignCenter: true,
+                  ),
               ],
             ),
             for (final row in rows)
@@ -3177,14 +4150,23 @@ class _ManualTopicPage extends StatelessWidget {
         Row(
           children: [
             for (var i = 0; i < headers.length; i++)
-              _gridCell(headers[i], width: widths[i], header: true, alignCenter: true),
+              _gridCell(
+                headers[i],
+                width: widths[i],
+                header: true,
+                alignCenter: true,
+              ),
           ],
         ),
         for (var row = 0; row < 10; row++)
           Row(
             children: [
               for (var col = 0; col < headers.length; col++)
-                _gridCell(row == 0 && col == 0 ? '1000.0' : '', width: widths[col], yellow: col == 0),
+                _gridCell(
+                  row == 0 && col == 0 ? '1000.0' : '',
+                  width: widths[col],
+                  yellow: col == 0,
+                ),
             ],
           ),
       ],
@@ -3247,16 +4229,22 @@ class _ManualTopicPage extends StatelessWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              _surveyPlotMock('Section View', verticalLabel: 'TVD (ft)', horizontalLabel: 'Horizontal Displacement (ft)'),
+                              _surveyPlotMock(
+                                'Section View',
+                                verticalLabel: 'TVD (ft)',
+                                horizontalLabel: 'Horizontal Displacement (ft)',
+                              ),
                               const SizedBox(width: 28),
-                              _surveyPlotMock('Plan View', verticalLabel: 'N/S (ft)', horizontalLabel: 'E/W (ft)'),
+                              _surveyPlotMock(
+                                'Plan View',
+                                verticalLabel: 'N/S (ft)',
+                                horizontalLabel: 'E/W (ft)',
+                              ),
                             ],
                           ),
                         ),
                         const SizedBox(height: 14),
-                        Expanded(
-                          child: _doglegPlotMock(),
-                        ),
+                        Expanded(child: _doglegPlotMock()),
                       ],
                     ),
                   ),
@@ -3308,7 +4296,11 @@ class _ManualTopicPage extends StatelessWidget {
     );
   }
 
-  Widget _surveyPlotMock(String title, {required String verticalLabel, required String horizontalLabel}) {
+  Widget _surveyPlotMock(
+    String title, {
+    required String verticalLabel,
+    required String horizontalLabel,
+  }) {
     return SizedBox(
       width: 135,
       height: 118,
@@ -3321,9 +4313,7 @@ class _ManualTopicPage extends StatelessWidget {
   Widget _doglegPlotMock() {
     return SizedBox(
       width: 480,
-      child: CustomPaint(
-        painter: const _DoglegPlotPainter(),
-      ),
+      child: CustomPaint(painter: const _DoglegPlotPainter()),
     );
   }
 
@@ -3349,7 +4339,10 @@ class _ManualTopicPage extends StatelessWidget {
   Widget _inlineComma() {
     return Text(
       ', ',
-      style: AppTheme.bodyLarge.copyWith(fontSize: 15, color: AppTheme.textPrimary),
+      style: AppTheme.bodyLarge.copyWith(
+        fontSize: 15,
+        color: AppTheme.textPrimary,
+      ),
     );
   }
 
@@ -3392,7 +4385,8 @@ class _ManualTopicPage extends StatelessWidget {
             ),
             for (var i = 0; i < _reportLevelLinks.length; i++) ...[
               InkWell(
-                onTap: () => onNavigate(_reportLevelTopic(_reportLevelLinks[i])),
+                onTap: () =>
+                    onNavigate(_reportLevelTopic(_reportLevelLinks[i])),
                 child: Text(
                   _reportLevelLinks[i],
                   style: AppTheme.bodyLarge.copyWith(
@@ -3404,10 +4398,7 @@ class _ManualTopicPage extends StatelessWidget {
                 ),
               ),
               if (i < _reportLevelLinks.length - 1)
-                Text(
-                  ', ',
-                  style: AppTheme.bodyLarge.copyWith(fontSize: 15),
-                ),
+                Text(', ', style: AppTheme.bodyLarge.copyWith(fontSize: 15)),
             ],
           ],
         ),
@@ -3438,7 +4429,7 @@ class _ManualTopicPage extends StatelessWidget {
   Widget _reportInputMock() {
     return Container(
       width: 655,
-      height: 360,
+      height: 525,
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.blue.shade300),
@@ -3465,14 +4456,26 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Safety', 'Remarks'])
+                for (final tab in const [
+                  'Well',
+                  'Mud',
+                  'Pump',
+                  'Operation',
+                  'Pit',
+                  'Safety',
+                  'Remarks',
+                ])
                   Container(
                     height: 27,
                     padding: const EdgeInsets.symmetric(horizontal: 11),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Well' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Well'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -3547,11 +4550,13 @@ class _ManualTopicPage extends StatelessWidget {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(child: _reportCasingTable(const [
-                                    ['Casing', '20.000', '94.000', '19.124'],
-                                    ['Casing', '10.750', '45.500', '10.050'],
-                                    ['', '', '', ''],
-                                  ])),
+                                  Expanded(
+                                    child: _reportCasingTable(const [
+                                      ['Casing', '20.000', '94.000', '19.124'],
+                                      ['Casing', '10.750', '45.500', '10.050'],
+                                      ['', '', '', ''],
+                                    ]),
+                                  ),
                                   const SizedBox(width: 8),
                                   _smallBitPanelMock(),
                                 ],
@@ -3589,7 +4594,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Current-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -3606,10 +4614,36 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Open Hole', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
-        Row(children: [for (final h in const ['Description', 'ID\n(in)', 'MD\n(ft)', 'Washout\n(%)']) _gridCell(h, width: 58, header: true, alignCenter: true)]),
+        Text(
+          'Open Hole',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Row(
+          children: [
+            for (final h in const [
+              'Description',
+              'ID\n(in)',
+              'MD\n(ft)',
+              'Washout\n(%)',
+            ])
+              _gridCell(h, width: 55, header: true, alignCenter: true),
+          ],
+        ),
         for (final row in rows)
-          Row(children: [for (final cell in row) _gridCell(cell, width: 58, yellow: true, alignRight: cell != row[0])]),
+          Row(
+            children: [
+              for (final cell in row)
+                _gridCell(
+                  cell,
+                  width: 55,
+                  yellow: true,
+                  alignRight: cell != row[0],
+                ),
+            ],
+          ),
       ],
     );
   }
@@ -3627,10 +4661,31 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Time Distribution', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
-        Row(children: [for (final h in const ['Activity', 'Time\n(hr)']) _gridCell(h, width: 72, header: true, alignCenter: true)]),
+        Text(
+          'Time Distribution',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Row(
+          children: [
+            for (final h in const ['Activity', 'Time\n(hr)'])
+              _gridCell(h, width: 72, header: true, alignCenter: true),
+          ],
+        ),
         for (final row in rows)
-          Row(children: [for (final cell in row) _gridCell(cell, width: 72, yellow: cell == row[1], alignRight: cell == row[1])]),
+          Row(
+            children: [
+              for (final cell in row)
+                _gridCell(
+                  cell,
+                  width: 72,
+                  yellow: cell == row[1],
+                  alignRight: cell == row[1],
+                ),
+            ],
+          ),
       ],
     );
   }
@@ -3649,7 +4704,9 @@ class _ManualTopicPage extends StatelessWidget {
         _manualParagraph(
           'Date and Time identify when the report was created. When multiple reports are created in the same day, the time separates those reports and controls their order.',
         ),
-        _manualNote('Mud reports are listed on the left side in date and time sequence.'),
+        _manualNote(
+          'Mud reports are listed on the left side in date and time sequence.',
+        ),
         _manualParagraph(
           'Engineer and Activity are selected from dropdown values defined in the company setup. If those entries are not available in the company database, the dropdown list will be empty.',
         ),
@@ -3694,7 +4751,9 @@ class _ManualTopicPage extends StatelessWidget {
         _manualParagraph(
           'For land wells, casing top is normally 0. For offshore wells, casing top is 0 or mudline depending on whether the riser is installed.',
         ),
-        _manualNote('Casing sections are selected from the predefined Well-level casing list.'),
+        _manualNote(
+          'Casing sections are selected from the predefined Well-level casing list.',
+        ),
         const SizedBox(height: 16),
         _manualHeading('3. Open hole'),
         _manualParagraph(
@@ -3811,7 +4870,7 @@ class _ManualTopicPage extends StatelessWidget {
 
     return Container(
       width: 655,
-      height: 360,
+      height: 410,
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.blue.shade300),
@@ -3838,14 +4897,26 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Safety', 'Remarks'])
+                for (final tab in const [
+                  'Well',
+                  'Mud',
+                  'Pump',
+                  'Operation',
+                  'Pit',
+                  'Safety',
+                  'Remarks',
+                ])
                   Container(
                     height: 27,
                     padding: const EdgeInsets.symmetric(horizontal: 11),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Mud' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Mud'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -3891,13 +4962,25 @@ class _ManualTopicPage extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Text('Fluid Type', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+                            Text(
+                              'Fluid Type',
+                              style: AppTheme.bodyLarge.copyWith(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                             const SizedBox(width: 5),
                             _mudDropdownMock('Oil-based', 82),
                             const SizedBox(width: 8),
                             _checkboxMock('Completion Fluid', false),
                             const SizedBox(width: 8),
-                            Text('Salt Type', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+                            Text(
+                              'Salt Type',
+                              style: AppTheme.bodyLarge.copyWith(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                             const SizedBox(width: 5),
                             _mudDropdownMock('CaCl2', 70),
                           ],
@@ -3940,7 +5023,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Current-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -3963,7 +5049,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               value,
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w700),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           Icon(Icons.arrow_drop_down, size: 14, color: Colors.grey.shade700),
@@ -3976,18 +5065,26 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Mud Properties', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+        Text(
+          'Mud Properties',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         Row(
           children: [
             _gridCell('Property', width: 112, header: true, alignCenter: true),
-            for (final sample in const ['1', '2', '3', '4']) _gridCell(sample, width: 40, header: true, alignCenter: true),
+            for (final sample in const ['1', '2', '3', '4'])
+              _gridCell(sample, width: 40, header: true, alignCenter: true),
           ],
         ),
         for (final row in rows)
           Row(
             children: [
               _gridCell(row[0], width: 112),
-              for (var i = 1; i < row.length; i++) _gridCell(row[i], width: 40, yellow: true, alignRight: true),
+              for (var i = 1; i < row.length; i++)
+                _gridCell(row[i], width: 40, yellow: true, alignRight: true),
             ],
           ),
       ],
@@ -4000,7 +5097,13 @@ class _ManualTopicPage extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text('Rheology', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+            Text(
+              'Rheology',
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(width: 12),
             Text('Model', style: AppTheme.bodyLarge.copyWith(fontSize: 9)),
             const SizedBox(width: 4),
@@ -4010,14 +5113,16 @@ class _ManualTopicPage extends StatelessWidget {
         Row(
           children: [
             _gridCell('', width: 76, header: true),
-            for (final sample in const ['1', '2', '3', '4']) _gridCell(sample, width: 38, header: true, alignCenter: true),
+            for (final sample in const ['1', '2', '3', '4'])
+              _gridCell(sample, width: 38, header: true, alignCenter: true),
           ],
         ),
         for (final row in rows)
           Row(
             children: [
               _gridCell(row[0], width: 76),
-              for (var i = 1; i < row.length; i++) _gridCell(row[i], width: 38, yellow: true, alignRight: true),
+              for (var i = 1; i < row.length; i++)
+                _gridCell(row[i], width: 38, yellow: true, alignRight: true),
             ],
           ),
       ],
@@ -4033,7 +5138,13 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Specific Gravity', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+        Text(
+          'Specific Gravity',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         for (final row in rows)
           Row(
             children: [
@@ -4053,7 +5164,13 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Solids', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+        Text(
+          'Solids',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         for (final row in rows)
           Row(
             children: [
@@ -4075,7 +5192,13 @@ class _ManualTopicPage extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text('Fluid Type', style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
+          Text(
+            'Fluid Type',
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(width: 8),
           _mudDropdownMock('Water-based', 100),
           const SizedBox(width: 12),
@@ -4103,7 +5226,15 @@ class _ManualTopicPage extends StatelessWidget {
               children: [
                 _manualNumberBubble('${i + 1}'),
                 const SizedBox(width: 5),
-                Expanded(child: Text(notes[i], style: AppTheme.bodyLarge.copyWith(fontSize: 15, height: 1.3))),
+                Expanded(
+                  child: Text(
+                    notes[i],
+                    style: AppTheme.bodyLarge.copyWith(
+                      fontSize: 15,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -4116,10 +5247,17 @@ class _ManualTopicPage extends StatelessWidget {
       width: 18,
       height: 18,
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: Colors.blue.shade600, shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade600,
+        shape: BoxShape.circle,
+      ),
       child: Text(
         text,
-        style: AppTheme.bodyLarge.copyWith(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
+        style: AppTheme.bodyLarge.copyWith(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
@@ -4169,12 +5307,24 @@ class _ManualTopicPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.grey.shade500),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: AppTheme.bodyLarge.copyWith(fontSize: 12, fontWeight: FontWeight.w800)),
+          Text(
+            title,
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 8),
           for (final row in rows)
             Row(
@@ -4212,7 +5362,12 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [_gridCell('Rheology', width: 120, header: true), _gridCell('Sample 1', width: 70, header: true, alignCenter: true)]),
+        Row(
+          children: [
+            _gridCell('Rheology', width: 120, header: true),
+            _gridCell('Sample 1', width: 70, header: true, alignCenter: true),
+          ],
+        ),
         for (final row in rows)
           Row(
             children: [
@@ -4277,7 +5432,7 @@ class _ManualTopicPage extends StatelessWidget {
   Widget _reportPumpInputMock() {
     return Container(
       width: 655,
-      height: 360,
+      height: 510,
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.blue.shade300),
@@ -4304,14 +5459,26 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Safety', 'Remarks'])
+                for (final tab in const [
+                  'Well',
+                  'Mud',
+                  'Pump',
+                  'Operation',
+                  'Pit',
+                  'Safety',
+                  'Remarks',
+                ])
                   Container(
                     height: 27,
                     padding: const EdgeInsets.symmetric(horizontal: 11),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Pump' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Pump'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -4382,7 +5549,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Current-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -4404,8 +5574,28 @@ class _ManualTopicPage extends StatelessWidget {
     ];
     const widths = [48.0, 42.0, 38.0, 34.0, 44.0, 42.0, 44.0, 36.0, 36.0];
     const rows = [
-      ['HHF-1600L-1', 'Triplex', '6.500', '', '12.000', '97.0', '0.1195', '15', '75.3'],
-      ['HHF-1600L-2', 'Triplex', '6.500', '', '12.000', '97.0', '0.1195', '15', '75.3'],
+      [
+        'HHF-1600L-1',
+        'Triplex',
+        '6.500',
+        '',
+        '12.000',
+        '97.0',
+        '0.1195',
+        '15',
+        '75.3',
+      ],
+      [
+        'HHF-1600L-2',
+        'Triplex',
+        '6.500',
+        '',
+        '12.000',
+        '97.0',
+        '0.1195',
+        '15',
+        '75.3',
+      ],
       ['', '', '', '', '', '', '', '', ''],
       ['', '', '', '', '', '', '', '', ''],
     ];
@@ -4413,10 +5603,22 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Pump', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+        Text(
+          'Pump',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         Row(
           children: [
-            for (var i = 0; i < headers.length; i++) _gridCell(headers[i], width: widths[i], header: true, alignCenter: true),
+            for (var i = 0; i < headers.length; i++)
+              _gridCell(
+                headers[i],
+                width: widths[i],
+                header: true,
+                alignCenter: true,
+              ),
           ],
         ),
         for (final row in rows)
@@ -4471,10 +5673,22 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Shaker', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+        Text(
+          'Shaker',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         Row(
           children: [
-            for (var i = 0; i < headers.length; i++) _gridCell(headers[i], width: widths[i], header: true, alignCenter: true),
+            for (var i = 0; i < headers.length; i++)
+              _gridCell(
+                headers[i],
+                width: widths[i],
+                header: true,
+                alignCenter: true,
+              ),
           ],
         ),
         for (final row in rows)
@@ -4494,7 +5708,14 @@ class _ManualTopicPage extends StatelessWidget {
   }
 
   Widget _sceUsageMock() {
-    const headers = ['SCE', 'Model', 'U/F\n(ppg)', 'O/F\n(ppg)', 'Time\n(hr)', 'OOC Wt.\n(%)'];
+    const headers = [
+      'SCE',
+      'Model',
+      'U/F\n(ppg)',
+      'O/F\n(ppg)',
+      'Time\n(hr)',
+      'OOC Wt.\n(%)',
+    ];
     const widths = [68.0, 110.0, 48.0, 48.0, 48.0, 50.0];
     const rows = [
       ['Degasser', 'BURGESS', '', '', '', ''],
@@ -4506,10 +5727,22 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Solids Control Equipment', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+        Text(
+          'Solids Control Equipment',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         Row(
           children: [
-            for (var i = 0; i < headers.length; i++) _gridCell(headers[i], width: widths[i], header: true, alignCenter: true),
+            for (var i = 0; i < headers.length; i++)
+              _gridCell(
+                headers[i],
+                width: widths[i],
+                header: true,
+                alignCenter: true,
+              ),
           ],
         ),
         for (final row in rows)
@@ -4573,7 +5806,9 @@ class _ManualTopicPage extends StatelessWidget {
         _manualParagraph(
           'Operations should be entered in the same order as the actual work on site. The order can affect product concentration and volume balances, especially when mud is transferred, received, returned, or lost during the report period.',
         ),
-        _manualParagraph('Operations are grouped into two calculation categories.'),
+        _manualParagraph(
+          'Operations are grouped into two calculation categories.',
+        ),
         _reportOperationInputMock(),
         const SizedBox(height: 18),
         _manualParagraph(
@@ -4605,7 +5840,7 @@ class _ManualTopicPage extends StatelessWidget {
   Widget _reportOperationInputMock() {
     return Container(
       width: 655,
-      height: 360,
+      height: 380,
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.blue.shade300),
@@ -4632,14 +5867,26 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Safety', 'Remarks'])
+                for (final tab in const [
+                  'Well',
+                  'Mud',
+                  'Pump',
+                  'Operation',
+                  'Pit',
+                  'Safety',
+                  'Remarks',
+                ])
                   Container(
                     height: 27,
                     padding: const EdgeInsets.symmetric(horizontal: 11),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Operation' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Operation'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -4683,7 +5930,9 @@ class _ManualTopicPage extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-        _operationRowsTableMock(activeOperation: 'Consume Product'),
+                        _operationRowsTableMock(
+                          activeOperation: 'Consume Product',
+                        ),
                         const SizedBox(width: 14),
                         _operationCategoryMock(),
                       ],
@@ -4701,7 +5950,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Current-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -4737,7 +5989,13 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Operation', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+        Text(
+          'Operation',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         Row(
           children: [
             _gridCell('#', width: 28, header: true, alignCenter: true),
@@ -4748,11 +6006,7 @@ class _ManualTopicPage extends StatelessWidget {
           Row(
             children: [
               _gridCell('${i + 1}', width: 28, alignRight: true),
-              _gridCell(
-                rows[i],
-                width: 120,
-                yellow: rows[i].isNotEmpty,
-              ),
+              _gridCell(rows[i], width: 120, yellow: rows[i].isNotEmpty),
             ],
           ),
       ],
@@ -4790,15 +6044,33 @@ class _ManualTopicPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Product', style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w800)),
+          Text(
+            'Product',
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 4),
           for (final item in productRows)
-            Text(item, style: AppTheme.bodyLarge.copyWith(fontSize: 10, height: 1.25)),
+            Text(
+              item,
+              style: AppTheme.bodyLarge.copyWith(fontSize: 10, height: 1.25),
+            ),
           const SizedBox(height: 12),
-          Text('Mud', style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w800)),
+          Text(
+            'Mud',
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 4),
           for (final item in mudRows)
-            Text(item, style: AppTheme.bodyLarge.copyWith(fontSize: 10, height: 1.25)),
+            Text(
+              item,
+              style: AppTheme.bodyLarge.copyWith(fontSize: 10, height: 1.25),
+            ),
         ],
       ),
     );
@@ -4810,7 +6082,9 @@ class _ManualTopicPage extends StatelessWidget {
       children: [
         _consumeProductInputMock(),
         const SizedBox(height: 24),
-        _manualParagraph('The products in the dropdown list are preselected in Pad - Inventory.'),
+        _manualParagraph(
+          'The products in the dropdown list are preselected in Pad - Inventory.',
+        ),
         _numberedManualParagraph(
           '1',
           'Initial is the value at the beginning of the day and keeps the same starting value before this selected operation.',
@@ -4826,7 +6100,9 @@ class _ManualTopicPage extends StatelessWidget {
         _manualParagraph(
           'If negative inventory warning is enabled in Options, the program can warn when product final inventory becomes negative after the operation.',
         ),
-        _manualParagraph('MSR2_DMR provides two quick ways to choose consumed products.'),
+        _manualParagraph(
+          'MSR2_DMR provides two quick ways to choose consumed products.',
+        ),
         _numberedManualParagraph(
           '4',
           'Select Products lets the user select products and accept them into the consume table at one time.',
@@ -4850,7 +6126,7 @@ class _ManualTopicPage extends StatelessWidget {
   Widget _consumeProductInputMock() {
     return Container(
       width: 720,
-      height: 430,
+      height: 455,
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -4878,14 +6154,26 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Safety', 'Remarks'])
+                for (final tab in const [
+                  'Well',
+                  'Mud',
+                  'Pump',
+                  'Operation',
+                  'Pit',
+                  'Safety',
+                  'Remarks',
+                ])
                   Container(
                     height: 27,
                     padding: const EdgeInsets.symmetric(horizontal: 11),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Operation' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Operation'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -4929,7 +6217,9 @@ class _ManualTopicPage extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _operationRowsTableMock(activeOperation: 'Consume Services'),
+                        _operationRowsTableMock(
+                          activeOperation: 'Consume Services',
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Column(
@@ -4963,7 +6253,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Current-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -4972,14 +6265,98 @@ class _ManualTopicPage extends StatelessWidget {
   }
 
   Widget _consumeProductTableMock() {
-    const headers = ['Product', 'Code', 'SG', 'Unit', 'Price\n(\$)', 'Initial', 'Adjust', 'Used', 'Final', 'Cost\n(\$)', 'Vol.\n(bbl)'];
-    const widths = [42.0, 38.0, 24.0, 34.0, 31.0, 31.0, 30.0, 30.0, 30.0, 34.0, 30.0];
+    const headers = [
+      'Product',
+      'Code',
+      'SG',
+      'Unit',
+      'Price\n(\$)',
+      'Initial',
+      'Adjust',
+      'Used',
+      'Final',
+      'Cost\n(\$)',
+      'Vol.\n(bbl)',
+    ];
+    const widths = [
+      42.0,
+      38.0,
+      24.0,
+      34.0,
+      31.0,
+      31.0,
+      30.0,
+      30.0,
+      30.0,
+      34.0,
+      30.0,
+    ];
     const rows = [
-      ['PARAGON MUD', 'P001232', '0.86', '1.00 gal', '100.00', '100.00', '', '15.00', '85.00', '250.00', ''],
-      ['PARAGON MLP', 'P001217', '0.96', '1.00 gal', '9.70', '100.00', '', '25.00', '75.00', '242.50', ''],
-      ['OIL BASED MUD', 'P000537', '1.40', '30.00 bbl', '10.00', '100.00', '', '20.00', '80.00', '200.00', ''],
-      ['HYDRATED LIME', 'P000300', '2.20', '50.00 lb', '4.00', '100.00', '', '10.00', '90.00', '40.00', ''],
-      ['TEQHA LUB', 'P001110', '1.10', '1.00 gal', '8.00', '100.00', '', '10.00', '90.00', '80.00', ''],
+      [
+        'PARAGON MUD',
+        'P001232',
+        '0.86',
+        '1.00 gal',
+        '100.00',
+        '100.00',
+        '',
+        '15.00',
+        '85.00',
+        '250.00',
+        '',
+      ],
+      [
+        'PARAGON MLP',
+        'P001217',
+        '0.96',
+        '1.00 gal',
+        '9.70',
+        '100.00',
+        '',
+        '25.00',
+        '75.00',
+        '242.50',
+        '',
+      ],
+      [
+        'OIL BASED MUD',
+        'P000537',
+        '1.40',
+        '30.00 bbl',
+        '10.00',
+        '100.00',
+        '',
+        '20.00',
+        '80.00',
+        '200.00',
+        '',
+      ],
+      [
+        'HYDRATED LIME',
+        'P000300',
+        '2.20',
+        '50.00 lb',
+        '4.00',
+        '100.00',
+        '',
+        '10.00',
+        '90.00',
+        '40.00',
+        '',
+      ],
+      [
+        'TEQHA LUB',
+        'P001110',
+        '1.10',
+        '1.00 gal',
+        '8.00',
+        '100.00',
+        '',
+        '10.00',
+        '90.00',
+        '80.00',
+        '',
+      ],
     ];
 
     return Column(
@@ -4995,7 +6372,13 @@ class _ManualTopicPage extends StatelessWidget {
         const SizedBox(height: 6),
         Row(
           children: [
-            for (var i = 0; i < headers.length; i++) _gridCell(headers[i], width: widths[i], header: true, alignCenter: true),
+            for (var i = 0; i < headers.length; i++)
+              _gridCell(
+                headers[i],
+                width: widths[i],
+                header: true,
+                alignCenter: true,
+              ),
           ],
         ),
         for (final row in rows)
@@ -5024,8 +6407,24 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Distribute to', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
-        Row(children: [_gridCell('Pit', width: 110, header: true), _gridCell('Vol.\n(bbl)', width: 54, header: true, alignCenter: true)]),
+        Text(
+          'Distribute to',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Row(
+          children: [
+            _gridCell('Pit', width: 110, header: true),
+            _gridCell(
+              'Vol.\n(bbl)',
+              width: 54,
+              header: true,
+              alignCenter: true,
+            ),
+          ],
+        ),
         for (final row in rows)
           Row(
             children: [
@@ -5056,9 +6455,25 @@ class _ManualTopicPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Volume By Group', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+          Text(
+            'Volume By Group',
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 4),
-          Row(children: [_gridCell('', width: 95, header: true), _gridCell('Vol. (bbl)', width: 62, header: true, alignCenter: true)]),
+          Row(
+            children: [
+              _gridCell('', width: 95, header: true),
+              _gridCell(
+                'Vol. (bbl)',
+                width: 62,
+                header: true,
+                alignCenter: true,
+              ),
+            ],
+          ),
           for (final row in rows)
             Row(
               children: [
@@ -5155,14 +6570,26 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Safety', 'Remarks'])
+                for (final tab in const [
+                  'Well',
+                  'Mud',
+                  'Pump',
+                  'Operation',
+                  'Pit',
+                  'Safety',
+                  'Remarks',
+                ])
                   Container(
                     height: 27,
                     padding: const EdgeInsets.symmetric(horizontal: 11),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Operation' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Operation'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -5212,34 +6639,90 @@ class _ManualTopicPage extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _consumeServiceTableMock(
-                                'Package',
-                                const [
-                                  ['PALLETS, EA', '1', '0.00', '12.00', '10.00', '2.00', '0.00'],
-                                  ['SHRINK WRAP, EA', '1', '0.00', '5.00', '3.00', '3.00', '0.00'],
-                                  ['SHARED SERVICES, EA', '1', '260.00', '5.00', '2.00', '3.00', '780.00'],
+                              _consumeServiceTableMock('Package', const [
+                                [
+                                  'PALLETS, EA',
+                                  '1',
+                                  '0.00',
+                                  '12.00',
+                                  '10.00',
+                                  '2.00',
+                                  '0.00',
                                 ],
-                              ),
+                                [
+                                  'SHRINK WRAP, EA',
+                                  '1',
+                                  '0.00',
+                                  '5.00',
+                                  '3.00',
+                                  '3.00',
+                                  '0.00',
+                                ],
+                                [
+                                  'SHARED SERVICES, EA',
+                                  '1',
+                                  '260.00',
+                                  '5.00',
+                                  '2.00',
+                                  '3.00',
+                                  '780.00',
+                                ],
+                              ]),
                               const SizedBox(height: 8),
-                              _consumeServiceTableMock(
-                                'Services',
-                                const [
-                                  ['BULK TRUCKING', '1', '0.00', '30.00', '10.00', '20.00'],
-                                  ['SACK TRUCKING', '1', '0.00', '20.00', '3.00', '0.00'],
-                                  ['BULK FREIGHT - C', '1', '1250.00', '30.00', '10.00', '12500.00'],
-                                  ['WIMI qft', '1', '3.50', '5.00', '2.00', '17.50'],
-                                  ['GOM qft', '1', '10.00', '20.00', '10.00', '100.00'],
+                              _consumeServiceTableMock('Services', const [
+                                [
+                                  'BULK TRUCKING',
+                                  '1',
+                                  '0.00',
+                                  '30.00',
+                                  '10.00',
+                                  '20.00',
                                 ],
-                              ),
+                                [
+                                  'SACK TRUCKING',
+                                  '1',
+                                  '0.00',
+                                  '20.00',
+                                  '3.00',
+                                  '0.00',
+                                ],
+                                [
+                                  'BULK FREIGHT - C',
+                                  '1',
+                                  '1250.00',
+                                  '30.00',
+                                  '10.00',
+                                  '12500.00',
+                                ],
+                                [
+                                  'WIMI qft',
+                                  '1',
+                                  '3.50',
+                                  '5.00',
+                                  '2.00',
+                                  '17.50',
+                                ],
+                                [
+                                  'GOM qft',
+                                  '1',
+                                  '10.00',
+                                  '20.00',
+                                  '10.00',
+                                  '100.00',
+                                ],
+                              ]),
                               const SizedBox(height: 8),
-                              _consumeServiceTableMock(
-                                'Engineering',
-                                const [
-                                  ['24 HR ENG.', '1', '600.00', '1.00', '600.00'],
-                                  ['12 HR ENG.', '1', '300.00', '12.00', '3600.00'],
-                                  ['Discount', '1', '1.00', '100.00', '100.00'],
+                              _consumeServiceTableMock('Engineering', const [
+                                ['24 HR ENG.', '1', '600.00', '1.00', '600.00'],
+                                [
+                                  '12 HR ENG.',
+                                  '1',
+                                  '300.00',
+                                  '12.00',
+                                  '3600.00',
                                 ],
-                              ),
+                                ['Discount', '1', '1.00', '100.00', '100.00'],
+                              ]),
                             ],
                           ),
                         ),
@@ -5258,7 +6741,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Current-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -5268,7 +6754,16 @@ class _ManualTopicPage extends StatelessWidget {
 
   Widget _consumeServiceTableMock(String title, List<List<String>> rows) {
     final headers = title == 'Package'
-        ? const ['Package', 'Code', 'Unit', 'Price\n(\$)', 'Initial', 'Used', 'Final', 'Cost\n(\$)']
+        ? const [
+            'Package',
+            'Code',
+            'Unit',
+            'Price\n(\$)',
+            'Initial',
+            'Used',
+            'Final',
+            'Cost\n(\$)',
+          ]
         : const ['Item', 'Code', 'Unit', 'Price\n(\$)', 'Usage', 'Cost\n(\$)'];
     final widths = title == 'Package'
         ? const [78.0, 36.0, 30.0, 42.0, 38.0, 38.0, 38.0, 44.0]
@@ -5277,10 +6772,22 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+        Text(
+          title,
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         Row(
           children: [
-            for (var i = 0; i < headers.length; i++) _gridCell(headers[i], width: widths[i], header: true, alignCenter: true),
+            for (var i = 0; i < headers.length; i++)
+              _gridCell(
+                headers[i],
+                width: widths[i],
+                header: true,
+                alignCenter: true,
+              ),
           ],
         ),
         for (final row in rows)
@@ -5307,9 +6814,18 @@ class _ManualTopicPage extends StatelessWidget {
         'The user needs to input the bill of lading number received.',
       ],
       numberedParagraphs: const [
-        ['1', 'Product and package rows are selected from the Pad - Inventory setup.'],
-        ['2', 'The select-product icon helps the user select multiple products at one time.'],
-        ['3', 'After amounts are entered, received quantities are added to inventory for the report sequence.'],
+        [
+          '1',
+          'Product and package rows are selected from the Pad - Inventory setup.',
+        ],
+        [
+          '2',
+          'The select-product icon helps the user select multiple products at one time.',
+        ],
+        [
+          '3',
+          'After amounts are entered, received quantities are added to inventory for the report sequence.',
+        ],
       ],
     );
   }
@@ -5322,9 +6838,18 @@ class _ManualTopicPage extends StatelessWidget {
         'The user needs to input BOL No. for product or package returns.',
       ],
       numberedParagraphs: const [
-        ['1', 'Products and packages are selected from the current inventory list.'],
-        ['2', 'Return All Inventory fills the current inventory into the table for a full return.'],
-        ['3', 'Returned quantities reduce the final inventory from the current operation onward.'],
+        [
+          '1',
+          'Products and packages are selected from the current inventory list.',
+        ],
+        [
+          '2',
+          'Return All Inventory fills the current inventory into the table for a full return.',
+        ],
+        [
+          '3',
+          'Returned quantities reduce the final inventory from the current operation onward.',
+        ],
       ],
     );
   }
@@ -5338,8 +6863,14 @@ class _ManualTopicPage extends StatelessWidget {
       ],
       numberedParagraphs: const [
         ['1', 'Select the source pit or active system in the From field.'],
-        ['2', 'Enter the volume for each destination pit or active system row.'],
-        ['3', 'The total transferred amount must be less than or equal to the calculated available volume.'],
+        [
+          '2',
+          'Enter the volume for each destination pit or active system row.',
+        ],
+        [
+          '3',
+          'The total transferred amount must be less than or equal to the calculated available volume.',
+        ],
       ],
     );
   }
@@ -5352,9 +6883,15 @@ class _ManualTopicPage extends StatelessWidget {
         'The user needs to input the BOL No. The pre-mixed mud is defined in Pad - Inventory.',
       ],
       numberedParagraphs: const [
-        ['1', 'Select the pre-mixed mud entry and confirm MW, mud type, leasing fee, and target pit.'],
+        [
+          '1',
+          'Select the pre-mixed mud entry and confirm MW, mud type, leasing fee, and target pit.',
+        ],
         ['2', 'The composition icon displays the selected mud composition.'],
-        ['3', 'If the Leased checkbox is selected, the leasing fee is added to the daily cost.'],
+        [
+          '3',
+          'If the Leased checkbox is selected, the leasing fee is added to the daily cost.',
+        ],
       ],
     );
   }
@@ -5367,9 +6904,15 @@ class _ManualTopicPage extends StatelessWidget {
         'The returned mud could be the fluid mixed on-site or the pre-mixed mud.',
       ],
       numberedParagraphs: const [
-        ['1', 'Select the source pit and destination or returned mud location.'],
+        [
+          '1',
+          'Select the source pit and destination or returned mud location.',
+        ],
         ['2', 'Lost mud can only be handled as pre-mixed mud.'],
-        ['3', 'The cost of lost mud is entered here and added to the daily cost.'],
+        [
+          '3',
+          'The cost of lost mud is entered here and added to the daily cost.',
+        ],
       ],
     );
   }
@@ -5384,7 +6927,10 @@ class _ManualTopicPage extends StatelessWidget {
       numberedParagraphs: const [
         ['1', 'Select the destination in the To field.'],
         ['2', 'Enter the water volume in bbl.'],
-        ['3', 'The volume is included in the mud volume balance for the current report.'],
+        [
+          '3',
+          'The volume is included in the mud volume balance for the current report.',
+        ],
       ],
     );
   }
@@ -5398,8 +6944,14 @@ class _ManualTopicPage extends StatelessWidget {
       ],
       numberedParagraphs: const [
         ['1', 'Check active pits that should be moved to reserve.'],
-        ['2', 'Check reserve pits that should be connected to the active circulating system.'],
-        ['3', 'The active/reserve status affects circulation, mud volume, and later report calculations.'],
+        [
+          '2',
+          'Check reserve pits that should be connected to the active circulating system.',
+        ],
+        [
+          '3',
+          'The active/reserve status affects circulation, mud volume, and later report calculations.',
+        ],
       ],
     );
   }
@@ -5413,9 +6965,18 @@ class _ManualTopicPage extends StatelessWidget {
         'The first two steps are to switch the mud type in active pits.',
       ],
       numberedParagraphs: const [
-        ['1', 'Remove Mud from Active Pits: mud in active pits is transferred to reserve pits, or active pits are moved away and become reserve pits.'],
-        ['2', 'Fill Active Pits: fluid is filled to the active pits from reserve pits, or one or more reserve pits are connected to the circulating system.'],
-        ['3', 'Displace Fluid in Hole: displace the hole fluid using active pits or reserve pits. The total displaced volume should be greater than or equal to hole volume.'],
+        [
+          '1',
+          'Remove Mud from Active Pits: mud in active pits is transferred to reserve pits, or active pits are moved away and become reserve pits.',
+        ],
+        [
+          '2',
+          'Fill Active Pits: fluid is filled to the active pits from reserve pits, or one or more reserve pits are connected to the circulating system.',
+        ],
+        [
+          '3',
+          'Displace Fluid in Hole: displace the hole fluid using active pits or reserve pits. The total displaced volume should be greater than or equal to hole volume.',
+        ],
       ],
     );
   }
@@ -5428,9 +6989,18 @@ class _ManualTopicPage extends StatelessWidget {
         'Other things that increase the amount of volume in the active system are formation, cuttings, and other user-defined items.',
       ],
       numberedParagraphs: const [
-        ['1', 'Enter the added volume for the related active-system addition row.'],
-        ['2', 'The help icon can help calculate the amount of cuttings left in the active system.'],
-        ['3', 'These additions are included in the active-system mud volume balance.'],
+        [
+          '1',
+          'Enter the added volume for the related active-system addition row.',
+        ],
+        [
+          '2',
+          'The help icon can help calculate the amount of cuttings left in the active system.',
+        ],
+        [
+          '3',
+          'These additions are included in the active-system mud volume balance.',
+        ],
       ],
     );
   }
@@ -5443,9 +7013,15 @@ class _ManualTopicPage extends StatelessWidget {
         'The Loss table shows the main types of mud losses for the active system. The user can enter mud loss volumes in this window.',
       ],
       numberedParagraphs: const [
-        ['1', 'Cuttings loss and evaporation loss can be calculated with the help icons.'],
+        [
+          '1',
+          'Cuttings loss and evaporation loss can be calculated with the help icons.',
+        ],
         ['2', 'The balance icon helps the user balance mud volumes quickly.'],
-        ['3', 'The last user-defined loss rows are controlled from Pad - Others.'],
+        [
+          '3',
+          'The last user-defined loss rows are controlled from Pad - Others.',
+        ],
       ],
     );
   }
@@ -5460,7 +7036,10 @@ class _ManualTopicPage extends StatelessWidget {
       numberedParagraphs: const [
         ['1', 'Select a reserve pit from the dropdown list.'],
         ['2', 'Enter dump, evaporation, and pit-cleaning volumes as required.'],
-        ['3', 'Reserve pit loss affects reserve mud volume and later report balances.'],
+        [
+          '3',
+          'Reserve pit loss affects reserve mud volume and later report balances.',
+        ],
       ],
     );
   }
@@ -5568,7 +7147,8 @@ class _ManualTopicPage extends StatelessWidget {
         'Volume Snapshot shows active-system and reserve-pit volumes after the report operations are applied.',
       'Mud Treated' =>
         'Mud Treated summarizes the mud volume affected by the selected operation sequence for the current report.',
-      _ => 'Snapshot information is calculated from the current report operations.',
+      _ =>
+        'Snapshot information is calculated from the current report operations.',
     };
 
     return Column(
@@ -5632,8 +7212,12 @@ class _ManualTopicPage extends StatelessWidget {
         _manualParagraph(
           'This table shows information about all reserve pits. The Pit column shows the names of reserve pits.',
         ),
-        _manualBullet('Calculated vol. is the volume of fluid/products added to the pit calculated through operations user input.'),
-        _manualBullet('Measured vol. is the volume measured for the pit. It usually is equal to the calculated volume.'),
+        _manualBullet(
+          'Calculated vol. is the volume of fluid/products added to the pit calculated through operations user input.',
+        ),
+        _manualBullet(
+          'Measured vol. is the volume measured for the pit. It usually is equal to the calculated volume.',
+        ),
         const SizedBox(height: 14),
         _manualParagraph(
           'To review product concentrations in a reserve pit, click the Concentration icon on the corner of the table to open the Concentration window. Select the pit from the drop-down list, and the table shows concentrations for the selected pit.',
@@ -5698,8 +7282,12 @@ class _ManualTopicPage extends StatelessWidget {
         _manualParagraph(
           'Summary settings control the panels shown on the output dashboard. Up to three KPI panels, progress charts, and cost-distribution views can be selected. Product groups and other cost categories can also be chosen for comparison charts.',
         ),
-        _manualBullet('Dashboard choices include depth, cost, day, average cost, daily footage, mud weight, rheology, ECD, and solids values.'),
-        _manualBullet('Cost Distribution can show top products, individual products, selected product groups, packages, services, premixed mud, engineering, or all categories.'),
+        _manualBullet(
+          'Dashboard choices include depth, cost, day, average cost, daily footage, mud weight, rheology, ECD, and solids values.',
+        ),
+        _manualBullet(
+          'Cost Distribution can show top products, individual products, selected product groups, packages, services, premixed mud, engineering, or all categories.',
+        ),
         const SizedBox(height: 12),
         _outputDashboardPreview(),
         const SizedBox(height: 24),
@@ -5709,10 +7297,18 @@ class _ManualTopicPage extends StatelessWidget {
         _manualParagraph(
           'Report settings control the daily report layout and the information printed in exported reports.',
         ),
-        _manualBullet('Daily Report Page selects a one-page, two-page, or three-page layout according to the required level of detail.'),
-        _manualBullet('Report Page Size selects Legal, Letter, or A4 based on the available printer and export requirements.'),
-        _manualBullet('Daily Report options control product price, product cost, total-cost basis, consumption basis, CCI visibility, and detailed pit information.'),
-        _manualNote('Multi-rheology output requires a report format and page size that provide enough space for the additional result columns.'),
+        _manualBullet(
+          'Daily Report Page selects a one-page, two-page, or three-page layout according to the required level of detail.',
+        ),
+        _manualBullet(
+          'Report Page Size selects Legal, Letter, or A4 based on the available printer and export requirements.',
+        ),
+        _manualBullet(
+          'Daily Report options control product price, product cost, total-cost basis, consumption basis, CCI visibility, and detailed pit information.',
+        ),
+        _manualNote(
+          'Multi-rheology output requires a report format and page size that provide enough space for the additional result columns.',
+        ),
         const SizedBox(height: 24),
         _manualHeading('3. Detail Report'),
         _outputDetailOptionsMock(),
@@ -5727,10 +7323,6377 @@ class _ManualTopicPage extends StatelessWidget {
     );
   }
 
+  Widget _outputToolbarPage() {
+    const links = <String, String>{
+      'Home': 'Output Home',
+      'Report': 'Toolbar Report',
+      'Options': 'Output Options',
+      'Utility & Help': 'Utility & Help',
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph('The output toolbar includes:'),
+        const SizedBox(height: 4),
+        for (final link in links.entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: InkWell(
+              onTap: () => onNavigate(link.value),
+              child: Text(
+                link.key,
+                style: AppTheme.bodyLarge.copyWith(
+                  color: Colors.blue.shade700,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _outputHomePage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapToolbarPreview(
+          activeTab: 'Home',
+          actions: const [
+            (Icons.arrow_back_outlined, 'Go to Input'),
+            (Icons.settings_outlined, 'Options'),
+          ],
+        ),
+        const SizedBox(height: 18),
+        _numberedHelp(
+          '1.',
+          'Go to Input returns to the main MSR2_DMR input window without changing the current output selection.',
+        ),
+        _numberedHelp(
+          '2.',
+          'Options opens the Output configuration used to customize dashboard panels and report contents.',
+        ),
+      ],
+    );
+  }
+
+  Widget _outputJobExplorerPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph('Output Job Explorer includes:'),
+        const SizedBox(height: 4),
+        for (final entry in _outputJobExplorerLinks.entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: InkWell(
+              onTap: () => onNavigate(entry.value),
+              child: Text(
+                entry.key,
+                style: AppTheme.bodyLarge.copyWith(
+                  color: Colors.blue.shade700,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _recapJobExplorerPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph('The Recap Job Explorer includes:'),
+        const SizedBox(height: 4),
+        for (final entry in _recapJobExplorerLinks.entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: InkWell(
+              onTap: () => onNavigate(entry.value),
+              child: Text(
+                entry.key,
+                style: AppTheme.bodyLarge.copyWith(
+                  color: Colors.blue.shade700,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _recapSummaryPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'The Summary tab provides a combined view of the selected recap range, including the wellbore schematic, KPI gauges, cost distribution, and drilling progress.',
+        ),
+        const SizedBox(height: 10),
+        _outputSummaryWindowMock(),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'The visible summary sections can be selected from Recap Options - Summary.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapCostDistributionPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'Cost Distribution groups the selected recap cost by product, inventory group, package, service, engineering, and overall category.',
+        ),
+        const SizedBox(height: 10),
+        _recapExplorerPreview(
+          selectedItem: 'Cost Distribution',
+          height: 410,
+          child: Column(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _dailyCostChart('Product', const [
+                        MapEntry('BARITE', 46),
+                        MapEntry('BASE FLUID', 29),
+                        MapEntry('LIME', 18),
+                        MapEntry('LCM', 9),
+                      ]),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _dailyCostChart('Group', const [
+                        MapEntry('Base Fluid', 44),
+                        MapEntry('Weight Material', 37),
+                        MapEntry('Other', 13),
+                      ]),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _dailyCostChart('Service', const [
+                        MapEntry('Rig service', 38),
+                        MapEntry('Transport', 24),
+                        MapEntry('Testing', 12),
+                      ]),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _dailyCostChart('All Categories', const [
+                        MapEntry('Product', 48),
+                        MapEntry('Service', 32),
+                        MapEntry('Engineering', 15),
+                      ]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Use the view selector to compare individual product costs with totals for each configured category.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapDailyCostPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _outputDailyCostWindowMock(tableView: false),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Daily Cost shows Product, Service, Engineering, Package, and Pre-mixed Mud costs for every report in the selected recap range. Graph and table views present the same dynamic report data.',
+        ),
+        const SizedBox(height: 10),
+        _outputDailyCostWindowMock(tableView: true),
+      ],
+    );
+  }
+
+  Widget _recapDepthCostPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Depth Cost',
+          height: 390,
+          child: Column(
+            children: [
+              Expanded(
+                child: _recapDataTable(
+                  const ['MD', 'Product', 'Service', 'Engineering', 'Total'],
+                  const [
+                    ['1,250', '320', '80', '120', '520'],
+                    ['3,100', '460', '95', '120', '675'],
+                    ['5,900', '710', '140', '180', '1,030'],
+                    ['8,450', '920', '210', '240', '1,370'],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 130,
+                child: _totalCostMiniChart(
+                  '2D Well Path - Cost by Depth',
+                  AppTheme.panelHeaderBlue,
+                  const [
+                    Offset(0.08, 0.08),
+                    Offset(0.10, 0.48),
+                    Offset(0.20, 0.75),
+                    Offset(0.58, 0.86),
+                    Offset(0.92, 0.88),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Depth Cost compares category totals at different measured depths. The graph can follow either vertical depth or the calculated 2D well path selected in Recap Options.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapCumulativeCostPage() {
+    const colors = [
+      Color(0xFF6EA7E8),
+      Color(0xFF69C6DF),
+      Color(0xFFF0B45A),
+      Color(0xFF9BC66B),
+      Color(0xFF9B7BC3),
+    ];
+    const names = [
+      'Product',
+      'Pre-mixed Mud',
+      'Package',
+      'Service',
+      'Engineering',
+    ];
+    const points = [
+      Offset(0.00, 0.94),
+      Offset(0.38, 0.90),
+      Offset(0.62, 0.70),
+      Offset(0.78, 0.32),
+      Offset(1.00, 0.12),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Cumulative Cost',
+          height: 330,
+          child: Row(
+            children: [
+              for (var index = 0; index < names.length; index++) ...[
+                Expanded(
+                  child: _totalCostMiniChart(
+                    names[index],
+                    colors[index],
+                    points,
+                  ),
+                ),
+                if (index != names.length - 1) const SizedBox(width: 6),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Cumulative Cost tracks the running cost of each category across the recap range. Switch between graphs and tables to review both trends and report-level values.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapDrillingDataPage() {
+    const chartNames = [
+      'Measured Depth',
+      'ROP',
+      'Rotary Speed',
+      'Weight on Bit',
+    ];
+    const chartColors = [
+      Color(0xFF6EA7E8),
+      Color(0xFF69C6DF),
+      Color(0xFFE9A84A),
+      Color(0xFF7DB56A),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Drilling Data',
+          height: 430,
+          child: Column(
+            children: [
+              for (var index = 0; index < chartNames.length; index++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _totalCostMiniChart(
+                      chartNames[index],
+                      chartColors[index],
+                      const [
+                        Offset(0.00, 0.85),
+                        Offset(0.22, 0.72),
+                        Offset(0.45, 0.74),
+                        Offset(0.62, 0.42),
+                        Offset(0.82, 0.28),
+                        Offset(1.00, 0.18),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Drilling Data plots measured depth, ROP, rotary speed, weight on bit, and other selected drilling parameters across the recap range.',
+        ),
+        const SizedBox(height: 8),
+        _manualOptionRow('Plot planned data range', checked: true),
+        _manualOptionRow('Show mud type indication', checked: true),
+      ],
+    );
+  }
+
+  Widget _recapMudPropertiesPage() {
+    const chartNames = [
+      'Mud Weight (ppg)',
+      'Plastic Viscosity (cP)',
+      'Yield Point (lbf/100ft2)',
+      'Funnel Viscosity (sec/qt)',
+    ];
+    const chartColors = [
+      Color(0xFF6EA7E8),
+      Color(0xFF69C6DF),
+      Color(0xFFE9A84A),
+      Color(0xFF7DB56A),
+    ];
+    const chartPoints = [
+      [
+        Offset(0.00, 0.78),
+        Offset(0.18, 0.73),
+        Offset(0.36, 0.66),
+        Offset(0.55, 0.66),
+        Offset(0.76, 0.47),
+        Offset(1.00, 0.43),
+      ],
+      [
+        Offset(0.00, 0.78),
+        Offset(0.22, 0.70),
+        Offset(0.40, 0.50),
+        Offset(0.61, 0.58),
+        Offset(0.82, 0.39),
+        Offset(1.00, 0.46),
+      ],
+      [
+        Offset(0.00, 0.58),
+        Offset(0.17, 0.70),
+        Offset(0.34, 0.30),
+        Offset(0.53, 0.48),
+        Offset(0.74, 0.38),
+        Offset(1.00, 0.53),
+      ],
+      [
+        Offset(0.00, 0.74),
+        Offset(0.18, 0.52),
+        Offset(0.36, 0.40),
+        Offset(0.55, 0.56),
+        Offset(0.77, 0.27),
+        Offset(1.00, 0.35),
+      ],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Mud Properties',
+          height: 470,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 25,
+                child: Row(
+                  children: [
+                    _manualLegendItem('Water-based', const Color(0xFF6EA7E8)),
+                    const SizedBox(width: 18),
+                    _manualLegendItem('Oil-based', const Color(0xFF7DB56A)),
+                    const Spacer(),
+                    Text(
+                      'Sample 1',
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              for (var index = 0; index < chartNames.length; index++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _totalCostMiniChart(
+                      chartNames[index],
+                      chartColors[index],
+                      chartPoints[index],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Mud Properties shows how the selected fluid properties change through the recap period. The plotted sample, property lines, limits, and planned ranges can be configured from Recap Options.',
+        ),
+        const SizedBox(height: 14),
+        _recapMudPropertiesOptionsPreview(),
+        const SizedBox(height: 14),
+        _manualParagraph(
+          'Use the Graph page to select the mud-property lines and sample displayed in the recap. Limits and planned ranges can be enabled independently without changing the report data.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapSolidAnalysisPage() {
+    const chartNames = [
+      'Oil Phase (% vol)',
+      'Water Phase (% vol)',
+      'Low Gravity Solids (% vol)',
+      'High Gravity Solids (% vol)',
+      'Total Solids (% vol)',
+    ];
+    const chartColors = [
+      Color(0xFF6EA7E8),
+      Color(0xFF69C6DF),
+      Color(0xFFE9A84A),
+      Color(0xFF7DB56A),
+      Color(0xFF9B7BC3),
+    ];
+    const chartPoints = [
+      [
+        Offset(0.00, 0.66),
+        Offset(0.18, 0.52),
+        Offset(0.38, 0.56),
+        Offset(0.58, 0.46),
+        Offset(0.78, 0.55),
+        Offset(0.94, 0.35),
+        Offset(1.00, 0.42),
+      ],
+      [
+        Offset(0.00, 0.72),
+        Offset(0.18, 0.58),
+        Offset(0.38, 0.60),
+        Offset(0.58, 0.48),
+        Offset(0.78, 0.57),
+        Offset(0.94, 0.38),
+        Offset(1.00, 0.44),
+      ],
+      [
+        Offset(0.00, 0.80),
+        Offset(0.22, 0.72),
+        Offset(0.40, 0.70),
+        Offset(0.40, 0.30),
+        Offset(0.68, 0.28),
+        Offset(0.92, 0.36),
+        Offset(1.00, 0.48),
+      ],
+      [
+        Offset(0.00, 0.82),
+        Offset(0.20, 0.65),
+        Offset(0.40, 0.64),
+        Offset(0.40, 0.24),
+        Offset(0.68, 0.22),
+        Offset(0.92, 0.31),
+        Offset(1.00, 0.45),
+      ],
+      [
+        Offset(0.00, 0.76),
+        Offset(0.18, 0.58),
+        Offset(0.40, 0.55),
+        Offset(0.40, 0.33),
+        Offset(0.68, 0.34),
+        Offset(0.92, 0.40),
+        Offset(1.00, 0.50),
+      ],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Solid Analysis',
+          height: 430,
+          child: Column(
+            children: [
+              for (var index = 0; index < chartNames.length; index++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _totalCostMiniChart(
+                      chartNames[index],
+                      chartColors[index],
+                      chartPoints[index],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Solid Analysis tracks the calculated liquid phases, low- and high-gravity solids, and total solids through the selected recap period.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapHydraulicsPage() {
+    const chartNames = [
+      'Flow Rate (gpm)',
+      'Pump Pressure (psi)',
+      'Bit Impact Force (lbf)',
+      'Hydraulic Horsepower per Area',
+      'Bottom-Hole ECD (ppg)',
+    ];
+    const chartColors = [
+      Color(0xFF6EA7E8),
+      Color(0xFF69C6DF),
+      Color(0xFF6EA7E8),
+      Color(0xFFE9A84A),
+      Color(0xFF7DB56A),
+    ];
+    const chartPoints = [
+      [
+        Offset(0.00, 0.12),
+        Offset(0.08, 0.72),
+        Offset(0.23, 0.40),
+        Offset(0.42, 0.42),
+        Offset(0.47, 0.82),
+        Offset(0.57, 0.52),
+        Offset(0.78, 0.50),
+        Offset(1.00, 0.58),
+      ],
+      [
+        Offset(0.00, 0.88),
+        Offset(0.09, 0.48),
+        Offset(0.28, 0.48),
+        Offset(0.45, 0.78),
+        Offset(0.58, 0.32),
+        Offset(0.78, 0.26),
+        Offset(1.00, 0.28),
+      ],
+      [
+        Offset(0.00, 0.20),
+        Offset(0.08, 0.74),
+        Offset(0.22, 0.40),
+        Offset(0.42, 0.43),
+        Offset(0.49, 0.80),
+        Offset(0.60, 0.46),
+        Offset(0.84, 0.50),
+        Offset(1.00, 0.62),
+      ],
+      [
+        Offset(0.00, 0.22),
+        Offset(0.08, 0.82),
+        Offset(0.22, 0.58),
+        Offset(0.42, 0.59),
+        Offset(0.48, 0.86),
+        Offset(0.58, 0.60),
+        Offset(0.82, 0.60),
+        Offset(1.00, 0.72),
+      ],
+      [
+        Offset(0.00, 0.62),
+        Offset(0.18, 0.54),
+        Offset(0.38, 0.48),
+        Offset(0.58, 0.43),
+        Offset(0.78, 0.45),
+        Offset(1.00, 0.46),
+      ],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Hydraulics',
+          height: 430,
+          child: Column(
+            children: [
+              for (var index = 0; index < chartNames.length; index++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _totalCostMiniChart(
+                      chartNames[index],
+                      chartColors[index],
+                      chartPoints[index],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Hydraulics presents the calculated circulation response, including flow rate, pump pressure, bit hydraulics, and bottom-hole ECD across the recap range. Limits can be enabled from Recap Options - Graph.',
+        ),
+        const SizedBox(height: 14),
+        _recapMudPropertiesOptionsPreview(),
+        const SizedBox(height: 14),
+        _manualParagraph(
+          'When limit display is enabled, the graph highlights conditions where a calculated value moves outside its configured operating boundary, such as ECD approaching the pore-pressure or fracture-gradient range.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapVolumePage() {
+    const chartNames = [
+      'Daily Volume Change (bbl)',
+      'Active System Volume (bbl)',
+      'Reserve Volume (bbl)',
+      'Transferred Volume (bbl)',
+      'Unaccounted Volume (bbl)',
+    ];
+    const chartColors = [
+      Color(0xFF6EA7E8),
+      Color(0xFF69C6DF),
+      Color(0xFF6EA7E8),
+      Color(0xFFE9A84A),
+      Color(0xFF9B7BC3),
+    ];
+    const chartPoints = [
+      [
+        Offset(0.00, 0.82),
+        Offset(0.12, 0.38),
+        Offset(0.24, 0.62),
+        Offset(0.42, 0.68),
+        Offset(0.62, 0.48),
+        Offset(0.82, 0.58),
+        Offset(1.00, 0.45),
+      ],
+      [
+        Offset(0.00, 0.46),
+        Offset(0.18, 0.47),
+        Offset(0.38, 0.40),
+        Offset(0.58, 0.55),
+        Offset(0.78, 0.52),
+        Offset(1.00, 0.64),
+      ],
+      [
+        Offset(0.00, 0.18),
+        Offset(0.12, 0.68),
+        Offset(0.30, 0.50),
+        Offset(0.48, 0.73),
+        Offset(0.72, 0.74),
+        Offset(0.90, 0.45),
+        Offset(1.00, 0.70),
+      ],
+      [
+        Offset(0.00, 0.25),
+        Offset(0.14, 0.80),
+        Offset(0.36, 0.79),
+        Offset(0.58, 0.72),
+        Offset(0.80, 0.76),
+        Offset(0.92, 0.48),
+        Offset(1.00, 0.74),
+      ],
+      [
+        Offset(0.00, 0.64),
+        Offset(0.22, 0.62),
+        Offset(0.44, 0.66),
+        Offset(0.66, 0.59),
+        Offset(0.84, 0.63),
+        Offset(1.00, 0.60),
+      ],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Volume',
+          height: 430,
+          child: Column(
+            children: [
+              for (var index = 0; index < chartNames.length; index++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _totalCostMiniChart(
+                      chartNames[index],
+                      chartColors[index],
+                      chartPoints[index],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Volume follows additions, losses, transfers, reserve movement, and active-system balance through the selected recap range. Use the detail view to review the values behind each plotted change.',
+        ),
+        const SizedBox(height: 14),
+        _recapExplorerPreview(
+          selectedItem: 'Volume',
+          height: 340,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: 730,
+              child: _recapDataTable(
+                const [
+                  'Report',
+                  'Start',
+                  'Daily Add.',
+                  'Daily Loss',
+                  'Transfer In',
+                  'Transfer Out',
+                  'End',
+                  'Unaccounted',
+                ],
+                const [
+                  ['12', '1,245', '82', '18', '0', '35', '1,274', '0.5'],
+                  ['13', '1,274', '45', '22', '60', '0', '1,357', '-1.0'],
+                  ['14', '1,357', '38', '16', '0', '42', '1,337', '0.0'],
+                  ['15', '1,337', '70', '28', '25', '0', '1,404', '1.5'],
+                  ['16', '1,404', '32', '19', '0', '55', '1,362', '0.0'],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _recapUsagePage() {
+    const productNames = [
+      'Barite Usage (sacks)',
+      'Base Fluid Usage (bbl)',
+      'Viscosifier Usage (sacks)',
+      'Fluid-Loss Additive Usage (sacks)',
+      'Shale Inhibitor Usage (drums)',
+    ];
+    const productColors = [
+      Color(0xFF69C6DF),
+      Color(0xFF6EA7E8),
+      Color(0xFF7DB56A),
+      Color(0xFFE9A84A),
+      Color(0xFF9B7BC3),
+    ];
+    const usagePoints = [
+      [
+        Offset(0.00, 0.28),
+        Offset(0.18, 0.42),
+        Offset(0.36, 0.54),
+        Offset(0.52, 0.32),
+        Offset(0.68, 0.48),
+        Offset(0.84, 0.36),
+        Offset(1.00, 0.40),
+      ],
+      [
+        Offset(0.00, 0.34),
+        Offset(0.18, 0.30),
+        Offset(0.36, 0.38),
+        Offset(0.52, 0.44),
+        Offset(0.68, 0.28),
+        Offset(0.84, 0.46),
+        Offset(1.00, 0.35),
+      ],
+      [
+        Offset(0.00, 0.42),
+        Offset(0.20, 0.43),
+        Offset(0.40, 0.40),
+        Offset(0.60, 0.45),
+        Offset(0.80, 0.41),
+        Offset(1.00, 0.44),
+      ],
+      [
+        Offset(0.00, 0.72),
+        Offset(0.18, 0.70),
+        Offset(0.36, 0.68),
+        Offset(0.52, 0.30),
+        Offset(0.68, 0.42),
+        Offset(0.84, 0.34),
+        Offset(1.00, 0.46),
+      ],
+      [
+        Offset(0.00, 0.48),
+        Offset(0.20, 0.46),
+        Offset(0.40, 0.50),
+        Offset(0.60, 0.44),
+        Offset(0.80, 0.47),
+        Offset(1.00, 0.45),
+      ],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Usage',
+          height: 430,
+          child: Column(
+            children: [
+              for (var index = 0; index < productNames.length; index++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _totalCostMiniChart(
+                      productNames[index],
+                      productColors[index],
+                      usagePoints[index],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Usage compares daily received, consumed, and returned quantities for the products selected in Pad Inventory plotting. Up to five configured products can be reviewed together across the recap period.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapConcentrationPage() {
+    const productNames = [
+      'Weighting Agent (lb/bbl)',
+      'Primary Emulsifier (lb/bbl)',
+      'Shale Inhibitor (% vol)',
+      'Fluid-Loss Additive (lb/bbl)',
+      'Lime Concentration (lb/bbl)',
+    ];
+    const productColors = [
+      Color(0xFF69C6DF),
+      Color(0xFF6EA7E8),
+      Color(0xFF9B7BC3),
+      Color(0xFF7DB56A),
+      Color(0xFFE9A84A),
+    ];
+    const concentrationPoints = [
+      [
+        Offset(0.00, 0.78),
+        Offset(0.22, 0.72),
+        Offset(0.42, 0.70),
+        Offset(0.58, 0.48),
+        Offset(0.72, 0.32),
+        Offset(0.86, 0.26),
+        Offset(1.00, 0.20),
+      ],
+      [
+        Offset(0.00, 0.74),
+        Offset(0.18, 0.70),
+        Offset(0.34, 0.56),
+        Offset(0.48, 0.68),
+        Offset(0.66, 0.44),
+        Offset(0.82, 0.22),
+        Offset(1.00, 0.30),
+      ],
+      [
+        Offset(0.00, 0.82),
+        Offset(0.10, 0.38),
+        Offset(0.30, 0.40),
+        Offset(0.48, 0.74),
+        Offset(0.66, 0.78),
+        Offset(0.84, 0.62),
+        Offset(1.00, 0.68),
+      ],
+      [
+        Offset(0.00, 0.82),
+        Offset(0.32, 0.80),
+        Offset(0.48, 0.48),
+        Offset(0.62, 0.56),
+        Offset(0.76, 0.34),
+        Offset(0.90, 0.26),
+        Offset(1.00, 0.18),
+      ],
+      [
+        Offset(0.00, 0.58),
+        Offset(0.20, 0.54),
+        Offset(0.40, 0.57),
+        Offset(0.60, 0.50),
+        Offset(0.80, 0.46),
+        Offset(1.00, 0.48),
+      ],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Concentration',
+          height: 450,
+          child: Column(
+            children: [
+              Container(
+                height: 30,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5FA),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Product Concentration - Active System',
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      width: 118,
+                      height: 21,
+                      padding: const EdgeInsets.symmetric(horizontal: 7),
+                      alignment: Alignment.centerLeft,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: AppTheme.tableBorderBlue),
+                      ),
+                      child: Text(
+                        'Active System',
+                        style: AppTheme.bodyLarge.copyWith(fontSize: 8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              for (var index = 0; index < productNames.length; index++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _totalCostMiniChart(
+                      productNames[index],
+                      productColors[index],
+                      concentrationPoints[index],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Concentration displays the calculated history of up to five inventory products selected for concentration tracking. Choose the active system or an available pit to review how each product level changes during the recap period.',
+        ),
+        const SizedBox(height: 8),
+        _manualParagraph(
+          'Use the Concentration table view when report-by-report values are required instead of the graphical trend.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapTimeDistributionPage() {
+    const activities = [
+      ('Drilling', 10.8, 45.0),
+      ('Tripping', 4.2, 17.5),
+      ('Rig-up / Service', 2.7, 11.3),
+      ('Circulating', 2.1, 8.8),
+      ('Running Casing', 1.5, 6.3),
+      ('Testing', 1.1, 4.6),
+      ('Cementing', 0.9, 3.8),
+      ('Other', 0.7, 2.9),
+    ];
+    const timelineSegments = [
+      [[0.03, 0.08], [0.18, 0.10], [0.40, 0.08], [0.62, 0.13], [0.84, 0.10]],
+      [[0.12, 0.04], [0.32, 0.07], [0.55, 0.06], [0.76, 0.08]],
+      [[0.06, 0.03], [0.25, 0.04], [0.48, 0.03], [0.70, 0.05], [0.91, 0.04]],
+      [[0.19, 0.05], [0.43, 0.08], [0.66, 0.04], [0.82, 0.07]],
+      [[0.35, 0.05], [0.72, 0.06]],
+      [[0.08, 0.04], [0.50, 0.06], [0.88, 0.04]],
+      [[0.46, 0.05], [0.78, 0.04]],
+      [[0.27, 0.04], [0.59, 0.05], [0.93, 0.03]],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Time Distribution',
+          height: 430,
+          child: Column(
+            children: [
+              Text(
+                'Operational Time Distribution',
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: AppTheme.tableBorderBlue),
+                        ),
+                        child: Column(
+                          children: [
+                            for (var index = 0; index < activities.length; index++)
+                              Expanded(
+                                child: _recapActivityTimelineRow(
+                                  activities[index].$1,
+                                  timelineSegments[index],
+                                ),
+                              ),
+                            Text(
+                              'Report Day',
+                              style: AppTheme.bodyLarge.copyWith(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(8, 10, 10, 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: AppTheme.tableBorderBlue),
+                        ),
+                        child: Column(
+                          children: [
+                            for (final activity in activities) ...[
+                              _timeDistributionBar(
+                                activity.$1,
+                                activity.$2,
+                                activity.$3,
+                              ),
+                              if (activity != activities.last)
+                                const SizedBox(height: 10),
+                            ],
+                            const Spacer(),
+                            _timeDistributionAxis(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Time Distribution compares the duration of recorded operations by report day and summarizes each activity as a share of the selected recap period.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapActivityTimelineRow(
+    String label,
+    List<List<double>> segments,
+  ) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 82,
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.bodyLarge.copyWith(fontSize: 8),
+          ),
+        ),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Container(
+                height: 22,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFD),
+                  border: Border.all(color: const Color(0xFFD8E1EC)),
+                ),
+                child: Stack(
+                  children: [
+                    for (final segment in segments)
+                      Positioned(
+                        left: constraints.maxWidth * segment[0],
+                        top: 3,
+                        width: constraints.maxWidth * segment[1],
+                        height: 14,
+                        child: Container(color: const Color(0xFF76C5E3)),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _recapSolidControlEquipmentPage() {
+    const equipmentNames = [
+      'Shale Shakers - Operating Time (hr)',
+      'Mud Cleaner - Operating Time (hr)',
+      'Centrifuge - Operating Time (hr)',
+      'Vacuum Degasser - Operating Time (hr)',
+    ];
+    const equipmentColors = [
+      Color(0xFF69C6DF),
+      Color(0xFF6EA7E8),
+      Color(0xFF7DB56A),
+      Color(0xFFE9A84A),
+    ];
+    const equipmentPoints = [
+      [
+        Offset(0.00, 0.24),
+        Offset(0.30, 0.25),
+        Offset(0.42, 0.82),
+        Offset(0.63, 0.84),
+        Offset(0.66, 0.72),
+        Offset(0.82, 0.86),
+        Offset(1.00, 0.86),
+      ],
+      [
+        Offset(0.00, 0.84),
+        Offset(0.30, 0.84),
+        Offset(0.42, 0.24),
+        Offset(0.55, 0.64),
+        Offset(0.64, 0.46),
+        Offset(0.66, 0.86),
+        Offset(1.00, 0.86),
+      ],
+      [
+        Offset(0.00, 0.86),
+        Offset(0.46, 0.86),
+        Offset(0.52, 0.40),
+        Offset(0.82, 0.40),
+        Offset(0.86, 0.86),
+        Offset(1.00, 0.86),
+      ],
+      [
+        Offset(0.00, 0.86),
+        Offset(0.82, 0.86),
+        Offset(0.88, 0.28),
+        Offset(1.00, 0.26),
+      ],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Solid Control Equipment',
+          height: 430,
+          child: Column(
+            children: [
+              Container(
+                height: 26,
+                margin: const EdgeInsets.only(bottom: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5FA),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
+                ),
+                child: Text(
+                  'Solid Control Equipment Utilization',
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              for (var index = 0; index < equipmentNames.length; index++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 7),
+                    child: _totalCostMiniChart(
+                      equipmentNames[index],
+                      equipmentColors[index],
+                      equipmentPoints[index],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Solid Control Equipment summarizes the recorded operating hours of each configured unit across the recap range, making equipment usage and inactive periods easy to compare.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapBitPage() {
+    const parameterNames = [
+      'Bit Number',
+      'Bit Size (in.)',
+      'Total Flow Area (in2)',
+      'Depth In / Depth Out (ft)',
+      'Cumulative Bit Depth (ft)',
+    ];
+    const parameterColors = [
+      Color(0xFF69C6DF),
+      Color(0xFF6EA7E8),
+      Color(0xFF7DB56A),
+      Color(0xFFE9A84A),
+      Color(0xFF9B7BC3),
+    ];
+    const parameterPoints = [
+      [
+        Offset(0.00, 0.74),
+        Offset(0.28, 0.74),
+        Offset(0.36, 0.56),
+        Offset(0.42, 0.38),
+        Offset(0.65, 0.38),
+        Offset(0.72, 0.22),
+        Offset(0.94, 0.22),
+        Offset(1.00, 0.12),
+      ],
+      [
+        Offset(0.00, 0.30),
+        Offset(0.42, 0.30),
+        Offset(0.42, 0.58),
+        Offset(1.00, 0.58),
+      ],
+      [
+        Offset(0.00, 0.25),
+        Offset(0.30, 0.25),
+        Offset(0.36, 0.32),
+        Offset(0.42, 0.78),
+        Offset(0.86, 0.78),
+        Offset(0.96, 0.18),
+        Offset(1.00, 0.70),
+      ],
+      [
+        Offset(0.00, 0.82),
+        Offset(0.30, 0.82),
+        Offset(0.36, 0.54),
+        Offset(0.42, 0.54),
+        Offset(0.68, 0.54),
+        Offset(0.74, 0.32),
+        Offset(0.94, 0.32),
+        Offset(1.00, 0.18),
+      ],
+      [
+        Offset(0.00, 0.88),
+        Offset(0.32, 0.68),
+        Offset(0.38, 0.82),
+        Offset(0.42, 0.60),
+        Offset(0.66, 0.42),
+        Offset(0.84, 0.26),
+        Offset(1.00, 0.14),
+      ],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Bit',
+          height: 430,
+          child: Column(
+            children: [
+              Container(
+                height: 26,
+                margin: const EdgeInsets.only(bottom: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5FA),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
+                ),
+                child: Text(
+                  'Bit Performance and Geometry',
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              for (var index = 0; index < parameterNames.length; index++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _totalCostMiniChart(
+                      parameterNames[index],
+                      parameterColors[index],
+                      parameterPoints[index],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Bit summarizes bit changes, geometry, total flow area, and drilled-depth progression across the selected recap period.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapRemarksPage() {
+    const remarkGroups = [
+      ('Daily Remarks', [48.0, 62.0, 74.0, 68.0, 82.0, 55.0, 72.0, 44.0, 60.0, 76.0, 52.0, 66.0]),
+      ('Operational Notes', [35.0, 58.0, 42.0, 28.0, 50.0, 46.0, 64.0, 70.0, 55.0, 38.0, 62.0, 48.0]),
+      ('Safety Observations', [22.0, 52.0, 18.0, 44.0, 48.0, 36.0, 58.0, 32.0, 60.0, 42.0, 30.0, 54.0]),
+      ('Keyword Matches', [14.0, 24.0, 18.0, 28.0, 22.0, 34.0, 26.0, 20.0, 30.0, 24.0, 32.0, 18.0]),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Remarks',
+          height: 420,
+          child: Column(
+            children: [
+              Text(
+                'Remark Activity by Report Day',
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (final group in remarkGroups)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 7),
+                    child: _recapRemarksBarPanel(group.$1, group.$2),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Remarks summarizes the amount of narrative entered for each report and separates operational notes, safety observations, and tracked keyword activity for easier review.',
+        ),
+        const SizedBox(height: 14),
+        _recapExplorerPreview(
+          selectedItem: 'Remarks',
+          height: 320,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                height: 30,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                alignment: Alignment.centerLeft,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5FA),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
+                ),
+                child: Text(
+                  'Keyword Review - Manual Selection',
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: _recapDataTable(
+                  const [
+                    'Keyword',
+                    'Recommended Treatment',
+                    'Remarks',
+                    'Recap Remarks',
+                    'Overall',
+                  ],
+                  const [
+                    ['pressure', 'Review circulation', '3', '4', '7'],
+                    ['loss', 'Check loss response', '2', '3', '5'],
+                    ['return', 'Verify flow balance', '4', '2', '6'],
+                    ['safety', 'Review observation', '3', '3', '6'],
+                    ['gas', 'Check monitoring notes', '1', '2', '3'],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        _manualParagraph(
+          'Keyword review helps locate repeated subjects across daily remarks so the user can investigate operational patterns and recurring safety concerns.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapRemarksBarPanel(String title, List<double> values) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 5, 8, 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(
+              title,
+              maxLines: 2,
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 8,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (final value in values)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: FractionallySizedBox(
+                        heightFactor: (value / 100)
+                            .clamp(0.12, 1.0)
+                            .toDouble(),
+                        alignment: Alignment.bottomCenter,
+                        child: Container(color: const Color(0xFF9EB7CC)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _recapIntervalPage() {
+    const overviewNames = [
+      'Mud Treated',
+      'Mud Usage',
+      'Product Cost',
+      'Service Cost',
+      'Engineering Cost',
+      'Total Cost',
+    ];
+    const overviewColors = [
+      Color(0xFF69C6DF),
+      Color(0xFF6EA7E8),
+      Color(0xFF7DB56A),
+      Color(0xFFE9A84A),
+      Color(0xFF9B7BC3),
+      Color(0xFF4F91C7),
+    ];
+    const overviewPoints = [
+      [Offset(0.00, 0.18), Offset(0.36, 0.18), Offset(0.36, 0.52), Offset(0.72, 0.52), Offset(0.72, 0.84), Offset(1.00, 0.84)],
+      [Offset(0.00, 0.26), Offset(0.42, 0.26), Offset(0.42, 0.48), Offset(0.76, 0.48), Offset(0.76, 0.76), Offset(1.00, 0.76)],
+      [Offset(0.00, 0.22), Offset(0.30, 0.22), Offset(0.30, 0.44), Offset(0.68, 0.44), Offset(0.68, 0.82), Offset(1.00, 0.82)],
+      [Offset(0.00, 0.32), Offset(0.38, 0.32), Offset(0.38, 0.58), Offset(0.72, 0.58), Offset(0.72, 0.78), Offset(1.00, 0.78)],
+      [Offset(0.00, 0.20), Offset(0.28, 0.20), Offset(0.28, 0.46), Offset(0.66, 0.46), Offset(0.66, 0.80), Offset(1.00, 0.80)],
+      [Offset(0.00, 0.16), Offset(0.34, 0.16), Offset(0.34, 0.40), Offset(0.70, 0.40), Offset(0.70, 0.74), Offset(1.00, 0.74)],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Interval',
+          height: 410,
+          child: Column(
+            children: [
+              Text(
+                'Interval Performance Overview',
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Row(
+                  children: [
+                    for (var index = 0; index < overviewNames.length; index++) ...[
+                      Expanded(
+                        child: _totalCostMiniChart(
+                          overviewNames[index],
+                          overviewColors[index],
+                          overviewPoints[index],
+                        ),
+                      ),
+                      if (index != overviewNames.length - 1)
+                        const SizedBox(width: 6),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Interval provides a compact comparison of treated volume, mud usage, and cost performance for each completed well section.',
+        ),
+        const SizedBox(height: 10),
+        _manualParagraph(
+          'The detail view breaks the same interval totals into dates, depths, fluid movement, product usage, and cost categories.',
+        ),
+        const SizedBox(height: 14),
+        _recapExplorerPreview(
+          selectedItem: 'Interval',
+          height: 390,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Interval Summary',
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              _recapDataTable(
+                const ['Interval', 'Start', 'End', 'MD In', 'MD Out', 'Total Cost'],
+                const [
+                  ['Surface', '04/02', '04/05', '0', '3,120', '18,450'],
+                  ['Intermediate', '04/06', '04/12', '3,120', '8,640', '36,780'],
+                  ['Build', '04/13', '04/18', '8,640', '12,450', '28,960'],
+                  ['Lateral', '04/19', '04/27', '12,450', '21,800', '47,320'],
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Mud Movement and Product Usage',
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Expanded(
+                child: _recapDataTable(
+                  const ['Interval', 'Start Vol.', 'Added', 'Lost', 'Transferred', 'Mud Treated'],
+                  const [
+                    ['Surface', '620', '340', '22', '0', '938'],
+                    ['Intermediate', '938', '510', '48', '75', '1,325'],
+                    ['Build', '1,325', '280', '35', '120', '1,450'],
+                    ['Lateral', '1,450', '620', '96', '180', '1,794'],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _recapSurveyPage() {
+    const actualColor = Color(0xFF4F91C7);
+    const plannedColor = Color(0xFFE45B52);
+    const sectionPoints = [
+      Offset(0.02, 0.08),
+      Offset(0.04, 0.26),
+      Offset(0.08, 0.42),
+      Offset(0.18, 0.55),
+      Offset(0.42, 0.60),
+      Offset(0.72, 0.61),
+      Offset(1.00, 0.62),
+    ];
+    const planPoints = [
+      Offset(0.08, 0.80),
+      Offset(0.38, 0.80),
+      Offset(0.62, 0.78),
+      Offset(0.78, 0.62),
+      Offset(0.82, 0.40),
+      Offset(0.84, 0.18),
+    ];
+    const doglegPoints = [
+      Offset(0.00, 0.22),
+      Offset(0.08, 0.34),
+      Offset(0.14, 0.28),
+      Offset(0.22, 0.46),
+      Offset(0.34, 0.32),
+      Offset(0.44, 0.52),
+      Offset(0.58, 0.44),
+      Offset(0.72, 0.64),
+      Offset(0.86, 0.58),
+      Offset(1.00, 0.76),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Survey',
+          height: 430,
+          child: Column(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _totalCostMiniChart(
+                        'Section View - TVD vs. Displacement',
+                        actualColor,
+                        sectionPoints,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _totalCostMiniChart(
+                        'Plan View - North / East',
+                        plannedColor,
+                        planPoints,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                flex: 2,
+                child: _totalCostMiniChart(
+                  'Dogleg Severity vs. Measured Depth',
+                  actualColor,
+                  doglegPoints,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _manualLegendItem('Actual survey', actualColor),
+                  const SizedBox(width: 22),
+                  _manualLegendItem('Planned survey', plannedColor),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Survey compares the reported well path with the planned trajectory from Well - Survey. Section, plan, and dogleg views make directional departure and trajectory changes easier to review across the recap range.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapCustomizedPage() {
+    const plotNames = [
+      'Mud Weight (ppg)',
+      'Cumulative Product Cost',
+      'Pump Pressure (psi)',
+      'Rotary Speed (rpm)',
+      'Rate of Penetration (ft/hr)',
+    ];
+    const plotColors = [
+      Color(0xFF69C6DF),
+      Color(0xFF6EA7E8),
+      Color(0xFF7DB56A),
+      Color(0xFFE9A84A),
+      Color(0xFF9B7BC3),
+    ];
+    const plotPoints = [
+      [Offset(0.00, 0.52), Offset(0.20, 0.50), Offset(0.40, 0.54), Offset(0.60, 0.48), Offset(0.80, 0.46), Offset(1.00, 0.44)],
+      [Offset(0.00, 0.84), Offset(0.30, 0.80), Offset(0.52, 0.70), Offset(0.62, 0.34), Offset(0.82, 0.24), Offset(1.00, 0.18)],
+      [Offset(0.00, 0.82), Offset(0.10, 0.48), Offset(0.22, 0.36), Offset(0.30, 0.78), Offset(0.38, 0.28), Offset(0.48, 0.76), Offset(0.62, 0.42), Offset(0.78, 0.30), Offset(1.00, 0.46)],
+      [Offset(0.00, 0.78), Offset(0.12, 0.28), Offset(0.26, 0.30), Offset(0.36, 0.72), Offset(0.48, 0.38), Offset(0.62, 0.70), Offset(0.76, 0.24), Offset(0.90, 0.32), Offset(1.00, 0.74)],
+      [Offset(0.00, 0.70), Offset(0.10, 0.20), Offset(0.24, 0.48), Offset(0.38, 0.56), Offset(0.52, 0.46), Offset(0.66, 0.82), Offset(0.78, 0.30), Offset(0.90, 0.62), Offset(1.00, 0.38)],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Customized',
+          height: 440,
+          child: Column(
+            children: [
+              Container(
+                height: 28,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5FA),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Customized Graph Set',
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '5 selected plots',
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 8,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              for (var index = 0; index < plotNames.length; index++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _totalCostMiniChart(
+                      plotNames[index],
+                      plotColors[index],
+                      plotPoints[index],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Customized combines up to five user-selected recap parameters in one view. The series can mix drilling, fluid, cost, hydraulics, or calculated results for focused comparison.',
+        ),
+        const SizedBox(height: 14),
+        _recapMudPropertiesOptionsPreview(),
+        const SizedBox(height: 14),
+        _manualParagraph(
+          'Configure the Customized row in Recap Options - Graph to choose the plotted parameters and their display order.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapEngineerPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapExplorerPreview(
+          selectedItem: 'Engineer',
+          height: 370,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                height: 34,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5FA),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Engineer Assignment Summary',
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    _manualLegendItem('On-well coverage', const Color(0xFF69C6DF)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: _recapDataTable(
+                  const [
+                    'Engineer',
+                    'Role',
+                    'Office',
+                    'Contact',
+                    'Rotation',
+                    'Days',
+                    'Coverage',
+                  ],
+                  const [
+                    ['A. Morgan', 'Lead Engineer', 'Houston', 'Ext. 214', 'Day', '6', '24%'],
+                    ['R. Patel', 'Mud Engineer', 'Field', 'Ext. 328', 'Night', '5', '20%'],
+                    ['J. Rivera', 'Mud Engineer', 'Field', 'Ext. 196', 'Day', '7', '28%'],
+                    ['S. Chen', 'Support Engineer', 'Calgary', 'Ext. 407', 'Remote', '4', '16%'],
+                    ['D. Walker', 'Relief Engineer', 'Field', 'Ext. 253', 'Relief', '3', '12%'],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFD),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Total covered period',
+                      style: AppTheme.bodyLarge.copyWith(fontSize: 9),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '25 engineer-days  |  100% assigned coverage',
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.panelHeaderBlue,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Engineer summarizes the personnel assigned during the selected recap period, including role, rotation, days on the well, and each engineer\'s share of the recorded coverage.',
+        ),
+      ],
+    );
+  }
+
+  Widget _wellComparisonWindowsPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'Well Comparison Windows provides two areas for configuring and reviewing multi-well results:',
+        ),
+        const SizedBox(height: 18),
+        Wrap(
+          spacing: 18,
+          runSpacing: 12,
+          children: [
+            InkWell(
+              onTap: () => onNavigate('Comparison Toolbar'),
+              child: Text(
+                'Toolbar',
+                style: AppTheme.bodyLarge.copyWith(
+                  color: Colors.blue.shade700,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+            InkWell(
+              onTap: () => onNavigate('Comparison Job Explorer'),
+              child: Text(
+                'Comparison Job Explorer',
+                style: AppTheme.bodyLarge.copyWith(
+                  color: Colors.blue.shade700,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Container(
+          width: 640,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFD),
+            border: Border.all(color: AppTheme.tableBorderBlue),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.compare_arrows,
+                size: 30,
+                color: AppTheme.panelHeaderBlue,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  'Use the toolbar to manage the comparison workspace, then select a result category from Comparison Job Explorer to review wells side by side.',
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 13,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonToolbarPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _comparisonToolbarPreview(
+          activeTab: 'Home',
+          actions: const [
+            (Icons.arrow_back_outlined, 'Return to Input'),
+            (Icons.tune_outlined, 'Comparison Options'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _numberedHelp(
+          '1.',
+          'Return to Input closes the comparison workspace and returns to the main well and report input area.',
+        ),
+        _numberedHelp(
+          '2.',
+          'Comparison Options selects the result sections included in the comparison workspace and exported report.',
+        ),
+        const SizedBox(height: 18),
+        _comparisonOptionsPreview(),
+        const SizedBox(height: 24),
+        _comparisonToolbarPreview(
+          activeTab: 'Report',
+          actions: const [
+            (Icons.table_view_outlined, 'Well Comparison Report'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _manualParagraph(
+          'Well Comparison Report creates a spreadsheet containing the selected wells and enabled comparison sections. Page size and output layout follow the current report-format settings.',
+        ),
+        const SizedBox(height: 14),
+        _comparisonReportPreview(),
+        const SizedBox(height: 24),
+        _comparisonToolbarPreview(
+          activeTab: 'Utilities',
+          actions: const [
+            (Icons.engineering_outlined, 'Engineering Tools'),
+            (Icons.swap_horiz_outlined, 'Unit Conversion'),
+            (Icons.calculate_outlined, 'Calculator'),
+            (Icons.note_alt_outlined, 'Notepad'),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _manualParagraph(
+          'Utilities provides engineering calculations, unit conversion, the system calculator, and quick notepad access without leaving the comparison workflow.',
+        ),
+        const SizedBox(height: 22),
+        _comparisonToolbarPreview(
+          activeTab: 'Help',
+          actions: const [
+            (Icons.menu_book_outlined, 'User Manual'),
+            (Icons.info_outline, 'About'),
+            (Icons.sort_by_alpha_outlined, 'Abbreviations'),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _manualParagraph(
+          'Help opens the user manual, application information, and abbreviation reference.',
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonJobExplorerPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'Comparison Job Explorer provides the following side-by-side well analysis pages:',
+        ),
+        const SizedBox(height: 8),
+        for (final entry in _comparisonJobExplorerLinks.entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: InkWell(
+              onTap: () => onNavigate(entry.value),
+              child: Text(
+                entry.key,
+                style: AppTheme.bodyLarge.copyWith(
+                  color: Colors.blue.shade700,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _comparisonSummaryPage() {
+    const wells = [
+      ('North-01', '10,850 ft', Color(0xFF8B5A2B), false),
+      ('North-02', '9,640 ft', Color(0xFFB06D32), true),
+      ('West-03', '8,920 ft', Color(0xFF93613A), false),
+      ('Central-04', '12,420 ft', Color(0xFFA05A2C), true),
+      ('East-05', '15,760 ft', Color(0xFF7C4A25), true),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'Summary presents the selected well profiles together so casing programs, total depths, and trajectory differences can be reviewed at a glance.',
+        ),
+        const SizedBox(height: 14),
+        _comparisonExplorerPreview(
+          selectedItem: 'Summary',
+          height: 440,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var index = 0; index < wells.length; index++) ...[
+                Expanded(
+                  child: _comparisonWellSchematic(
+                    wells[index].$1,
+                    wells[index].$2,
+                    wells[index].$3,
+                    wells[index].$4,
+                  ),
+                ),
+                if (index != wells.length - 1) const SizedBox(width: 7),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonCostPage() {
+    const wells = [
+      ('North-01', 10850.0, 25.0, 68400.0, 18750.0, 8.03, 3486.0),
+      ('North-02', 9640.0, 22.0, 55200.0, 16400.0, 7.43, 3255.0),
+      ('West-03', 8920.0, 19.0, 47100.0, 13950.0, 6.84, 3213.0),
+      ('Central-04', 12420.0, 28.0, 79300.0, 22400.0, 8.19, 3632.0),
+      ('East-05', 15760.0, 31.0, 94600.0, 26800.0, 7.70, 3916.0),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'Cost compares total and normalized expenditure for each selected well. Category and mud-system costs can be reviewed together to identify the main cost differences.',
+        ),
+        const SizedBox(height: 14),
+        _comparisonExplorerPreview(
+          selectedItem: 'Cost',
+          height: 400,
+          child: Column(
+            children: [
+              Container(
+                height: 34,
+                color: const Color(0xFFE7F1FB),
+                child: Row(
+                  children: [
+                    _comparisonCostHeader('Well', flex: 2),
+                    _comparisonCostHeader('MD (ft)'),
+                    _comparisonCostHeader('Days'),
+                    _comparisonCostHeader('Product Cost', flex: 2),
+                    _comparisonCostHeader('Service Cost', flex: 2),
+                    _comparisonCostHeader(r'$/ft'),
+                    _comparisonCostHeader(r'$/day'),
+                  ],
+                ),
+              ),
+              for (final well in wells)
+                Expanded(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: Color(0xFFD5E0EB)),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        _comparisonCostTextCell(well.$1, flex: 2),
+                        _comparisonCostBarCell(well.$2, 16000, const Color(0xFF82AFE0)),
+                        _comparisonCostBarCell(well.$3, 32, const Color(0xFF8FC3E0)),
+                        _comparisonCostBarCell(well.$4, 100000, const Color(0xFF78A8D8), flex: 2),
+                        _comparisonCostBarCell(well.$5, 30000, const Color(0xFF8CCB96), flex: 2),
+                        _comparisonCostBarCell(well.$6, 10, const Color(0xFFE4B36A)),
+                        _comparisonCostBarCell(well.$7, 4200, const Color(0xFF9A87C2)),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 18,
+                runSpacing: 6,
+                children: [
+                  _manualLegendItem('Product', const Color(0xFF78A8D8)),
+                  _manualLegendItem('Service', const Color(0xFF8CCB96)),
+                  _manualLegendItem('Daily rate', const Color(0xFF9A87C2)),
+                  _manualLegendItem('Normalized cost', const Color(0xFFE4B36A)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonDrillingDataPage() {
+    const parameterNames = [
+      'Weight on Bit (klbf)',
+      'Surface Weight (klbf)',
+      'Pump Pressure (psi)',
+      'Rotary Speed (rpm)',
+      'ROP (ft/hr)',
+    ];
+    const parameterColors = [
+      Color(0xFF4F91C7),
+      Color(0xFF69C6DF),
+      Color(0xFF7B86C8),
+      Color(0xFFE9A84A),
+      Color(0xFF7DB56A),
+    ];
+    const parameterPoints = [
+      [Offset(0.08, 0.05), Offset(0.12, 0.22), Offset(0.18, 0.36), Offset(0.42, 0.55), Offset(0.64, 0.68), Offset(0.80, 0.86), Offset(0.96, 0.92)],
+      [Offset(0.18, 0.06), Offset(0.24, 0.24), Offset(0.38, 0.40), Offset(0.48, 0.58), Offset(0.30, 0.72), Offset(0.12, 0.88)],
+      [Offset(0.10, 0.08), Offset(0.22, 0.26), Offset(0.38, 0.42), Offset(0.56, 0.58), Offset(0.36, 0.76), Offset(0.18, 0.90)],
+      [Offset(0.24, 0.06), Offset(0.66, 0.20), Offset(0.72, 0.34), Offset(0.38, 0.46), Offset(0.64, 0.62), Offset(0.46, 0.78), Offset(0.70, 0.92)],
+      [Offset(0.18, 0.06), Offset(0.24, 0.24), Offset(0.20, 0.40), Offset(0.16, 0.55), Offset(0.28, 0.70), Offset(0.82, 0.84), Offset(0.92, 0.92)],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _comparisonExplorerPreview(
+          selectedItem: 'Drilling Data',
+          height: 430,
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      'Drilling Parameters vs. Measured Depth',
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          for (var index = 0; index < parameterNames.length; index++) ...[
+                            Expanded(
+                              child: _totalCostMiniChart(
+                                parameterNames[index],
+                                parameterColors[index],
+                                parameterPoints[index],
+                              ),
+                            ),
+                            if (index != parameterNames.length - 1)
+                              const SizedBox(width: 6),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 14,
+                      runSpacing: 5,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _manualLegendItem('North-01', const Color(0xFF4F91C7)),
+                        _manualLegendItem('North-02', const Color(0xFF69C6DF)),
+                        _manualLegendItem('West-03', const Color(0xFFE45B52)),
+                        _manualLegendItem('Central-04', const Color(0xFF7DB56A)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 38,
+                color: const Color(0xFFF1F5FA),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _concentrationViewTab('Graph', true),
+                    const SizedBox(height: 5),
+                    _concentrationViewTab('Table', false),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Drilling Data compares key operating parameters over the measured-depth range of each selected well, making changes in loading, pressure, rotation, and penetration rate easier to identify.',
+        ),
+        const SizedBox(height: 8),
+        _manualParagraph(
+          'Use the view tabs to switch between the combined graph and the underlying well-by-well values.',
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonMudPropertiesPage() {
+    const propertyNames = [
+      'Mud Weight (ppg)',
+      'Plastic Viscosity (cP)',
+      'Yield Point (lbf/100ft2)',
+      'Gel Strength 10s / 10m',
+      'Water Content (%)',
+    ];
+    const propertyColors = [
+      Color(0xFF4F91C7),
+      Color(0xFF69C6DF),
+      Color(0xFF7B86C8),
+      Color(0xFFE9A84A),
+      Color(0xFF7DB56A),
+    ];
+    const propertyPoints = [
+      [Offset(0.20, 0.06), Offset(0.30, 0.22), Offset(0.24, 0.38), Offset(0.52, 0.54), Offset(0.78, 0.62), Offset(0.82, 0.82), Offset(0.88, 0.94)],
+      [Offset(0.22, 0.06), Offset(0.42, 0.20), Offset(0.34, 0.34), Offset(0.64, 0.48), Offset(0.48, 0.64), Offset(0.78, 0.78), Offset(0.66, 0.94)],
+      [Offset(0.28, 0.06), Offset(0.18, 0.22), Offset(0.42, 0.38), Offset(0.62, 0.52), Offset(0.38, 0.66), Offset(0.74, 0.80), Offset(0.52, 0.94)],
+      [Offset(0.16, 0.06), Offset(0.38, 0.20), Offset(0.30, 0.36), Offset(0.54, 0.50), Offset(0.44, 0.66), Offset(0.76, 0.80), Offset(0.58, 0.94)],
+      [Offset(0.82, 0.06), Offset(0.86, 0.24), Offset(0.78, 0.40), Offset(0.42, 0.52), Offset(0.46, 0.68), Offset(0.36, 0.82), Offset(0.32, 0.94)],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _comparisonExplorerPreview(
+          selectedItem: 'Mud Properties',
+          height: 430,
+          child: Column(
+            children: [
+              Container(
+                height: 30,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5FA),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Mud Properties vs. Measured Depth',
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      width: 92,
+                      height: 21,
+                      padding: const EdgeInsets.symmetric(horizontal: 7),
+                      alignment: Alignment.centerLeft,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: AppTheme.tableBorderBlue),
+                      ),
+                      child: Text(
+                        'Sample 1',
+                        style: AppTheme.bodyLarge.copyWith(fontSize: 8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Row(
+                  children: [
+                    for (var index = 0; index < propertyNames.length; index++) ...[
+                      Expanded(
+                        child: _totalCostMiniChart(
+                          propertyNames[index],
+                          propertyColors[index],
+                          propertyPoints[index],
+                        ),
+                      ),
+                      if (index != propertyNames.length - 1)
+                        const SizedBox(width: 6),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 14,
+                runSpacing: 5,
+                alignment: WrapAlignment.center,
+                children: [
+                  _manualLegendItem('North-01', const Color(0xFF4F91C7)),
+                  _manualLegendItem('North-02', const Color(0xFF69C6DF)),
+                  _manualLegendItem('West-03', const Color(0xFFE45B52)),
+                  _manualLegendItem('Central-04', const Color(0xFF7DB56A)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Mud Properties compares the selected fluid measurements over the drilled-depth range of each well. Use the sample selector to review equivalent test samples across the comparison set.',
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonHydraulicsPage() {
+    const resultNames = [
+      'Flow Rate (gpm)',
+      'Pump Pressure (psi)',
+      'Impact Force (lbf)',
+      'Hydraulic Horsepower / in2',
+      'Bottom-Hole ECD (ppg)',
+    ];
+    const resultColors = [
+      Color(0xFF4F91C7),
+      Color(0xFF69C6DF),
+      Color(0xFF7B86C8),
+      Color(0xFFE9A84A),
+      Color(0xFF7DB56A),
+    ];
+    const resultPoints = [
+      [Offset(0.12, 0.06), Offset(0.68, 0.22), Offset(0.62, 0.36), Offset(0.34, 0.52), Offset(0.72, 0.64), Offset(0.48, 0.80), Offset(0.42, 0.94)],
+      [Offset(0.18, 0.06), Offset(0.48, 0.22), Offset(0.42, 0.38), Offset(0.68, 0.54), Offset(0.38, 0.66), Offset(0.78, 0.82), Offset(0.84, 0.94)],
+      [Offset(0.62, 0.06), Offset(0.48, 0.20), Offset(0.30, 0.36), Offset(0.70, 0.50), Offset(0.36, 0.66), Offset(0.28, 0.82), Offset(0.32, 0.94)],
+      [Offset(0.20, 0.06), Offset(0.54, 0.22), Offset(0.30, 0.38), Offset(0.68, 0.52), Offset(0.40, 0.66), Offset(0.22, 0.82), Offset(0.30, 0.94)],
+      [Offset(0.20, 0.06), Offset(0.26, 0.24), Offset(0.22, 0.40), Offset(0.46, 0.54), Offset(0.66, 0.68), Offset(0.72, 0.84), Offset(0.76, 0.94)],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'Hydraulics compares the calculated circulation and bit-performance results of each selected well over their measured-depth ranges.',
+        ),
+        const SizedBox(height: 14),
+        _comparisonExplorerPreview(
+          selectedItem: 'Hydraulics',
+          height: 420,
+          child: Column(
+            children: [
+              Text(
+                'Hydraulics Results vs. Measured Depth',
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Row(
+                  children: [
+                    for (var index = 0; index < resultNames.length; index++) ...[
+                      Expanded(
+                        child: _totalCostMiniChart(
+                          resultNames[index],
+                          resultColors[index],
+                          resultPoints[index],
+                        ),
+                      ),
+                      if (index != resultNames.length - 1)
+                        const SizedBox(width: 6),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 14,
+                runSpacing: 5,
+                alignment: WrapAlignment.center,
+                children: [
+                  _manualLegendItem('North-01', const Color(0xFF4F91C7)),
+                  _manualLegendItem('North-02', const Color(0xFF69C6DF)),
+                  _manualLegendItem('West-03', const Color(0xFFE45B52)),
+                  _manualLegendItem('Central-04', const Color(0xFF7DB56A)),
+                  _manualLegendItem('East-05', const Color(0xFF9B7BC3)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonSolidsPage() {
+    const resultNames = [
+      'LGS (% vol)',
+      'LGS (lb/bbl)',
+      'HGS (% vol)',
+      'HGS (lb/bbl)',
+      'Average Solids SG',
+    ];
+    const resultColors = [
+      Color(0xFF4F91C7),
+      Color(0xFF69C6DF),
+      Color(0xFF7B86C8),
+      Color(0xFFE9A84A),
+      Color(0xFF7DB56A),
+    ];
+    const resultPoints = [
+      [Offset(0.62, 0.06), Offset(0.28, 0.20), Offset(0.54, 0.36), Offset(0.40, 0.50), Offset(0.74, 0.64), Offset(0.68, 0.80), Offset(0.82, 0.94)],
+      [Offset(0.58, 0.06), Offset(0.24, 0.22), Offset(0.52, 0.38), Offset(0.36, 0.52), Offset(0.72, 0.66), Offset(0.64, 0.82), Offset(0.78, 0.94)],
+      [Offset(0.20, 0.06), Offset(0.38, 0.20), Offset(0.24, 0.36), Offset(0.58, 0.52), Offset(0.70, 0.68), Offset(0.68, 0.82), Offset(0.74, 0.94)],
+      [Offset(0.18, 0.06), Offset(0.36, 0.22), Offset(0.22, 0.38), Offset(0.56, 0.52), Offset(0.68, 0.68), Offset(0.66, 0.82), Offset(0.72, 0.94)],
+      [Offset(0.16, 0.06), Offset(0.24, 0.22), Offset(0.20, 0.38), Offset(0.82, 0.50), Offset(0.28, 0.66), Offset(0.30, 0.82), Offset(0.34, 0.94)],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'Solids compares calculated low- and high-gravity solids results for each selected well over the measured-depth range.',
+        ),
+        const SizedBox(height: 14),
+        _comparisonExplorerPreview(
+          selectedItem: 'Solids',
+          height: 420,
+          child: Column(
+            children: [
+              Text(
+                'Solids Analysis vs. Measured Depth',
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Row(
+                  children: [
+                    for (var index = 0; index < resultNames.length; index++) ...[
+                      Expanded(
+                        child: _totalCostMiniChart(
+                          resultNames[index],
+                          resultColors[index],
+                          resultPoints[index],
+                        ),
+                      ),
+                      if (index != resultNames.length - 1)
+                        const SizedBox(width: 6),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 14,
+                runSpacing: 5,
+                alignment: WrapAlignment.center,
+                children: [
+                  _manualLegendItem('North-01', const Color(0xFF4F91C7)),
+                  _manualLegendItem('North-02', const Color(0xFF69C6DF)),
+                  _manualLegendItem('West-03', const Color(0xFFE45B52)),
+                  _manualLegendItem('Central-04', const Color(0xFF7DB56A)),
+                  _manualLegendItem('East-05', const Color(0xFF9B7BC3)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonVolumePage() {
+    const resultNames = [
+      'Starting Volume (bbl)',
+      'Total Additions (bbl)',
+      'Total Losses (bbl)',
+      'Net Transfers (bbl)',
+      'Ending Volume (bbl)',
+    ];
+    const resultColors = [
+      Color(0xFF4F91C7),
+      Color(0xFF69C6DF),
+      Color(0xFF7B86C8),
+      Color(0xFFE9A84A),
+      Color(0xFF7DB56A),
+    ];
+    const resultPoints = [
+      [Offset(0.18, 0.06), Offset(0.62, 0.22), Offset(0.36, 0.38), Offset(0.70, 0.52), Offset(0.48, 0.68), Offset(0.76, 0.84), Offset(0.84, 0.94)],
+      [Offset(0.20, 0.06), Offset(0.56, 0.20), Offset(0.30, 0.36), Offset(0.68, 0.52), Offset(0.40, 0.68), Offset(0.24, 0.82), Offset(0.28, 0.94)],
+      [Offset(0.38, 0.06), Offset(0.58, 0.22), Offset(0.24, 0.38), Offset(0.72, 0.50), Offset(0.30, 0.66), Offset(0.20, 0.82), Offset(0.24, 0.94)],
+      [Offset(0.22, 0.06), Offset(0.58, 0.22), Offset(0.36, 0.38), Offset(0.30, 0.54), Offset(0.66, 0.68), Offset(0.42, 0.82), Offset(0.50, 0.94)],
+      [Offset(0.24, 0.06), Offset(0.30, 0.22), Offset(0.46, 0.38), Offset(0.74, 0.52), Offset(0.62, 0.68), Offset(0.82, 0.82), Offset(0.90, 0.94)],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'Volume compares fluid movement and system balances for the selected wells over their measured-depth ranges. Detailed values remain available through the table view.',
+        ),
+        const SizedBox(height: 14),
+        _comparisonExplorerPreview(
+          selectedItem: 'Volume',
+          height: 420,
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      'Volume Movement vs. Measured Depth',
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          for (var index = 0; index < resultNames.length; index++) ...[
+                            Expanded(
+                              child: _totalCostMiniChart(
+                                resultNames[index],
+                                resultColors[index],
+                                resultPoints[index],
+                              ),
+                            ),
+                            if (index != resultNames.length - 1)
+                              const SizedBox(width: 6),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 14,
+                      runSpacing: 5,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _manualLegendItem('North-01', const Color(0xFF4F91C7)),
+                        _manualLegendItem('North-02', const Color(0xFF69C6DF)),
+                        _manualLegendItem('West-03', const Color(0xFFE45B52)),
+                        _manualLegendItem('Central-04', const Color(0xFF7DB56A)),
+                        _manualLegendItem('East-05', const Color(0xFF9B7BC3)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 38,
+                color: const Color(0xFFF1F5FA),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _concentrationViewTab('Graph', true),
+                    const SizedBox(height: 5),
+                    _concentrationViewTab('Table', false),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonTimeDistributionPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'Time Distribution compares the percentage of reported time assigned to each operational activity for every selected well.',
+        ),
+        const SizedBox(height: 14),
+        _comparisonExplorerPreview(
+          selectedItem: 'Time Distribution',
+          height: 380,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                alignment: Alignment.centerLeft,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5FA),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
+                ),
+                child: Text(
+                  'Operational Time Share by Well (%)',
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppTheme.tableBorderBlue),
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: 1120,
+                      child: _recapDataTable(
+                        const [
+                          'Well',
+                          'Rig-up',
+                          'Circulating',
+                          'Service',
+                          'BOP Test',
+                          'Run Casing',
+                          'Cementing',
+                          'Drill Out',
+                          'Drilling',
+                          'Tripping',
+                          'Other',
+                        ],
+                        const [
+                          ['North-01', '4.8%', '8.2%', '3.4%', '2.1%', '5.6%', '3.8%', '4.1%', '45.6%', '17.2%', '5.2%'],
+                          ['North-02', '5.2%', '7.6%', '4.0%', '1.8%', '6.3%', '4.2%', '3.6%', '42.8%', '18.4%', '6.1%'],
+                          ['West-03', '4.4%', '9.1%', '3.2%', '2.4%', '4.8%', '3.6%', '5.0%', '47.2%', '15.8%', '4.5%'],
+                          ['Central-04', '5.0%', '8.4%', '3.8%', '2.0%', '5.2%', '4.0%', '4.6%', '44.1%', '17.5%', '5.4%'],
+                          ['East-05', '4.6%', '7.9%', '3.6%', '2.2%', '5.8%', '4.4%', '4.2%', '46.0%', '16.3%', '5.0%'],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _manualLegendItem('Primary activity', const Color(0xFF78A8D8)),
+                  const SizedBox(width: 18),
+                  Text(
+                    'Scroll horizontally to review all activity categories.',
+                    style: AppTheme.bodyLarge.copyWith(
+                      fontSize: 8,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonBitPage() {
+    const resultNames = [
+      'Bit Number',
+      'Bit Size (in.)',
+      'Total Flow Area (in2)',
+      'Depth In / Out (ft)',
+      'Cumulative Bit Depth (ft)',
+    ];
+    const resultColors = [
+      Color(0xFF4F91C7),
+      Color(0xFF69C6DF),
+      Color(0xFF7B86C8),
+      Color(0xFFE9A84A),
+      Color(0xFF7DB56A),
+    ];
+    const resultPoints = [
+      [Offset(0.16, 0.06), Offset(0.16, 0.24), Offset(0.36, 0.24), Offset(0.36, 0.48), Offset(0.62, 0.48), Offset(0.62, 0.72), Offset(0.86, 0.72), Offset(0.86, 0.94)],
+      [Offset(0.78, 0.06), Offset(0.78, 0.34), Offset(0.56, 0.34), Offset(0.56, 0.66), Offset(0.32, 0.66), Offset(0.32, 0.94)],
+      [Offset(0.28, 0.06), Offset(0.32, 0.24), Offset(0.24, 0.42), Offset(0.58, 0.56), Offset(0.44, 0.72), Offset(0.70, 0.86), Offset(0.54, 0.94)],
+      [Offset(0.12, 0.06), Offset(0.28, 0.24), Offset(0.40, 0.42), Offset(0.54, 0.58), Offset(0.68, 0.74), Offset(0.84, 0.94)],
+      [Offset(0.08, 0.06), Offset(0.24, 0.24), Offset(0.40, 0.42), Offset(0.56, 0.58), Offset(0.72, 0.76), Offset(0.92, 0.94)],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'Bit compares bit selection, geometry, hydraulic area, and drilled-depth progression across the selected wells.',
+        ),
+        const SizedBox(height: 14),
+        _comparisonExplorerPreview(
+          selectedItem: 'Bit',
+          height: 420,
+          child: Column(
+            children: [
+              Text(
+                'Bit Parameters vs. Measured Depth',
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Row(
+                  children: [
+                    for (var index = 0; index < resultNames.length; index++) ...[
+                      Expanded(
+                        child: _totalCostMiniChart(
+                          resultNames[index],
+                          resultColors[index],
+                          resultPoints[index],
+                        ),
+                      ),
+                      if (index != resultNames.length - 1)
+                        const SizedBox(width: 6),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 14,
+                runSpacing: 5,
+                alignment: WrapAlignment.center,
+                children: [
+                  _manualLegendItem('North-01', const Color(0xFF4F91C7)),
+                  _manualLegendItem('North-02', const Color(0xFF69C6DF)),
+                  _manualLegendItem('West-03', const Color(0xFFE45B52)),
+                  _manualLegendItem('Central-04', const Color(0xFF7DB56A)),
+                  _manualLegendItem('East-05', const Color(0xFF9B7BC3)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonRemarksPage() {
+    const wells = [
+      ('North-01', 620.0, 1280.0, 940.0, 84.0),
+      ('North-02', 410.0, 860.0, 720.0, 56.0),
+      ('West-03', 780.0, 1540.0, 1120.0, 102.0),
+      ('Central-04', 930.0, 1860.0, 1340.0, 118.0),
+      ('East-05', 860.0, 1720.0, 1490.0, 96.0),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'Remarks compares the amount of narrative and review content recorded for each selected well.',
+        ),
+        const SizedBox(height: 14),
+        _comparisonExplorerPreview(
+          selectedItem: 'Remarks',
+          height: 380,
+          child: Column(
+            children: [
+              Container(
+                height: 34,
+                color: const Color(0xFFE7F1FB),
+                child: Row(
+                  children: [
+                    _comparisonCostHeader('Well', flex: 2),
+                    _comparisonCostHeader('Treatment Notes', flex: 2),
+                    _comparisonCostHeader('Daily Remarks', flex: 2),
+                    _comparisonCostHeader('Recap Remarks', flex: 2),
+                    _comparisonCostHeader('Internal Notes', flex: 2),
+                  ],
+                ),
+              ),
+              for (final well in wells)
+                Expanded(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: Color(0xFFD5E0EB)),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        _comparisonCostTextCell(well.$1, flex: 2),
+                        _comparisonCostBarCell(
+                          well.$2,
+                          1000,
+                          const Color(0xFF8CB5DE),
+                          flex: 2,
+                        ),
+                        _comparisonCostBarCell(
+                          well.$3,
+                          2000,
+                          const Color(0xFF78A8D8),
+                          flex: 2,
+                        ),
+                        _comparisonCostBarCell(
+                          well.$4,
+                          1600,
+                          const Color(0xFF8CCB96),
+                          flex: 2,
+                        ),
+                        _comparisonCostBarCell(
+                          well.$5,
+                          140,
+                          const Color(0xFFE4B36A),
+                          flex: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 18,
+                runSpacing: 6,
+                alignment: WrapAlignment.center,
+                children: [
+                  _manualLegendItem('Treatment', const Color(0xFF8CB5DE)),
+                  _manualLegendItem('Daily remarks', const Color(0xFF78A8D8)),
+                  _manualLegendItem('Recap remarks', const Color(0xFF8CCB96)),
+                  _manualLegendItem('Internal notes', const Color(0xFFE4B36A)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        _manualParagraph(
+          'Longer bars indicate more recorded text in that category, helping the user identify wells that may require deeper operational or safety review.',
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonSurveyPage() {
+    const sectionPoints = [
+      Offset(0.08, 0.06),
+      Offset(0.10, 0.22),
+      Offset(0.14, 0.40),
+      Offset(0.26, 0.58),
+      Offset(0.54, 0.72),
+      Offset(0.82, 0.84),
+      Offset(0.94, 0.92),
+    ];
+    const planPoints = [
+      Offset(0.18, 0.78),
+      Offset(0.36, 0.76),
+      Offset(0.54, 0.72),
+      Offset(0.68, 0.58),
+      Offset(0.72, 0.36),
+      Offset(0.76, 0.16),
+    ];
+    const doglegPoints = [
+      Offset(0.04, 0.10),
+      Offset(0.22, 0.18),
+      Offset(0.10, 0.28),
+      Offset(0.36, 0.40),
+      Offset(0.18, 0.52),
+      Offset(0.52, 0.64),
+      Offset(0.28, 0.76),
+      Offset(0.64, 0.88),
+      Offset(0.42, 0.94),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'Survey compares the recorded directional profiles of the selected wells using section, plan, and dogleg views.',
+        ),
+        const SizedBox(height: 14),
+        _comparisonExplorerPreview(
+          selectedItem: 'Survey',
+          height: 440,
+          child: Column(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _totalCostMiniChart(
+                        'Section View - TVD vs. Displacement',
+                        const Color(0xFF4F91C7),
+                        sectionPoints,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _totalCostMiniChart(
+                        'Plan View - North / East',
+                        const Color(0xFF69C6DF),
+                        planPoints,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                flex: 2,
+                child: _totalCostMiniChart(
+                  'Dogleg Severity vs. Measured Depth',
+                  const Color(0xFF7B86C8),
+                  doglegPoints,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 14,
+                runSpacing: 5,
+                alignment: WrapAlignment.center,
+                children: [
+                  _manualLegendItem('North-01', const Color(0xFF4F91C7)),
+                  _manualLegendItem('North-02', const Color(0xFF69C6DF)),
+                  _manualLegendItem('West-03', const Color(0xFFE45B52)),
+                  _manualLegendItem('Central-04', const Color(0xFF7DB56A)),
+                  _manualLegendItem('East-05', const Color(0xFF9B7BC3)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        _manualParagraph(
+          'The common views make trajectory displacement and dogleg differences easier to identify without changing the underlying survey records.',
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonEngineerPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _comparisonExplorerPreview(
+          selectedItem: 'Engineer',
+          height: 390,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                height: 34,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5FA),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Engineer Coverage by Well',
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Selected comparison period',
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 8,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: _recapDataTable(
+                  const [
+                    'Well',
+                    'Lead Engineer',
+                    'Day Rotation',
+                    'Night Rotation',
+                    'Relief / Support',
+                    'Engineer-Days',
+                    'Coverage',
+                  ],
+                  const [
+                    ['North-01', 'A. Morgan', 'J. Rivera', 'R. Patel', 'S. Chen', '25', '100%'],
+                    ['North-02', 'R. Patel', 'D. Walker', 'M. Lewis', 'A. Morgan', '22', '100%'],
+                    ['West-03', 'J. Rivera', 'S. Chen', 'D. Walker', 'M. Lewis', '19', '98%'],
+                    ['Central-04', 'S. Chen', 'A. Morgan', 'R. Patel', 'J. Rivera', '28', '100%'],
+                    ['East-05', 'D. Walker', 'M. Lewis', 'J. Rivera', 'S. Chen', '31', '100%'],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                height: 42,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFD),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
+                ),
+                child: Row(
+                  children: [
+                    _manualLegendItem('Lead assignment', const Color(0xFF4F91C7)),
+                    const SizedBox(width: 18),
+                    _manualLegendItem('Rotation coverage', const Color(0xFF69C6DF)),
+                    const Spacer(),
+                    Text(
+                      '125 engineer-days across 5 wells',
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.panelHeaderBlue,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'Engineer compares personnel assignments and working coverage across the selected wells, including lead responsibility, shift rotations, support coverage, and total engineer-days.',
+        ),
+      ],
+    );
+  }
+
+  Widget _comparisonCostHeader(String label, {int flex = 1}) {
+    return Expanded(
+      flex: flex,
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: AppTheme.bodyLarge.copyWith(
+          fontSize: 8,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _comparisonCostTextCell(String value, {int flex = 1}) {
+    return Expanded(
+      flex: flex,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 8,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _comparisonCostBarCell(
+    double value,
+    double maximum,
+    Color color, {
+    int flex = 1,
+  }) {
+    return Expanded(
+      flex: flex,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              alignment: Alignment.centerLeft,
+              children: [
+                Container(height: 18, color: const Color(0xFFF1F5FA)),
+                Container(
+                  width: constraints.maxWidth *
+                      (value / maximum).clamp(0.0, 1.0).toDouble(),
+                  height: 18,
+                  color: color.withOpacity(0.78),
+                ),
+                Positioned.fill(
+                  child: Center(
+                    child: Text(
+                      value >= 1000
+                          ? value.toStringAsFixed(0)
+                          : value.toStringAsFixed(1),
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 7,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _comparisonExplorerPreview({
+    required String selectedItem,
+    required Widget child,
+    required double height,
+  }) {
+    final items = _comparisonJobExplorerLinks.keys.toList();
+    return Container(
+      width: 900,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 30,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.centerLeft,
+            color: AppTheme.panelHeaderBlue,
+            child: Text(
+              'MSR2_DMR - Well Comparison',
+              style: AppTheme.bodyLarge.copyWith(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 130,
+                  padding: const EdgeInsets.all(7),
+                  color: const Color(0xFFF1F5FA),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        for (final item in items)
+                          Container(
+                            height: 27,
+                            margin: const EdgeInsets.only(bottom: 3),
+                            padding: const EdgeInsets.symmetric(horizontal: 7),
+                            alignment: Alignment.centerLeft,
+                            color: item == selectedItem
+                                ? AppTheme.panelHeaderBlue
+                                : Colors.transparent,
+                            child: Text(
+                              item,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTheme.bodyLarge.copyWith(
+                                color: item == selectedItem
+                                    ? Colors.white
+                                    : AppTheme.textPrimary,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: child,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _comparisonWellSchematic(
+    String wellName,
+    String totalDepth,
+    Color casingColor,
+    bool deviated,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFCFE),
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 36,
+            alignment: Alignment.center,
+            color: const Color(0xFFF1F5FA),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  wellName,
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  'TD $totalDepth',
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 7,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final center = constraints.maxWidth / 2;
+                return Stack(
+                  children: [
+                    Positioned(
+                      left: center - 22,
+                      top: 15,
+                      width: 44,
+                      height: constraints.maxHeight * 0.25,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.symmetric(
+                            vertical: BorderSide(
+                              color: casingColor,
+                              width: 6,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: center - 12,
+                      top: constraints.maxHeight * 0.23,
+                      width: 24,
+                      height: constraints.maxHeight * 0.30,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.symmetric(
+                            vertical: BorderSide(
+                              color: casingColor.withOpacity(0.75),
+                              width: 4,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: center - 2,
+                      top: constraints.maxHeight * 0.48,
+                      child: Transform.rotate(
+                        angle: deviated ? -0.20 : 0,
+                        alignment: Alignment.topCenter,
+                        child: Container(
+                          width: 4,
+                          height: constraints.maxHeight * 0.42,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 5,
+                      bottom: 5,
+                      right: 5,
+                      child: Text(
+                        deviated ? 'Directional profile' : 'Vertical profile',
+                        textAlign: TextAlign.center,
+                        style: AppTheme.bodyLarge.copyWith(fontSize: 7),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _comparisonToolbarPreview({
+    required String activeTab,
+    required List<(IconData, String)> actions,
+  }) {
+    const tabs = ['Home', 'Report', 'Utilities', 'Help'];
+    return Container(
+      width: 620,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              for (final tab in tabs)
+                Container(
+                  width: 105,
+                  height: 31,
+                  alignment: Alignment.center,
+                  color: tab == activeTab
+                      ? AppTheme.panelHeaderBlue
+                      : AppTheme.tableHeaderBlue,
+                  child: Text(
+                    tab,
+                    style: AppTheme.bodyLarge.copyWith(
+                      color: tab == activeTab
+                          ? Colors.white
+                          : AppTheme.textPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              const Spacer(),
+            ],
+          ),
+          Container(
+            height: 54,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            color: AppTheme.tableHeaderBlue.withOpacity(0.45),
+            child: Row(
+              children: [
+                for (final action in actions)
+                  Container(
+                    width: 112,
+                    margin: const EdgeInsets.only(right: 6),
+                    child: Row(
+                      children: [
+                        Icon(action.$1, size: 20, color: AppTheme.textPrimary),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            action.$2,
+                            maxLines: 2,
+                            style: AppTheme.bodyLarge.copyWith(fontSize: 9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _comparisonOptionsPreview() {
+    const options = [
+      'Well Schematic',
+      'Cost',
+      'Drilling Data',
+      'Mud Properties',
+      'Hydraulics',
+      'Solids',
+      'Volume',
+      'Bit',
+      'Remarks',
+      'Survey',
+    ];
+    return Container(
+      width: 650,
+      height: 300,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.centerLeft,
+            color: AppTheme.panelHeaderBlue,
+            child: Text(
+              'Well Comparison Options',
+              style: AppTheme.bodyLarge.copyWith(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 110,
+                  color: const Color(0xFFF1F5FA),
+                  alignment: Alignment.topCenter,
+                  padding: const EdgeInsets.only(top: 14),
+                  child: Text(
+                    'Report',
+                    style: AppTheme.bodyLarge.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        for (final option in options)
+                          SizedBox(
+                            width: 155,
+                            child: _manualOptionRow(option, checked: true),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _comparisonReportPreview() {
+    return Container(
+      width: 650,
+      height: 330,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'MUDPRO - Well Comparison',
+            textAlign: TextAlign.center,
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _recapDataTable(
+            const ['Well', 'Field', 'Country', 'Start', 'End', 'Engineer'],
+            const [
+              ['North-01', 'Falcon', 'USA', '04/02', '04/27', 'A. Morgan'],
+              ['North-02', 'Falcon', 'USA', '05/01', '05/24', 'R. Patel'],
+              ['West-03', 'Orion', 'Canada', '05/08', '06/02', 'J. Rivera'],
+            ],
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Row(
+              children: [
+                for (final well in const ['North-01', 'North-02', 'West-03']) ...[
+                  Expanded(
+                    child: _totalCostMiniChart(
+                      '$well - Schematic',
+                      AppTheme.panelHeaderBlue,
+                      const [
+                        Offset(0.08, 0.08),
+                        Offset(0.12, 0.42),
+                        Offset(0.28, 0.68),
+                        Offset(0.72, 0.82),
+                        Offset(0.94, 0.88),
+                      ],
+                    ),
+                  ),
+                  if (well != 'West-03') const SizedBox(width: 8),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _manualLegendItem(String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 18, height: 4, color: color),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: AppTheme.bodyLarge.copyWith(
+            color: AppTheme.textPrimary,
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _recapMudPropertiesOptionsPreview() {
+    const navigationItems = [
+      'Group',
+      'Summary',
+      'Range',
+      'Report',
+      'Sample',
+      'Graph',
+    ];
+    const headers = [
+      'Explorer Item',
+      'Orientation',
+      'Line 1',
+      'Line 2',
+      'Line 3',
+      'Line 4',
+      'Line 5',
+      'Limits',
+      'Sample',
+    ];
+    const rows = [
+      ['Cum. Cost', 'vs. Day', 'Product', 'Package', 'Service', 'Engineering', 'Total', '', ''],
+      ['Drilling Data', 'vs. Depth', 'WOB', 'ROP', 'RPM', '', '', '', ''],
+      ['Mud Prop. 1', 'vs. Depth', 'MW', 'PV', 'YP', 'API Filtrate', 'pH', 'On', '1'],
+      ['Mud Prop. 2', 'vs. Depth', 'Flowline T.', 'Funnel Visc.', 'Gel 10s', 'Oil', 'Water', 'On', '1'],
+      ['Hydraulics', 'vs. Depth', 'Flow Rate', 'Pump P.', 'Impact F.', 'HSI', 'BH ECD', '', ''],
+      ['Solids Analysis', 'vs. Depth', 'LGS (%)', 'LGS (lb/bbl)', 'HGS (%)', 'HGS (lb/bbl)', 'Avg. SG', '', ''],
+      ['Volume', 'vs. Depth', 'Start', 'Daily Add.', 'Daily Loss', 'Daily Transfer', 'End', '', ''],
+      ['SCE', 'vs. Depth', '', '', '', '', '', '', ''],
+      ['Bit', 'vs. Depth', 'Bit', 'Size', 'TFA', 'Depth-in', 'Depth', '', ''],
+      ['Customized', 'vs. Depth', 'MW', 'Total', 'WOB', 'RPM', 'ROP', '', 'For Calculation'],
+    ];
+
+    return Container(
+      width: 900,
+      height: 350,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 30,
+            color: AppTheme.panelHeaderBlue,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Recap Options - Graph',
+              style: AppTheme.bodyLarge.copyWith(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 112,
+                  color: const Color(0xFFF1F5FA),
+                  padding: const EdgeInsets.all(7),
+                  child: Column(
+                    children: [
+                      for (final item in navigationItems)
+                        Container(
+                          height: 36,
+                          margin: const EdgeInsets.only(bottom: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 9),
+                          alignment: Alignment.centerLeft,
+                          color: item == 'Graph'
+                              ? AppTheme.panelHeaderBlue
+                              : Colors.transparent,
+                          child: Text(
+                            item,
+                            style: AppTheme.bodyLarge.copyWith(
+                              color: item == 'Graph'
+                                  ? Colors.white
+                                  : AppTheme.textPrimary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _manualOptionGroup(
+                                'Line Graph',
+                                const ['Minor grid', 'Minor tick'],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _manualOptionGroup(
+                                'Depth Cost Graph',
+                                const ['2D well path'],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _manualOptionGroup(
+                                'Mud Properties',
+                                const [
+                                  'Plot planned data range',
+                                  'Mud type indication',
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: ClipRect(
+                            child: Table(
+                              border: TableBorder.all(
+                                color: AppTheme.tableBorderBlue,
+                              ),
+                              columnWidths: const {
+                                0: FlexColumnWidth(1.35),
+                                1: FlexColumnWidth(1.05),
+                                2: FlexColumnWidth(1.05),
+                                3: FlexColumnWidth(1.05),
+                                4: FlexColumnWidth(1.05),
+                                5: FlexColumnWidth(1.05),
+                                6: FlexColumnWidth(1.05),
+                                7: FlexColumnWidth(0.68),
+                                8: FlexColumnWidth(0.92),
+                              },
+                              children: [
+                                TableRow(
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFE7F1FB),
+                                  ),
+                                  children: [
+                                    for (final header in headers)
+                                      _manualCompactTableCell(
+                                        header,
+                                        header: true,
+                                      ),
+                                  ],
+                                ),
+                                for (var index = 0; index < rows.length; index++)
+                                  TableRow(
+                                    decoration: BoxDecoration(
+                                      color: index == 2 || index == 3
+                                          ? const Color(0xFFFFF9D7)
+                                          : Colors.white,
+                                    ),
+                                    children: [
+                                      for (final value in rows[index])
+                                        _manualCompactTableCell(value),
+                                    ],
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _manualOptionGroup(String title, List<String> options) {
+    return Container(
+      height: 62,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F9FC),
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          for (final option in options)
+            Row(
+              children: [
+                Icon(
+                  Icons.check_box,
+                  size: 12,
+                  color: AppTheme.panelHeaderBlue,
+                ),
+                const SizedBox(width: 3),
+                Expanded(
+                  child: Text(
+                    option,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.bodyLarge.copyWith(fontSize: 8),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _manualCompactTableCell(String value, {bool header = false}) {
+    return Container(
+      height: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      alignment: Alignment.centerLeft,
+      child: Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppTheme.bodyLarge.copyWith(
+          fontSize: 7,
+          fontWeight: header ? FontWeight.w700 : FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _recapExplorerPreview({
+    required String selectedItem,
+    required Widget child,
+    required double height,
+  }) {
+    const standardItems = [
+      'Summary',
+      'Cost Distribution',
+      'Daily Cost',
+      'Depth Cost',
+      'Cumulative Cost',
+      'Drilling Data',
+      'Mud Properties',
+      'Hydraulics',
+    ];
+    final items = selectedItem == 'Engineer'
+        ? [
+            ...standardItems,
+            'Solid Analysis',
+            'Volume',
+            'Usage',
+            'Concentration',
+            'Time Distribution',
+            'Solid Control Equipment',
+            'Bit',
+            'Remarks',
+            'Interval',
+            'Survey',
+            'Customized',
+            'Engineer',
+          ]
+        : selectedItem == 'Customized'
+        ? [
+            ...standardItems,
+            'Solid Analysis',
+            'Volume',
+            'Usage',
+            'Concentration',
+            'Time Distribution',
+            'Solid Control Equipment',
+            'Bit',
+            'Remarks',
+            'Interval',
+            'Survey',
+            'Customized',
+          ]
+        : selectedItem == 'Survey'
+        ? [
+            ...standardItems,
+            'Solid Analysis',
+            'Volume',
+            'Usage',
+            'Concentration',
+            'Time Distribution',
+            'Solid Control Equipment',
+            'Bit',
+            'Remarks',
+            'Interval',
+            'Survey',
+          ]
+        : selectedItem == 'Interval'
+        ? [
+            ...standardItems,
+            'Solid Analysis',
+            'Volume',
+            'Usage',
+            'Concentration',
+            'Time Distribution',
+            'Solid Control Equipment',
+            'Bit',
+            'Remarks',
+            'Interval',
+          ]
+        : selectedItem == 'Remarks'
+        ? [
+            ...standardItems,
+            'Solid Analysis',
+            'Volume',
+            'Usage',
+            'Concentration',
+            'Time Distribution',
+            'Solid Control Equipment',
+            'Bit',
+            'Remarks',
+          ]
+        : selectedItem == 'Bit'
+        ? [
+            ...standardItems,
+            'Solid Analysis',
+            'Volume',
+            'Usage',
+            'Concentration',
+            'Time Distribution',
+            'Solid Control Equipment',
+            'Bit',
+          ]
+        : selectedItem == 'Solid Control Equipment'
+        ? [
+            ...standardItems,
+            'Solid Analysis',
+            'Volume',
+            'Usage',
+            'Concentration',
+            'Time Distribution',
+            'Solid Control Equipment',
+          ]
+        : selectedItem == 'Time Distribution'
+        ? [
+            ...standardItems,
+            'Solid Analysis',
+            'Volume',
+            'Usage',
+            'Concentration',
+            'Time Distribution',
+          ]
+        : selectedItem == 'Concentration'
+        ? [
+            ...standardItems,
+            'Solid Analysis',
+            'Volume',
+            'Usage',
+            'Concentration',
+          ]
+        : selectedItem == 'Usage'
+        ? [...standardItems, 'Solid Analysis', 'Volume', 'Usage']
+        : selectedItem == 'Volume'
+        ? [...standardItems, 'Solid Analysis', 'Volume']
+        : selectedItem == 'Solid Analysis'
+        ? [...standardItems, 'Solid Analysis']
+        : standardItems;
+    return Container(
+      width: 900,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 28,
+            color: AppTheme.panelHeaderBlue,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'MSR2_DMR - Recap',
+              style: AppTheme.bodyLarge.copyWith(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 126,
+                  color: const Color(0xFFF1F5FA),
+                  padding: const EdgeInsets.all(7),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        for (final item in items)
+                          Container(
+                            height: 29,
+                            margin: const EdgeInsets.only(bottom: 3),
+                            padding: const EdgeInsets.symmetric(horizontal: 7),
+                            alignment: Alignment.centerLeft,
+                            color: item == selectedItem
+                                ? AppTheme.panelHeaderBlue
+                                : Colors.transparent,
+                            child: Text(
+                              item,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTheme.bodyLarge.copyWith(
+                                color: item == selectedItem
+                                    ? Colors.white
+                                    : AppTheme.textPrimary,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: child,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _recapDataTable(List<String> headers, List<List<String>> rows) {
+    return Table(
+      border: TableBorder.all(color: AppTheme.tableBorderBlue),
+      children: [
+        TableRow(
+          decoration: const BoxDecoration(color: Color(0xFFE7F1FB)),
+          children: [
+            for (final header in headers)
+              Padding(
+                padding: const EdgeInsets.all(7),
+                child: Text(
+                  header,
+                  textAlign: TextAlign.center,
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        for (final row in rows)
+          TableRow(
+            children: [
+              for (final value in row)
+                Padding(
+                  padding: const EdgeInsets.all(7),
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.center,
+                    style: AppTheme.bodyLarge.copyWith(fontSize: 10),
+                  ),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _manualOptionRow(String label, {required bool checked}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5),
+      child: Row(
+        children: [
+          Icon(
+            checked ? Icons.check_box : Icons.check_box_outline_blank,
+            size: 18,
+            color: AppTheme.panelHeaderBlue,
+          ),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: AppTheme.bodyLarge.copyWith(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _outputSummaryPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'The Summary tab brings the current report overview into one place. It shows the wellbore schematic, KPI dashboard, cost distribution, and progress charts for quick review.',
+        ),
+        const SizedBox(height: 8),
+        _outputSummaryWindowMock(),
+        const SizedBox(height: 20),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              'The sections displayed on this page can be customized from ',
+              style: AppTheme.bodyLarge.copyWith(
+                color: AppTheme.textPrimary,
+                fontSize: 15,
+              ),
+            ),
+            _inlineManualLinkTo(
+              'Output Options - Summary',
+              target: 'Output Options',
+            ),
+            Text(
+              '.',
+              style: AppTheme.bodyLarge.copyWith(
+                color: AppTheme.textPrimary,
+                fontSize: 15,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _outputSummaryWindowMock() {
+    const explorerItems = [
+      'Summary',
+      'Detail',
+      'Daily Cost',
+      'Total Cost',
+      'Concentration',
+      'Time Distribution',
+      'Survey',
+      'Alert',
+    ];
+
+    return Container(
+      width: 760,
+      height: 310,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 28,
+            color: AppTheme.panelHeaderBlue,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'MSR2_DMR - Daily Output',
+              style: AppTheme.bodyLarge.copyWith(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 112,
+                  color: const Color(0xFFF1F5FA),
+                  padding: const EdgeInsets.fromLTRB(7, 9, 7, 7),
+                  child: Column(
+                    children: [
+                      for (final item in explorerItems)
+                        Container(
+                          height: 28,
+                          margin: const EdgeInsets.only(bottom: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          alignment: Alignment.centerLeft,
+                          decoration: BoxDecoration(
+                            color: item == 'Summary'
+                                ? AppTheme.panelHeaderBlue
+                                : Colors.transparent,
+                            border: Border.all(
+                              color: item == 'Summary'
+                                  ? AppTheme.panelHeaderBlue
+                                  : Colors.transparent,
+                            ),
+                          ),
+                          child: Text(
+                            item,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.bodyLarge.copyWith(
+                              color: item == 'Summary'
+                                  ? Colors.white
+                                  : AppTheme.textPrimary,
+                              fontSize: 10,
+                              fontWeight: item == 'Summary'
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: FittedBox(
+                      alignment: Alignment.topLeft,
+                      fit: BoxFit.contain,
+                      child: _outputDashboardPreview(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _outputDetailPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _outputDetailWindowMock(),
+        const SizedBox(height: 20),
+        _manualParagraph(
+          'The Detail tab presents the calculated hydraulics and volume information for the current report.',
+        ),
+        _manualHeading('1. Geometry'),
+        _manualParagraph(
+          'Geometry lists the drill string and annular sections with their start depth, end depth, volume, and volume per unit length.',
+        ),
+        _manualHeading('2. Circulation'),
+        _manualParagraph(
+          'Circulation shows the estimated time and pump strokes required for each circulation path.',
+        ),
+        _manualHeading('3. Annular Hydraulics'),
+        _manualParagraph(
+          'Annular Hydraulics summarizes fluid velocity, Reynolds number, critical velocity, critical Reynolds number, flow regime, and ECD by section.',
+        ),
+        _manualHeading('4. Solids Analysis'),
+        _manualParagraph(
+          'Solids Analysis displays the calculated solids results for the selected mud sample and its configured fluid properties.',
+        ),
+        _manualHeading('5. Bit Hydraulics'),
+        _manualParagraph(
+          'Bit Hydraulics displays nozzle and bit performance results. The section remains empty when required pump, bit, or nozzle inputs are incomplete.',
+        ),
+        _manualHeading('6. Volume'),
+        _manualParagraph(
+          'Volume summarizes displacement, string, annulus, below-bit, hole, pit, and total circulating volumes.',
+        ),
+      ],
+    );
+  }
+
+  Widget _outputDetailWindowMock() {
+    const explorerItems = [
+      'Summary',
+      'Detail',
+      'Daily Cost',
+      'Total Cost',
+      'Concentration',
+      'Time Distribution',
+      'Survey',
+      'Alert',
+    ];
+
+    return Container(
+      width: 780,
+      height: 390,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 28,
+            color: AppTheme.panelHeaderBlue,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'MSR2_DMR - Daily Output',
+              style: AppTheme.bodyLarge.copyWith(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 112,
+                  color: const Color(0xFFF1F5FA),
+                  padding: const EdgeInsets.fromLTRB(7, 9, 7, 7),
+                  child: Column(
+                    children: [
+                      for (final item in explorerItems)
+                        Container(
+                          height: 28,
+                          margin: const EdgeInsets.only(bottom: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          alignment: Alignment.centerLeft,
+                          color: item == 'Detail'
+                              ? AppTheme.panelHeaderBlue
+                              : Colors.transparent,
+                          child: Text(
+                            item,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.bodyLarge.copyWith(
+                              color: item == 'Detail'
+                                  ? Colors.white
+                                  : AppTheme.textPrimary,
+                              fontSize: 10,
+                              fontWeight: item == 'Detail'
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: _outputDetailTable(
+                                  'Geometry',
+                                  const ['Description', 'Start', 'End', 'Vol.'],
+                                  const [
+                                    ['Casing', '0', '2800', '426.4'],
+                                    ['Open hole', '2800', '9848', '471.8'],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                flex: 2,
+                                child: _outputDetailTable(
+                                  'Circulation',
+                                  const ['Path', 'Min.', 'Strokes'],
+                                  const [
+                                    ['Surface - Bit', '22', '656'],
+                                    ['Bottom up', '52', '1574'],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Expanded(
+                          flex: 3,
+                          child: _outputDetailTable(
+                            'Annular Hydraulics',
+                            const [
+                              'Section',
+                              'Length',
+                              'Velocity',
+                              'Re',
+                              'Flow',
+                              'ECD',
+                            ],
+                            const [
+                              [
+                                'Casing / pipe',
+                                '5913',
+                                '157.8',
+                                '5455',
+                                'Turbulent',
+                                '8.72',
+                              ],
+                              [
+                                'Open hole / BHA',
+                                '2349',
+                                '330.6',
+                                '4605',
+                                'Turbulent',
+                                '9.35',
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Expanded(
+                          flex: 3,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _outputDetailTable(
+                                  'Solids Analysis',
+                                  const ['Property', 'Sample'],
+                                  const [
+                                    ['LGS (%)', '9.7'],
+                                    ['HGS (%)', '0.0'],
+                                    ['Avg. SG', '2.09'],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: _outputDetailTable(
+                                  'Bit Hydraulics',
+                                  const ['Property', 'Result'],
+                                  const [
+                                    ['TFA', '0.55'],
+                                    ['Jet velocity', '88.0'],
+                                    ['Bit HHP', '4.8'],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: _outputDetailTable(
+                                  'Volume',
+                                  const ['Description', 'bbl'],
+                                  const [
+                                    ['Hole', '898.1'],
+                                    ['Active pits', '403.0'],
+                                    ['Circulating', '1301.1'],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _outputDetailTable(
+    String title,
+    List<String> columns,
+    List<List<String>> rows,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 22,
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            alignment: Alignment.centerLeft,
+            color: AppTheme.panelHeaderBlue,
+            child: Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.bodyLarge.copyWith(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 21,
+            child: Row(
+              children: [
+                for (final column in columns)
+                  Expanded(
+                    child: Container(
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        color: AppTheme.tableHeaderBlue,
+                        border: Border(
+                          right: BorderSide(color: AppTheme.tableBorderBlue),
+                          bottom: BorderSide(color: AppTheme.tableBorderBlue),
+                        ),
+                      ),
+                      child: Text(
+                        column,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTheme.bodyLarge.copyWith(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          for (final row in rows)
+            Expanded(
+              child: Row(
+                children: [
+                  for (var index = 0; index < columns.length; index++)
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        alignment: index == 0
+                            ? Alignment.centerLeft
+                            : Alignment.centerRight,
+                        decoration: BoxDecoration(
+                          color: index == 0
+                              ? Colors.white
+                              : const Color(0xFFFFFDE7),
+                          border: const Border(
+                            right: BorderSide(color: AppTheme.tableBorderBlue),
+                            bottom: BorderSide(color: AppTheme.tableBorderBlue),
+                          ),
+                        ),
+                        child: Text(
+                          index < row.length ? row[index] : '',
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTheme.bodyLarge.copyWith(fontSize: 8),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _outputDailyCostPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _outputDailyCostWindowMock(tableView: false),
+        const SizedBox(height: 20),
+        _manualParagraph(
+          'Daily Cost includes Product, Service, Engineering, Package, and Pre-mixed Mud cost details. Use the view tabs to switch between distribution charts and tabular data.',
+        ),
+        const SizedBox(height: 8),
+        _outputDailyCostWindowMock(tableView: true),
+      ],
+    );
+  }
+
+  Widget _outputDailyCostWindowMock({required bool tableView}) {
+    const explorerItems = [
+      'Summary',
+      'Detail',
+      'Daily Cost',
+      'Total Cost',
+      'Concentration',
+      'Time Distribution',
+      'Survey',
+      'Alert',
+    ];
+
+    return Container(
+      width: 780,
+      height: tableView ? 350 : 330,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 28,
+            color: AppTheme.panelHeaderBlue,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'MSR2_DMR - Daily Output',
+              style: AppTheme.bodyLarge.copyWith(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 112,
+                  color: const Color(0xFFF1F5FA),
+                  padding: const EdgeInsets.fromLTRB(7, 9, 7, 7),
+                  child: Column(
+                    children: [
+                      for (final item in explorerItems)
+                        Container(
+                          height: 28,
+                          margin: const EdgeInsets.only(bottom: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          alignment: Alignment.centerLeft,
+                          color: item == 'Daily Cost'
+                              ? AppTheme.panelHeaderBlue
+                              : Colors.transparent,
+                          child: Text(
+                            item,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.bodyLarge.copyWith(
+                              color: item == 'Daily Cost'
+                                  ? Colors.white
+                                  : AppTheme.textPrimary,
+                              fontSize: 10,
+                              fontWeight: item == 'Daily Cost'
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: tableView
+                        ? _outputDetailTable(
+                            'Daily Cost - All Categories',
+                            const [
+                              'Category',
+                              'Item',
+                              'Price',
+                              'Initial',
+                              'Received',
+                              'Returned',
+                              'Used',
+                              'Final',
+                              'Cost',
+                              '%',
+                            ],
+                            const [
+                              [
+                                'Product',
+                                'Base fluid',
+                                '100',
+                                '100',
+                                '0',
+                                '0',
+                                '15',
+                                '85',
+                                '1500',
+                                '72.7',
+                              ],
+                              [
+                                'Product',
+                                'Weight material',
+                                '35',
+                                '80',
+                                '10',
+                                '0',
+                                '20',
+                                '70',
+                                '700',
+                                '17.8',
+                              ],
+                              [
+                                'Service',
+                                'Bulk trucking',
+                                '30',
+                                '0',
+                                '0',
+                                '0',
+                                '10',
+                                '0',
+                                '300',
+                                '5.8',
+                              ],
+                              [
+                                'Engineering',
+                                'Mud engineer',
+                                '600',
+                                '0',
+                                '0',
+                                '0',
+                                '1',
+                                '0',
+                                '600',
+                                '3.7',
+                              ],
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Expanded(
+                                child: _dailyCostChart(
+                                  'Daily Cost Distribution - Product',
+                                  const [
+                                    MapEntry('Base fluid', 0.78),
+                                    MapEntry('Weight material', 0.24),
+                                    MapEntry('Oil mud', 0.15),
+                                    MapEntry('Chemical', 0.10),
+                                    MapEntry('LCM', 0.07),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _dailyCostChart(
+                                  'Daily Cost Distribution - Group',
+                                  const [
+                                    MapEntry('Weight material', 0.82),
+                                    MapEntry('Emulsifier', 0.18),
+                                    MapEntry('Base fluid', 0.14),
+                                    MapEntry('Thinner', 0.09),
+                                    MapEntry('Common chemical', 0.07),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                Container(
+                  width: 34,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  color: const Color(0xFFF1F5FA),
+                  child: Column(
+                    children: [
+                      _dailyCostViewTab('Graph', !tableView),
+                      const SizedBox(height: 5),
+                      _dailyCostViewTab('Table', tableView),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dailyCostChart(String title, List<MapEntry<String, double>> values) {
+    final maxValue = values.isEmpty
+        ? 0.0
+        : values
+              .map((entry) => entry.value.abs())
+              .reduce((first, second) => first > second ? first : second);
+    final scale = maxValue <= 1.0
+        ? 1.0
+        : maxValue <= 100.0
+        ? 100.0
+        : maxValue;
+
+    return Container(
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 28,
+            alignment: Alignment.center,
+            color: AppTheme.tableHeaderBlue,
+            child: Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+              child: Column(
+                children: [
+                  for (final value in values)
+                    Expanded(
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 78,
+                            child: Text(
+                              value.key,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTheme.bodyLarge.copyWith(fontSize: 8),
+                            ),
+                          ),
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: FractionallySizedBox(
+                                widthFactor: (value.value / scale).clamp(
+                                  0.0,
+                                  1.0,
+                                ),
+                                child: Container(
+                                  height: 13,
+                                  color: AppTheme.panelHeaderBlue,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dailyCostViewTab(String label, bool selected) {
+    return Container(
+      width: 25,
+      height: 72,
+      alignment: Alignment.center,
+      color: selected ? AppTheme.panelHeaderBlue : AppTheme.tableHeaderBlue,
+      child: RotatedBox(
+        quarterTurns: 1,
+        child: Text(
+          label,
+          style: AppTheme.bodyLarge.copyWith(
+            color: selected ? Colors.white : AppTheme.textPrimary,
+            fontSize: 8,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _outputTotalCostPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _outputTotalCostWindowMock(),
+        const SizedBox(height: 20),
+        _manualParagraph(
+          'Total Cost shows the cumulative daily cost for Products, Pre-mixed Mud, Packages, Services, and Engineering. Use the view controls on the right to review cumulative trends as graphs or detailed tabular data.',
+        ),
+      ],
+    );
+  }
+
+  Widget _outputTotalCostWindowMock() {
+    const explorerItems = [
+      'Summary',
+      'Detail',
+      'Daily Cost',
+      'Total Cost',
+      'Concentration',
+      'Time Distribution',
+      'Survey',
+      'Alert',
+    ];
+    const charts = [
+      MapEntry('Product', Color(0xFF6EA7E8)),
+      MapEntry('Pre-mixed Mud', Color(0xFF69C6DF)),
+      MapEntry('Package', Color(0xFFF0B45A)),
+      MapEntry('Service', Color(0xFF9BC66B)),
+      MapEntry('Engineering', Color(0xFF9B7BC3)),
+    ];
+    const chartPoints = [
+      <Offset>[
+        Offset(0.00, 0.94),
+        Offset(0.52, 0.94),
+        Offset(0.58, 0.08),
+        Offset(0.64, 0.90),
+        Offset(0.73, 0.82),
+        Offset(0.80, 0.89),
+        Offset(1.00, 0.94),
+      ],
+      <Offset>[
+        Offset(0.00, 0.96),
+        Offset(0.48, 0.96),
+        Offset(0.55, 0.18),
+        Offset(0.61, 0.96),
+        Offset(1.00, 0.96),
+      ],
+      <Offset>[Offset(0.00, 0.96), Offset(1.00, 0.96)],
+      <Offset>[
+        Offset(0.00, 0.92),
+        Offset(0.10, 0.77),
+        Offset(0.20, 0.91),
+        Offset(0.35, 0.83),
+        Offset(0.48, 0.90),
+        Offset(0.58, 0.42),
+        Offset(0.68, 0.88),
+        Offset(0.78, 0.33),
+        Offset(0.88, 0.84),
+        Offset(0.96, 0.70),
+      ],
+      <Offset>[
+        Offset(0.00, 0.78),
+        Offset(0.72, 0.78),
+        Offset(0.78, 0.30),
+        Offset(1.00, 0.30),
+      ],
+    ];
+
+    return Container(
+      width: 900,
+      height: 390,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 28,
+            color: AppTheme.panelHeaderBlue,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'MSR2_DMR - Daily Output',
+              style: AppTheme.bodyLarge.copyWith(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 112,
+                  color: const Color(0xFFF1F5FA),
+                  padding: const EdgeInsets.fromLTRB(7, 9, 7, 7),
+                  child: Column(
+                    children: [
+                      for (final item in explorerItems)
+                        Container(
+                          height: 28,
+                          margin: const EdgeInsets.only(bottom: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          alignment: Alignment.centerLeft,
+                          color: item == 'Total Cost'
+                              ? AppTheme.panelHeaderBlue
+                              : Colors.transparent,
+                          child: Text(
+                            item,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.bodyLarge.copyWith(
+                              color: item == 'Total Cost'
+                                  ? Colors.white
+                                  : AppTheme.textPrimary,
+                              fontSize: 10,
+                              fontWeight: item == 'Total Cost'
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 10, 6, 10),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Daily Total Cost',
+                          style: AppTheme.bodyLarge.copyWith(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              for (
+                                var index = 0;
+                                index < charts.length;
+                                index++
+                              ) ...[
+                                Expanded(
+                                  child: _totalCostMiniChart(
+                                    charts[index].key,
+                                    charts[index].value,
+                                    chartPoints[index],
+                                  ),
+                                ),
+                                if (index < charts.length - 1)
+                                  const SizedBox(width: 8),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 34,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  color: const Color(0xFFF1F5FA),
+                  child: Column(
+                    children: [
+                      _dailyCostViewTab('Graph', true),
+                      const SizedBox(height: 5),
+                      _dailyCostViewTab('Table', false),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _totalCostMiniChart(String title, Color color, List<Offset> points) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 24,
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: AppTheme.tableBorderBlue),
+            ),
+            padding: const EdgeInsets.fromLTRB(5, 6, 5, 4),
+            child: CustomPaint(
+              painter: _TotalCostMiniChartPainter(
+                points: points,
+                lineColor: color,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text('Day', style: AppTheme.bodyLarge.copyWith(fontSize: 8)),
+      ],
+    );
+  }
+
+  Widget _outputConcentrationPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _outputConcentrationWindowMock(historyTable: false),
+        const SizedBox(height: 20),
+        _manualParagraph(
+          'Concentration graphs track up to five products selected in Pad > Inventory for concentration calculation. Each line shows how the selected product concentration changes through the report sequence.',
+        ),
+        const SizedBox(height: 10),
+        _manualParagraph(
+          'Use the pit selector in the upper-right corner to review the active system or a reserve pit. The Current Table view shows the latest concentrations, while the History Table view lists the values recorded across reports.',
+        ),
+        const SizedBox(height: 18),
+        _outputConcentrationWindowMock(historyTable: true),
+        const SizedBox(height: 18),
+        _manualParagraph(
+          'The concentration history table displays report date, measured depth, report number, and product concentrations for the selected active system or reserve pit.',
+        ),
+      ],
+    );
+  }
+
+  Widget _outputTimeDistributionPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _outputTimeDistributionWindowMock(),
+        const SizedBox(height: 20),
+        _manualParagraph(
+          'Time Distribution summarizes how the current report day is divided among recorded drilling activities. Each horizontal bar shows the activity duration and its percentage of the total reported time.',
+        ),
+      ],
+    );
+  }
+
+  Widget _outputSurveyPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _surveyOutputMock(),
+        const SizedBox(height: 20),
+        _manualParagraph(
+          'Survey compares the actual directional survey recorded through daily reports with the planned survey entered in Well > Survey. Section View, Plan View, and Dogleg charts use separate colors so the actual and planned well paths can be reviewed together.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapWindowsPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              'Recap includes ',
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 15,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            _inlineManualLinkTo('Toolbar', target: 'Recap Toolbar'),
+            Text(
+              ', ',
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 15,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            _inlineManualLinkTo(
+              'Recap Job Explorer',
+              target: 'Recap Job Explorer',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _recapToolbarPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph('The recap toolbar includes:'),
+        const SizedBox(height: 12),
+        _inlineManualLinkTo('Home & Report', target: 'Recap Home & Report'),
+        const SizedBox(height: 18),
+        _inlineManualLinkTo('Options', target: 'Recap Options'),
+      ],
+    );
+  }
+
+  Widget _recapHomeReportPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _recapToolbarPreview(
+          activeTab: 'Home',
+          actions: const [
+            (Icons.arrow_back_outlined, 'Go to Input'),
+            (Icons.settings_outlined, 'Options'),
+          ],
+        ),
+        const SizedBox(height: 18),
+        _numberedHelp(
+          '1.',
+          'Go to Input returns from the Recap output to the main MSR2_DMR input workspace without changing the current report data.',
+        ),
+        _numberedHelp(
+          '2.',
+          'Options opens the Recap configuration used to control summary panels, report content, and export preferences.',
+        ),
+        const SizedBox(height: 22),
+        _recapToolbarPreview(
+          activeTab: 'Report',
+          actions: const [
+            (Icons.description_outlined, 'Recap Detail Report'),
+            (Icons.summarize_outlined, 'Recap Summary'),
+            (Icons.table_chart_outlined, 'Interval Detail Report'),
+            (Icons.view_list_outlined, 'Interval Summary Report'),
+            (Icons.water_drop_outlined, 'Mud Volume Accounting'),
+            (Icons.payments_outlined, 'Cost Summary'),
+            (Icons.analytics_outlined, 'Concentration Report'),
+          ],
+        ),
+        const SizedBox(height: 18),
+        _numberedHelp(
+          '1.',
+          'Recap Detail Report generates the complete recap detail for the selected well using the configured report and export settings.',
+        ),
+        _numberedHelp(
+          '2.',
+          'Recap Summary generates a concise summary of the selected well and its available daily report data.',
+        ),
+        _numberedHelp(
+          '3.',
+          'Interval Detail Report generates detailed results for each configured drilling interval.',
+        ),
+        _numberedHelp(
+          '4.',
+          'Interval Summary Report generates a summarized view of the configured drilling intervals.',
+        ),
+        _numberedHelp(
+          '5.',
+          'Mud Volume Accounting generates the available water-based and oil-based mud volume accounting sheets from report data.',
+        ),
+        _numberedHelp(
+          '6.',
+          'Cost Summary generates the current well cost summary from product, service, engineering, package, and other recorded costs.',
+        ),
+        _numberedHelp(
+          '7.',
+          'Concentration Report generates product concentration results for the active system and available reserve pits.',
+        ),
+      ],
+    );
+  }
+
+  Widget _recapOptionsPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _manualParagraph(
+          'Recap Options controls which information appears in recap dashboards, tables, graphs, and exported recap reports.',
+        ),
+        _manualHeading('1. Group'),
+        _manualParagraph(
+          'Group settings select the result categories available in the Recap window. Clear a category to remove it from the recap workspace and its related output choices.',
+        ),
+        _recapOptionsMock('Group'),
+        const SizedBox(height: 24),
+        _manualHeading('2. Summary'),
+        _manualParagraph(
+          'Summary settings configure the KPI dashboard, cost-distribution panels, and progress charts shown on the Recap Summary page.',
+        ),
+        _recapOptionsMock('Summary'),
+        const SizedBox(height: 24),
+        _manualHeading('3. Range'),
+        _manualParagraph(
+          'Range settings define the reports included in the recap. The scope can include all reports or a selected date, report-number, or drilling-interval range.',
+        ),
+        _recapOptionsMock('Range'),
+        const SizedBox(height: 24),
+        _manualHeading('4. Report'),
+        _manualParagraph(
+          'Report settings control which graphs, tables, summaries, and usage details are included when a recap report is generated.',
+        ),
+        _recapOptionsMock('Report'),
+        const SizedBox(height: 24),
+        _manualHeading('5. Sample'),
+        _manualParagraph(
+          'Sample settings select the mud-check samples displayed in Recap Mud Properties tables. Any combination of Samples 1 through 4 can be included.',
+        ),
+        _recapOptionsMock('Sample'),
+        const SizedBox(height: 24),
+        _manualHeading('6. Graph'),
+        _manualParagraph(
+          'Graph settings control chart guides, depth-cost orientation, mud-property indicators, and the data series assigned to recap graphs.',
+        ),
+        _recapOptionsMock('Graph'),
+      ],
+    );
+  }
+
+  Widget _recapOptionsMock(String activeSection) {
+    final height = activeSection == 'Graph' ? 360.0 : 310.0;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 780),
+      child: Container(
+        width: double.infinity,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: AppTheme.tableBorderBlue),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              height: 30,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              alignment: Alignment.centerLeft,
+              color: AppTheme.panelHeaderBlue,
+              child: Text(
+                'Recap Options',
+                style: AppTheme.bodyLarge.copyWith(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    width: 108,
+                    color: const Color(0xFFF4F7FA),
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Column(
+                      children: [
+                        for (final section in const [
+                          'Group',
+                          'Summary',
+                          'Range',
+                          'Report',
+                          'Sample',
+                          'Graph',
+                        ])
+                          _recapOptionNav(section, section == activeSection),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: _recapOptionsContent(activeSection),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F9FC),
+                border: Border(top: BorderSide(color: Colors.grey.shade300)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (activeSection == 'Summary' ||
+                      activeSection == 'Sample' ||
+                      activeSection == 'Graph') ...[
+                    _smallButton('Default'),
+                    const SizedBox(width: 8),
+                  ],
+                  _smallButton('OK'),
+                  const SizedBox(width: 8),
+                  _smallButton('Cancel'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _recapOptionNav(String label, bool active) {
+    return Container(
+      height: 34,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.centerLeft,
+      color: active ? AppTheme.tableHeaderBlue : Colors.transparent,
+      child: Text(
+        label,
+        style: AppTheme.bodyLarge.copyWith(
+          color: AppTheme.textPrimary,
+          fontSize: 11,
+          fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _recapOptionsContent(String section) {
+    switch (section) {
+      case 'Group':
+        return _recapGroupOptions();
+      case 'Summary':
+        return _recapSummaryOptions();
+      case 'Range':
+        return _recapRangeOptions();
+      case 'Report':
+        return _recapReportOptions();
+      case 'Sample':
+        return _recapSampleOptions();
+      default:
+        return _recapGraphOptions();
+    }
+  }
+
+  Widget _recapGroupOptions() {
+    const groups = [
+      'Summary',
+      'Cost Distribution',
+      'Daily Cost',
+      'Depth Cost',
+      'Cumulative Cost',
+      'Drilling Data',
+      'Mud Properties',
+      'Hydraulics',
+      'Solids',
+      'Volume',
+      'Usage',
+      'Concentration',
+      'Time Distribution',
+      'SCE',
+      'Bit',
+      'Remarks',
+      'Interval',
+      'Survey',
+      'Customized',
+      'Engineer',
+      'Safety',
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('Groups displayed in Recap'),
+        Expanded(child: _recapCheckWrap(groups)),
+      ],
+    );
+  }
+
+  Widget _recapSummaryOptions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('Dashboard (up to 3)'),
+        _recapCheckWrap(const [
+          'Depth with Target',
+          'Cost with Budget',
+          'Day with Goal',
+        ]),
+        const SizedBox(height: 6),
+        _sectionHeader('Cost Distribution (up to 2)'),
+        _recapCheckWrap(const [
+          'Top 10 Products',
+          'Product',
+          'Group',
+          'Package',
+          'Service',
+          'Engineering',
+          'All Categories',
+        ]),
+        const SizedBox(height: 6),
+        _sectionHeader('Progress (up to 3)'),
+        Expanded(
+          child: _recapCheckWrap(const [
+            'Depth',
+            'Cumulative Product Cost',
+            'Cumulative Service Cost',
+            'Cumulative Total Cost',
+            'Mud Weight',
+            'Funnel Viscosity',
+            'PV',
+            'YP',
+            'ROP',
+            'RPM',
+            'Bottom-hole ECD',
+            'LGS',
+            'HGS',
+          ]),
+        ),
+      ],
+    );
+  }
+
+  Widget _recapRangeOptions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('Recap Range'),
+        _radioMock('All available reports', selected: true),
+        _recapRangeRow('Date', 'From date', 'To date'),
+        _recapRangeRow('Report number', 'From report', 'To report'),
+        _recapRangeRow('Drilling interval', 'Select interval', ''),
+      ],
+    );
+  }
+
+  Widget _recapRangeRow(String label, String from, String to) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          const Icon(Icons.radio_button_off, size: 14, color: Colors.grey),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 115,
+            child: Text(
+              label,
+              style: AppTheme.bodyLarge.copyWith(fontSize: 11),
+            ),
+          ),
+          _recapInputMock(from),
+          if (to.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8),
+              child: Text('to'),
+            ),
+            _recapInputMock(to),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _recapReportOptions() {
+    const sections = [
+      'Cost Distribution',
+      'Daily Cost',
+      'Depth Cost',
+      'Cumulative Cost',
+      'Drilling Data',
+      'Mud Properties',
+      'Hydraulics',
+      'Solids',
+      'Volume',
+      'Usage',
+      'Concentration',
+      'Time Distribution',
+      'SCE',
+      'Bit',
+      'Remarks',
+      'Interval',
+      'Survey',
+      'Customized',
+      'Engineer',
+      'Safety',
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('Content included in Recap reports'),
+        Expanded(
+          child: SingleChildScrollView(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 5,
+              children: [
+                for (final label in sections)
+                  SizedBox(
+                    width: 198,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            label,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.bodyLarge.copyWith(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const Icon(
+                          Icons.check_box,
+                          size: 13,
+                          color: Colors.blue,
+                        ),
+                        Text(
+                          ' Graph ',
+                          style: AppTheme.bodyLarge.copyWith(fontSize: 9),
+                        ),
+                        const Icon(
+                          Icons.check_box,
+                          size: 13,
+                          color: Colors.blue,
+                        ),
+                        Text(
+                          ' Table',
+                          style: AppTheme.bodyLarge.copyWith(fontSize: 9),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _recapSampleOptions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('Mud samples included in Recap'),
+        const SizedBox(height: 8),
+        _recapCheckWrap(const ['Sample 1', 'Sample 2', 'Sample 3', 'Sample 4']),
+      ],
+    );
+  }
+
+  Widget _recapGraphOptions() {
+    const rows = [
+      ['Cumulative Cost', 'vs. Day', 'Product', 'Service', 'Engineering'],
+      ['Drilling Data', 'vs. Day', 'WOB', 'RPM', 'ROP'],
+      ['Mud Properties 1', 'vs. Day', 'MW', 'PV', 'YP'],
+      ['Mud Properties 2', 'vs. Day', 'Funnel Visc.', 'Gel 10 sec.', 'Oil'],
+      ['Hydraulics', 'vs. Day', 'Pump Rate', 'Pump Pressure', 'ECD'],
+      ['Solids Analysis', 'vs. Day', 'LGS', 'HGS', 'Avg. SG'],
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionHeader('Line Graph'),
+                  _checkboxMock('Show major grid', true),
+                  _checkboxMock('Show minor tick marks', true),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionHeader('Depth Cost Graph'),
+                  _radioMock('Vertical Graph', selected: false),
+                  _radioMock('2D Well Path', selected: true),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionHeader('Mud Properties'),
+                  _checkboxMock('Plot planned data range', true),
+                  _checkboxMock('Show mud type', true),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        _sectionHeader('Graph line definitions'),
+        Expanded(
+          child: Column(
+            children: [
+              _recapGraphRow(const [
+                'Explorer Item',
+                'Orientation',
+                'Line 1',
+                'Line 2',
+                'Line 3',
+              ], header: true),
+              for (final row in rows) _recapGraphRow(row),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _recapGraphRow(List<String> cells, {bool header = false}) {
+    return Expanded(
+      child: Row(
+        children: [
+          for (var i = 0; i < cells.length; i++)
+            Expanded(
+              flex: i == 0 ? 3 : 2,
+              child: Container(
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: header ? AppTheme.tableHeaderBlue : Colors.white,
+                  border: Border.all(color: Colors.grey.shade300, width: 0.6),
+                ),
+                child: Text(
+                  cells[i],
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 9,
+                    fontWeight: header ? FontWeight.w800 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _recapCheckWrap(List<String> labels) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 2,
+      children: [
+        for (var i = 0; i < labels.length; i++)
+          SizedBox(width: 176, child: _checkboxMock(labels[i], i % 5 != 3)),
+      ],
+    );
+  }
+
+  Widget _recapInputMock(String hint) {
+    return Container(
+      width: 130,
+      height: 25,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFDC),
+        border: Border.all(color: Colors.grey.shade400),
+      ),
+      child: Text(
+        hint,
+        overflow: TextOverflow.ellipsis,
+        style: AppTheme.bodyLarge.copyWith(
+          fontSize: 10,
+          color: AppTheme.textSecondary,
+        ),
+      ),
+    );
+  }
+
+  Widget _recapToolbarPreview({
+    required String activeTab,
+    required List<(IconData, String)> actions,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 520),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final tab in const ['Home', 'Report'])
+                Container(
+                  width: 92,
+                  height: 30,
+                  alignment: Alignment.center,
+                  color: tab == activeTab
+                      ? AppTheme.panelHeaderBlue
+                      : AppTheme.tableHeaderBlue,
+                  child: Text(
+                    tab,
+                    style: AppTheme.bodyLarge.copyWith(
+                      color: tab == activeTab
+                          ? Colors.white
+                          : AppTheme.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            color: AppTheme.tableHeaderBlue.withOpacity(0.45),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final action in actions)
+                  Tooltip(
+                    message: action.$2,
+                    child: SizedBox(
+                      width: 48,
+                      child: Icon(
+                        action.$1,
+                        size: 20,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _outputTimeDistributionWindowMock() {
+    const explorerItems = [
+      'Summary',
+      'Detail',
+      'Daily Cost',
+      'Total Cost',
+      'Concentration',
+      'Time Distribution',
+      'Survey',
+      'Alert',
+    ];
+    const activities = [
+      ('Tripping', 7.0, 29.2),
+      ('Circulating', 5.0, 20.8),
+      ('Run Casing', 4.0, 16.7),
+      ('Coring/Reaming', 4.0, 16.7),
+      ('Rig-up/Service', 2.0, 8.3),
+      ('Drilling', 2.0, 8.3),
+    ];
+
+    return Container(
+      width: 900,
+      height: 430,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 28,
+            color: AppTheme.panelHeaderBlue,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'MSR2_DMR - Daily Output',
+              style: AppTheme.bodyLarge.copyWith(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 112,
+                  color: const Color(0xFFF1F5FA),
+                  padding: const EdgeInsets.fromLTRB(7, 9, 7, 7),
+                  child: Column(
+                    children: [
+                      for (final item in explorerItems)
+                        Container(
+                          height: 28,
+                          margin: const EdgeInsets.only(bottom: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          alignment: Alignment.centerLeft,
+                          color: item == 'Time Distribution'
+                              ? AppTheme.panelHeaderBlue
+                              : Colors.transparent,
+                          child: Text(
+                            item,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.bodyLarge.copyWith(
+                              color: item == 'Time Distribution'
+                                  ? Colors.white
+                                  : AppTheme.textPrimary,
+                              fontSize: 10,
+                              fontWeight: item == 'Time Distribution'
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Time Distribution',
+                          textAlign: TextAlign.center,
+                          style: AppTheme.bodyLarge.copyWith(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(
+                                color: AppTheme.tableBorderBlue,
+                              ),
+                            ),
+                            padding: const EdgeInsets.fromLTRB(8, 10, 12, 7),
+                            child: Column(
+                              children: [
+                                for (final activity in activities) ...[
+                                  _timeDistributionBar(
+                                    activity.$1,
+                                    activity.$2,
+                                    activity.$3,
+                                  ),
+                                  if (activity != activities.last)
+                                    const SizedBox(height: 13),
+                                ],
+                                const Spacer(),
+                                _timeDistributionAxis(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 38,
+                  color: const Color(0xFFF1F5FA),
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Column(
+                    children: [
+                      _concentrationViewTab('Graph', true),
+                      const SizedBox(height: 4),
+                      _concentrationViewTab('Table', false),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _timeDistributionBar(String label, double hours, double percent) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 120,
+          child: Text(
+            '$label, ${hours.toStringAsFixed(2)} hr, ${percent.toStringAsFixed(1)}%',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 8,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: List.generate(
+                        7,
+                        (_) =>
+                            Container(width: 1, color: const Color(0xFFD8E1EC)),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width:
+                        constraints.maxWidth *
+                        (percent / 32).clamp(0.0, 1.0).toDouble(),
+                    height: 15,
+                    color: const Color(0xFF82ACE0),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _timeDistributionAxis() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 120),
+      child: Column(
+        children: [
+          Container(height: 1, color: AppTheme.tableBorderBlue),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (final value in const [
+                '0',
+                '5',
+                '10',
+                '15',
+                '20',
+                '25',
+                '30',
+              ])
+                Text(value, style: AppTheme.bodyLarge.copyWith(fontSize: 8)),
+            ],
+          ),
+          Text('%', style: AppTheme.bodyLarge.copyWith(fontSize: 8)),
+        ],
+      ),
+    );
+  }
+
+  Widget _outputConcentrationWindowMock({required bool historyTable}) {
+    const explorerItems = [
+      'Summary',
+      'Detail',
+      'Daily Cost',
+      'Total Cost',
+      'Concentration',
+      'Time Distribution',
+      'Survey',
+      'Alert',
+    ];
+
+    return Container(
+      width: 900,
+      height: historyTable ? 410 : 430,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppTheme.tableBorderBlue),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 28,
+            color: AppTheme.panelHeaderBlue,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'MSR2_DMR - Daily Output',
+              style: AppTheme.bodyLarge.copyWith(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 112,
+                  color: const Color(0xFFF1F5FA),
+                  padding: const EdgeInsets.fromLTRB(7, 9, 7, 7),
+                  child: Column(
+                    children: [
+                      for (final item in explorerItems)
+                        Container(
+                          height: 28,
+                          margin: const EdgeInsets.only(bottom: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          alignment: Alignment.centerLeft,
+                          color: item == 'Concentration'
+                              ? AppTheme.panelHeaderBlue
+                              : Colors.transparent,
+                          child: Text(
+                            item,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.bodyLarge.copyWith(
+                              color: item == 'Concentration'
+                                  ? Colors.white
+                                  : AppTheme.textPrimary,
+                              fontSize: 10,
+                              fontWeight: item == 'Concentration'
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 9, 6, 9),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Concentration - Active System',
+                                style: AppTheme.bodyLarge.copyWith(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: 132,
+                              height: 25,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFFDE7),
+                                border: Border.all(
+                                  color: AppTheme.tableBorderBlue,
+                                ),
+                              ),
+                              alignment: Alignment.centerLeft,
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Active System',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTheme.bodyLarge.copyWith(
+                                        fontSize: 9,
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.arrow_drop_down,
+                                    size: 17,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 7),
+                        Expanded(
+                          child: historyTable
+                              ? _concentrationHistoryTable()
+                              : _concentrationGraphs(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 38,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  color: const Color(0xFFF1F5FA),
+                  child: Column(
+                    children: [
+                      _concentrationViewTab('Graph', !historyTable),
+                      const SizedBox(height: 4),
+                      _concentrationViewTab('Current', false),
+                      const SizedBox(height: 4),
+                      _concentrationViewTab('History', historyTable),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _concentrationGraphs() {
+    const trends = [
+      MapEntry('Diesel (gal/bbl)', <Offset>[
+        Offset(0.00, 0.88),
+        Offset(0.18, 0.88),
+        Offset(0.34, 0.74),
+        Offset(0.48, 0.82),
+        Offset(0.62, 0.42),
+        Offset(0.78, 0.22),
+        Offset(1.00, 0.18),
+      ]),
+      MapEntry('Barite (lb/bbl)', <Offset>[
+        Offset(0.00, 0.92),
+        Offset(0.26, 0.91),
+        Offset(0.42, 0.68),
+        Offset(0.58, 0.72),
+        Offset(0.72, 0.35),
+        Offset(0.84, 0.16),
+        Offset(1.00, 0.22),
+      ]),
+      MapEntry('CaCl2 (lb/bbl)', <Offset>[
+        Offset(0.00, 0.94),
+        Offset(0.20, 0.94),
+        Offset(0.32, 0.24),
+        Offset(0.46, 0.55),
+        Offset(0.62, 0.55),
+        Offset(0.76, 0.90),
+        Offset(1.00, 0.90),
+      ]),
+      MapEntry('LGS (lb/bbl)', <Offset>[
+        Offset(0.00, 0.92),
+        Offset(0.50, 0.92),
+        Offset(0.60, 0.48),
+        Offset(0.70, 0.62),
+        Offset(0.82, 0.30),
+        Offset(0.94, 0.16),
+        Offset(1.00, 0.18),
+      ]),
+      MapEntry('Viscosifier (lb/bbl)', <Offset>[
+        Offset(0.00, 0.90),
+        Offset(0.36, 0.90),
+        Offset(0.52, 0.58),
+        Offset(0.66, 0.66),
+        Offset(0.80, 0.40),
+        Offset(1.00, 0.32),
+      ]),
+    ];
+
+    return Column(
+      children: [
+        for (var index = 0; index < trends.length; index++) ...[
+          Expanded(child: _concentrationTrendRow(trends[index])),
+          if (index < trends.length - 1) const SizedBox(height: 3),
+        ],
+        const SizedBox(height: 2),
+        Text(
+          'Report sequence',
+          style: AppTheme.bodyLarge.copyWith(fontSize: 8),
+        ),
+      ],
+    );
+  }
+
+  Widget _concentrationTrendRow(MapEntry<String, List<Offset>> trend) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 112,
+          child: Text(
+            trend.key,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: AppTheme.tableBorderBlue),
+            ),
+            child: CustomPaint(
+              painter: _ConcentrationTrendPainter(points: trend.value),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _concentrationHistoryTable() {
+    const columns = [
+      'Date',
+      'MD (ft)',
+      'Report #',
+      'Diesel',
+      'Base Fluid',
+      'Barite',
+      'Weight Mat.',
+      'LGS',
+    ];
+    const rows = [
+      [
+        '05/01/2022',
+        '7,940',
+        '18',
+        '8.10',
+        '47.48',
+        '136.53',
+        '118.20',
+        '1.72',
+      ],
+      [
+        '05/02/2022',
+        '9,048',
+        '19',
+        '11.07',
+        '37.29',
+        '147.73',
+        '128.90',
+        '1.94',
+      ],
+      [
+        '05/03/2022',
+        '10,882',
+        '20',
+        '12.43',
+        '31.97',
+        '181.62',
+        '156.34',
+        '2.06',
+      ],
+      [
+        '05/04/2022',
+        '12,313',
+        '21',
+        '12.98',
+        '31.01',
+        '183.81',
+        '163.06',
+        '2.18',
+      ],
+      [
+        '05/05/2022',
+        '15,940',
+        '22',
+        '13.28',
+        '22.41',
+        '196.36',
+        '253.77',
+        '2.42',
+      ],
+      [
+        '05/06/2022',
+        '18,567',
+        '23',
+        '14.38',
+        '19.68',
+        '205.64',
+        '231.71',
+        '2.66',
+      ],
+      [
+        '05/07/2022',
+        '21,162',
+        '24',
+        '14.38',
+        '19.68',
+        '205.64',
+        '231.71',
+        '2.82',
+      ],
+      [
+        '05/08/2022',
+        '22,482',
+        '25',
+        '14.31',
+        '19.87',
+        '205.10',
+        '233.89',
+        '2.91',
+      ],
+      [
+        '05/09/2022',
+        '22,482',
+        '26',
+        '14.30',
+        '19.90',
+        '205.00',
+        '233.90',
+        '3.00',
+      ],
+    ];
+    return _outputDetailTable('Concentration History', columns, rows);
+  }
+
+  Widget _concentrationViewTab(String label, bool selected) {
+    return Container(
+      width: 27,
+      height: 82,
+      alignment: Alignment.center,
+      color: selected ? AppTheme.panelHeaderBlue : AppTheme.tableHeaderBlue,
+      child: RotatedBox(
+        quarterTurns: 1,
+        child: Text(
+          label,
+          overflow: TextOverflow.ellipsis,
+          style: AppTheme.bodyLarge.copyWith(
+            color: selected ? Colors.white : AppTheme.textPrimary,
+            fontSize: 8,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _outputSummaryOptionsMock() {
     return _outputOptionsShell(
       selected: 'Summary',
-      height: 520,
+      height: 550,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -5828,16 +13791,31 @@ class _ManualTopicPage extends StatelessWidget {
             spacing: 24,
             runSpacing: 2,
             children: [
-              SizedBox(width: 180, child: _checkboxMock('Product Price', false)),
+              SizedBox(
+                width: 180,
+                child: _checkboxMock('Product Price', false),
+              ),
               SizedBox(width: 180, child: _checkboxMock('Product Cost', true)),
-              SizedBox(width: 180, child: _checkboxMock('CCI in Annular Hydraulics', true)),
-              SizedBox(width: 180, child: _checkboxMock('Detailed Pit Information', false)),
+              SizedBox(
+                width: 180,
+                child: _checkboxMock('CCI in Annular Hydraulics', true),
+              ),
+              SizedBox(
+                width: 180,
+                child: _checkboxMock('Detailed Pit Information', false),
+              ),
             ],
           ),
           const SizedBox(height: 6),
           Row(
             children: [
-              Text('Total Cost:', style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w700)),
+              Text(
+                'Total Cost:',
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(width: 12),
               _radioMock('Previous Total Cost', selected: true),
               const SizedBox(width: 16),
@@ -5846,7 +13824,13 @@ class _ManualTopicPage extends StatelessWidget {
           ),
           Row(
             children: [
-              Text('Consumption:', style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w700)),
+              Text(
+                'Consumption:',
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(width: 12),
               _radioMock('Total', selected: true),
               const SizedBox(width: 16),
@@ -5896,14 +13880,20 @@ class _ManualTopicPage extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [for (final item in left) _checkboxMock(item.label, item.checked)],
+              children: [
+                for (final item in left)
+                  _checkboxMock(item.label, item.checked),
+              ],
             ),
           ),
           const SizedBox(width: 20),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [for (final item in right) _checkboxMock(item.label, item.checked)],
+              children: [
+                for (final item in right)
+                  _checkboxMock(item.label, item.checked),
+              ],
             ),
           ),
         ],
@@ -5932,7 +13922,11 @@ class _ManualTopicPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
               'Options',
-              style: AppTheme.bodyLarge.copyWith(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+              style: AppTheme.bodyLarge.copyWith(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           Expanded(
@@ -5944,7 +13938,11 @@ class _ManualTopicPage extends StatelessWidget {
                   color: const Color(0xFFF3F6FA),
                   child: Column(
                     children: [
-                      for (final label in const ['Summary', 'Report', 'Detail Report'])
+                      for (final label in const [
+                        'Summary',
+                        'Report',
+                        'Detail Report',
+                      ])
                         _outputOptionNav(label, active: label == selected),
                     ],
                   ),
@@ -5985,11 +13983,17 @@ class _ManualTopicPage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: active ? AppTheme.tableHeaderBlue : Colors.transparent,
-        border: const Border(bottom: BorderSide(color: AppTheme.tableBorderBlue)),
+        border: const Border(
+          bottom: BorderSide(color: AppTheme.tableBorderBlue),
+        ),
       ),
       child: Text(
         label,
-        style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+        style: AppTheme.bodyLarge.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: AppTheme.textPrimary,
+        ),
       ),
     );
   }
@@ -6003,7 +14007,11 @@ class _ManualTopicPage extends StatelessWidget {
       color: AppTheme.tableHeaderBlue,
       child: Text(
         label,
-        style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+        style: AppTheme.bodyLarge.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: AppTheme.textPrimary,
+        ),
       ),
     );
   }
@@ -6013,9 +14021,19 @@ class _ManualTopicPage extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 5),
       child: Row(
         children: [
-          const Icon(Icons.check_box_outline_blank, size: 14, color: AppTheme.panelHeaderBlue),
+          const Icon(
+            Icons.check_box_outline_blank,
+            size: 14,
+            color: AppTheme.panelHeaderBlue,
+          ),
           const SizedBox(width: 5),
-          SizedBox(width: 46, child: Text(label, style: AppTheme.bodyLarge.copyWith(fontSize: 11))),
+          SizedBox(
+            width: 46,
+            child: Text(
+              label,
+              style: AppTheme.bodyLarge.copyWith(fontSize: 11),
+            ),
+          ),
           Container(
             width: 92,
             height: 20,
@@ -6025,7 +14043,11 @@ class _ManualTopicPage extends StatelessWidget {
               color: Colors.white,
               border: Border.all(color: AppTheme.tableBorderBlue),
             ),
-            child: Text(value, overflow: TextOverflow.ellipsis, style: AppTheme.bodyLarge.copyWith(fontSize: 10)),
+            child: Text(
+              value,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.bodyLarge.copyWith(fontSize: 10),
+            ),
           ),
         ],
       ),
@@ -6045,7 +14067,11 @@ class _ManualTopicPage extends StatelessWidget {
         children: [
           _dashboardWellborePreview(),
           const SizedBox(width: 8),
-          for (final title in const ['KPI', 'Cost Distribution', 'Progress']) ...[
+          for (final title in const [
+            'KPI',
+            'Cost Distribution',
+            'Progress',
+          ]) ...[
             Expanded(child: _dashboardColumnPreview(title)),
             if (title != 'Progress') const SizedBox(width: 8),
           ],
@@ -6057,7 +14083,10 @@ class _ManualTopicPage extends StatelessWidget {
   Widget _dashboardWellborePreview() {
     return Container(
       width: 120,
-      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade300)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300),
+      ),
       child: Column(
         children: [
           _optionsGroupTitle('Wellbore'),
@@ -6074,7 +14103,10 @@ class _ManualTopicPage extends StatelessWidget {
 
   Widget _dashboardColumnPreview(String title) {
     return Container(
-      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade300)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300),
+      ),
       child: Column(
         children: [
           _optionsGroupTitle(title),
@@ -6083,12 +14115,16 @@ class _ManualTopicPage extends StatelessWidget {
               child: Container(
                 margin: const EdgeInsets.fromLTRB(7, 0, 7, 7),
                 decoration: BoxDecoration(
-                  color: i == 1 ? const Color(0xFFFFFDE7) : const Color(0xFFF4F8FC),
+                  color: i == 1
+                      ? const Color(0xFFFFFDE7)
+                      : const Color(0xFFF4F8FC),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
                 child: Center(
                   child: Icon(
-                    title == 'Progress' ? Icons.show_chart : (title == 'KPI' ? Icons.speed : Icons.bar_chart),
+                    title == 'Progress'
+                        ? Icons.show_chart
+                        : (title == 'KPI' ? Icons.speed : Icons.bar_chart),
                     size: 24,
                     color: AppTheme.panelHeaderBlue,
                   ),
@@ -6130,14 +14166,26 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Safety', 'Remarks'])
+                for (final tab in const [
+                  'Well',
+                  'Mud',
+                  'Pump',
+                  'Operation',
+                  'Pit',
+                  'Safety',
+                  'Remarks',
+                ])
                   Container(
                     height: 27,
                     padding: const EdgeInsets.symmetric(horizontal: 11),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Remarks' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Remarks'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -6201,7 +14249,11 @@ class _ManualTopicPage extends StatelessWidget {
                                 'Finished RIH and circulated bottoms up. Maintained mud properties and monitored solids control equipment.',
                               ),
                               const SizedBox(height: 8),
-                              _remarksMediumTextBox('Internal Notes', '', height: 72),
+                              _remarksMediumTextBox(
+                                'Internal Notes',
+                                '',
+                                height: 72,
+                              ),
                             ],
                           ),
                         ),
@@ -6233,7 +14285,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Current-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -6248,7 +14303,11 @@ class _ManualTopicPage extends StatelessWidget {
     );
   }
 
-  Widget _remarksMediumTextBox(String title, String text, {double height = 78}) {
+  Widget _remarksMediumTextBox(
+    String title,
+    String text, {
+    double height = 78,
+  }) {
     return _remarksTextBox(title, text, height: height);
   }
 
@@ -6258,7 +14317,10 @@ class _ManualTopicPage extends StatelessWidget {
       children: [
         Text(
           title,
-          style: AppTheme.bodyLarge.copyWith(fontSize: 8, fontWeight: FontWeight.w800),
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 8,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         Container(
           height: height,
@@ -6297,7 +14359,9 @@ class _ManualTopicPage extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppTheme.panelHeaderBlue.withOpacity(0.12),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppTheme.panelHeaderBlue.withOpacity(0.45)),
+            border: Border.all(
+              color: AppTheme.panelHeaderBlue.withOpacity(0.45),
+            ),
           ),
           child: Icon(
             Icons.image_outlined,
@@ -6339,14 +14403,26 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Safety', 'Remarks'])
+                for (final tab in const [
+                  'Well',
+                  'Mud',
+                  'Pump',
+                  'Operation',
+                  'Pit',
+                  'Safety',
+                  'Remarks',
+                ])
                   Container(
                     height: 27,
                     padding: const EdgeInsets.symmetric(horizontal: 11),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Safety' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Safety'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -6423,7 +14499,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Current-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -6439,7 +14518,12 @@ class _ManualTopicPage extends StatelessWidget {
         Row(
           children: [
             _gridCell('', width: 26, header: true, alignCenter: true),
-            _gridCell('Safety Card', width: 116, header: true, alignCenter: true),
+            _gridCell(
+              'Safety Card',
+              width: 116,
+              header: true,
+              alignCenter: true,
+            ),
           ],
         ),
         for (var i = 0; i < rows.length; i++)
@@ -6574,23 +14658,41 @@ class _ManualTopicPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Safety Issue', style: AppTheme.bodyLarge.copyWith(fontSize: 8, fontWeight: FontWeight.w800)),
+          Text(
+            'Safety Issue',
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 8,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           Container(
             width: 140,
             height: 84,
             padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade300)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: Colors.grey.shade300),
+            ),
             child: Text(
               'Stop before BBS\nObservation\nUnsafe\nIdentify Unsafe Behavior\nClarify Commitment\nObtain Agreement\nFollow-Up',
               style: AppTheme.bodyLarge.copyWith(fontSize: 7.2, height: 1.16),
             ),
           ),
           const SizedBox(height: 10),
-          Text('Action Taken', style: AppTheme.bodyLarge.copyWith(fontSize: 8, fontWeight: FontWeight.w800)),
+          Text(
+            'Action Taken',
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 8,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           Container(
             width: 140,
             height: 86,
-            decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade300)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: Colors.grey.shade300),
+            ),
           ),
         ],
       ),
@@ -6598,7 +14700,13 @@ class _ManualTopicPage extends StatelessWidget {
   }
 
   Widget _reservePitsLargeMock() {
-    const headers = ['Pit', 'Calculated Vol.\n(bbl)', 'Measured Vol.\n(bbl)', 'MW\n(ppg)', 'Fluid Type'];
+    const headers = [
+      'Pit',
+      'Calculated Vol.\n(bbl)',
+      'Measured Vol.\n(bbl)',
+      'MW\n(ppg)',
+      'Fluid Type',
+    ];
     const widths = [86.0, 100.0, 100.0, 76.0, 122.0];
     const rows = [
       ['Frac 6', '0.00', '', '15.20', ''],
@@ -6630,7 +14738,10 @@ class _ManualTopicPage extends StatelessWidget {
               children: [
                 Text(
                   'Reserve Pits',
-                  style: AppTheme.bodyLarge.copyWith(fontSize: 7.4, color: AppTheme.textPrimary),
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 7.4,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
                 const Spacer(),
                 _concentrationIconMock(),
@@ -6658,7 +14769,9 @@ class _ManualTopicPage extends StatelessWidget {
                     row[i],
                     width: widths[i],
                     alignRight: i > 0 && i < 4,
-                    fill: i == 0 || i == 1 ? const Color(0xFFFFFFCC) : Colors.white,
+                    fill: i == 0 || i == 1
+                        ? const Color(0xFFFFFFCC)
+                        : Colors.white,
                   ),
               ],
             ),
@@ -6681,10 +14794,8 @@ class _ManualTopicPage extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         children: List.generate(
           9,
-          (_) => Container(
-            margin: const EdgeInsets.all(0.6),
-            color: Colors.white,
-          ),
+          (_) =>
+              Container(margin: const EdgeInsets.all(0.6), color: Colors.white),
         ),
       ),
     );
@@ -6730,7 +14841,10 @@ class _ManualTopicPage extends StatelessWidget {
               children: [
                 Text(
                   'Pit Concentration',
-                  style: AppTheme.bodyLarge.copyWith(fontSize: 11, color: AppTheme.textPrimary),
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 11,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
                 const Spacer(),
                 Icon(Icons.close, size: 14, color: Colors.grey.shade700),
@@ -6752,7 +14866,10 @@ class _ManualTopicPage extends StatelessWidget {
                   ),
                   child: Text(
                     'Active System',
-                    style: AppTheme.bodyLarge.copyWith(fontSize: 8.5, color: AppTheme.textPrimary),
+                    style: AppTheme.bodyLarge.copyWith(
+                      fontSize: 8.5,
+                      color: AppTheme.textPrimary,
+                    ),
                   ),
                 ),
                 Container(
@@ -6762,7 +14879,11 @@ class _ManualTopicPage extends StatelessWidget {
                     color: Colors.white,
                     border: Border.all(color: Colors.grey.shade400),
                   ),
-                  child: Icon(Icons.arrow_drop_down, size: 14, color: Colors.grey.shade700),
+                  child: Icon(
+                    Icons.arrow_drop_down,
+                    size: 14,
+                    color: Colors.grey.shade700,
+                  ),
                 ),
               ],
             ),
@@ -6802,7 +14923,10 @@ class _ManualTopicPage extends StatelessWidget {
           const Spacer(),
           Padding(
             padding: const EdgeInsets.fromLTRB(0, 0, 8, 6),
-            child: Align(alignment: Alignment.centerRight, child: _smallButton('OK')),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _smallButton('OK'),
+            ),
           ),
         ],
       ),
@@ -6827,7 +14951,10 @@ class _ManualTopicPage extends StatelessWidget {
               children: [
                 Text(
                   'Pit Snapshot',
-                  style: AppTheme.bodyLarge.copyWith(fontSize: 8, color: AppTheme.textPrimary),
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 8,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
                 const Spacer(),
                 Icon(Icons.close, size: 14, color: Colors.grey.shade700),
@@ -6846,13 +14973,18 @@ class _ManualTopicPage extends StatelessWidget {
                       children: [
                         Text(
                           '*TEST WELL 1, Daily Report 26',
-                          style: AppTheme.bodyLarge.copyWith(fontSize: 8, fontWeight: FontWeight.w700),
+                          style: AppTheme.bodyLarge.copyWith(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         SizedBox(
                           width: 222,
                           height: 255,
-                          child: CustomPaint(painter: const _PitSnapshotSchematicPainter()),
+                          child: CustomPaint(
+                            painter: const _PitSnapshotSchematicPainter(),
+                          ),
                         ),
                       ],
                     ),
@@ -6869,7 +15001,10 @@ class _ManualTopicPage extends StatelessWidget {
                         const SizedBox(height: 8),
                         _pitSnapshotConcentrationMini(),
                         const Spacer(),
-                        Align(alignment: Alignment.centerRight, child: _smallButton('Close')),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: _smallButton('Close'),
+                        ),
                       ],
                     ),
                   ),
@@ -6906,11 +15041,17 @@ class _ManualTopicPage extends StatelessWidget {
             children: [
               Container(width: 7, height: 7, color: const Color(0xFFE97B31)),
               const SizedBox(width: 4),
-              Text('Active Pits', style: AppTheme.bodyLarge.copyWith(fontSize: 6.2)),
+              Text(
+                'Active Pits',
+                style: AppTheme.bodyLarge.copyWith(fontSize: 6.2),
+              ),
               const SizedBox(width: 8),
               Container(width: 7, height: 7, color: const Color(0xFF3E6FB7)),
               const SizedBox(width: 4),
-              Text('Reserve Pits', style: AppTheme.bodyLarge.copyWith(fontSize: 6.2)),
+              Text(
+                'Reserve Pits',
+                style: AppTheme.bodyLarge.copyWith(fontSize: 6.2),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -6920,12 +15061,18 @@ class _ManualTopicPage extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 4),
               padding: const EdgeInsets.symmetric(horizontal: 6),
               alignment: Alignment.centerLeft,
-              color: row[1] as bool ? const Color(0xFFE97B31) : const Color(0xFF3E6FB7),
+              color: row[1] as bool
+                  ? const Color(0xFFE97B31)
+                  : const Color(0xFF3E6FB7),
               child: Text(
                 row[0] as String,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTheme.bodyLarge.copyWith(fontSize: 6.6, color: Colors.white, fontWeight: FontWeight.w700),
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 6.6,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
         ],
@@ -6951,29 +15098,63 @@ class _ManualTopicPage extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text('Pit Concentration', style: AppTheme.bodyLarge.copyWith(fontSize: 6.4, fontWeight: FontWeight.w700)),
+            Text(
+              'Pit Concentration',
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 6.4,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const Spacer(),
             Container(
               width: 86,
               height: 17,
               padding: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade400)),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey.shade400),
+              ),
               child: Row(
                 children: [
-                  Expanded(child: Text('Active System', style: AppTheme.bodyLarge.copyWith(fontSize: 6.2))),
-                  Icon(Icons.arrow_drop_down, size: 10, color: Colors.grey.shade600),
+                  Expanded(
+                    child: Text(
+                      'Active System',
+                      style: AppTheme.bodyLarge.copyWith(fontSize: 6.2),
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_drop_down,
+                    size: 10,
+                    color: Colors.grey.shade600,
+                  ),
                 ],
               ),
             ),
           ],
         ),
         const SizedBox(height: 3),
-        Row(children: [for (var i = 0; i < headers.length; i++) _snapshotCell(headers[i], width: widths[i], header: true, alignCenter: true, fill: AppTheme.tableHeaderBlue)]),
+        Row(
+          children: [
+            for (var i = 0; i < headers.length; i++)
+              _snapshotCell(
+                headers[i],
+                width: widths[i],
+                header: true,
+                alignCenter: true,
+                fill: AppTheme.tableHeaderBlue,
+              ),
+          ],
+        ),
         for (final row in rows)
           Row(
             children: [
               for (var i = 0; i < widths.length; i++)
-                _snapshotCell(row[i], width: widths[i], alignRight: i > 1, fill: i == 0 ? const Color(0xFFFFFFCC) : Colors.white),
+                _snapshotCell(
+                  row[i],
+                  width: widths[i],
+                  alignRight: i > 1,
+                  fill: i == 0 ? const Color(0xFFFFFFCC) : Colors.white,
+                ),
             ],
           ),
       ],
@@ -6994,26 +15175,51 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Volume Summary', style: AppTheme.bodyLarge.copyWith(fontSize: 6.6, fontWeight: FontWeight.w800)),
+        Text(
+          'Volume Summary',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 6.6,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         const SizedBox(height: 3),
         Row(
           children: [
-            _snapshotCell('', width: 150, header: true, fill: AppTheme.tableHeaderBlue),
-            _snapshotCell('Vol. (bbl)', width: 70, header: true, alignCenter: true, fill: AppTheme.tableHeaderBlue),
+            _snapshotCell(
+              '',
+              width: 150,
+              header: true,
+              fill: AppTheme.tableHeaderBlue,
+            ),
+            _snapshotCell(
+              'Vol. (bbl)',
+              width: 70,
+              header: true,
+              alignCenter: true,
+              fill: AppTheme.tableHeaderBlue,
+            ),
           ],
         ),
         for (final row in rows)
           Row(
             children: [
               _snapshotCell(row[0], width: 150, fill: Colors.white),
-              _snapshotCell(row[1], width: 70, alignRight: true, fill: const Color(0xFFFFFFCC)),
+              _snapshotCell(
+                row[1],
+                width: 70,
+                alignRight: true,
+                fill: const Color(0xFFFFFFCC),
+              ),
             ],
           ),
       ],
     );
   }
 
-  Widget _reportPitsInputMock({bool activeOnly = false, bool reserveOnly = false}) {
+  Widget _reportPitsInputMock({
+    bool activeOnly = false,
+    bool reserveOnly = false,
+  }) {
     return Container(
       width: 655,
       height: 370,
@@ -7043,14 +15249,26 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Safety', 'Remarks'])
+                for (final tab in const [
+                  'Well',
+                  'Mud',
+                  'Pump',
+                  'Operation',
+                  'Pit',
+                  'Safety',
+                  'Remarks',
+                ])
                   Container(
                     height: 27,
                     padding: const EdgeInsets.symmetric(horizontal: 11),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Pit' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Pit'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -7098,7 +15316,8 @@ class _ManualTopicPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (!reserveOnly) _activePitsMock(),
-                            if (!activeOnly && !reserveOnly) const SizedBox(width: 12),
+                            if (!activeOnly && !reserveOnly)
+                              const SizedBox(width: 12),
                             if (!activeOnly) _reservePitsMock(),
                           ],
                         ),
@@ -7128,7 +15347,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Current-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -7170,7 +15392,13 @@ class _ManualTopicPage extends StatelessWidget {
     ];
     return _snapshotWindowTable(
       title: 'Reserve Pits',
-      headers: const ['Pit', 'Calculated Vol.\n(bbl)', 'Measured Vol.\n(bbl)', 'MW\n(ppg)', 'Fluid Type'],
+      headers: const [
+        'Pit',
+        'Calculated Vol.\n(bbl)',
+        'Measured Vol.\n(bbl)',
+        'MW\n(ppg)',
+        'Fluid Type',
+      ],
       rows: rows,
       widths: const [66, 62, 62, 42, 76],
       width: 308,
@@ -7240,14 +15468,23 @@ class _ManualTopicPage extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 2),
               child: Text(
                 title,
-                style: AppTheme.bodyLarge.copyWith(fontSize: 6.4, fontWeight: FontWeight.w700),
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 6.4,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           if (showHeader)
             Row(
               children: [
                 for (var i = 0; i < headers.length; i++)
-                  _snapshotCell(headers[i], width: widths[i], header: true, alignCenter: true, fill: AppTheme.tableHeaderBlue),
+                  _snapshotCell(
+                    headers[i],
+                    width: widths[i],
+                    header: true,
+                    alignCenter: true,
+                    fill: AppTheme.tableHeaderBlue,
+                  ),
               ],
             ),
           for (final row in rows)
@@ -7285,23 +15522,279 @@ class _ManualTopicPage extends StatelessWidget {
       'Cost\n(\$)',
       'Total\n(\$)',
     ];
-    const widths = [58.0, 18.0, 86.0, 36.0, 40.0, 36.0, 36.0, 34.0, 34.0, 34.0, 34.0, 36.0, 44.0, 42.0, 48.0];
+    const widths = [
+      58.0,
+      18.0,
+      86.0,
+      36.0,
+      40.0,
+      36.0,
+      36.0,
+      34.0,
+      34.0,
+      34.0,
+      34.0,
+      36.0,
+      44.0,
+      42.0,
+      48.0,
+    ];
     const rows = [
-      ['Product', '43', 'NON-LEASE OBM, bbl', '', '1.00 bbl', '', '', '', '', '', '', '', '', '', ''],
-      ['', '44', 'VERSATHIN HF, 5 gal', '', '5.00 gal', '166.0', '', '', '', '', '', '', '', '', '1575.8'],
-      ['', '45', 'BLEND FORCE, 25#', '', '25.00 lb', '20.0', '', '', '', '', '', '', '', '', ''],
-      ['Pre-mixed Mud', '1', 'Report 14 - Receive 1', '', '1.00 bbl', '', '', '100.0', '', '', '', '', '', '', ''],
-      ['', '2', 'Report 14 - Receive 2', '', '1.00 bbl', '', '', '', '', '', '', '', '', '', ''],
-      ['', '3', 'Report 14 - Receive 3', '', '1.00 bbl', '', '', '', '', '', '', '', '', '', ''],
-      ['', '4', 'Report 14 - Receive 4', '', '1.00 bbl', '', '', '', '', '', '', '', '', '', ''],
-      ['', '5', 'Report 14 - Receive 5', '', '1.00 bbl', '', '', '', '', '', '', '', '', '', ''],
-      ['Package', '1', 'PALLETS, EA', '', '1', '15.0', '43.0', '', '', '', '', '43.0', '', '', ''],
-      ['', '2', 'SHRINK WRAP, EA', '', '1', '15.0', '37.0', '', '', '', '', '37.0', '', '', ''],
-      ['Service', '1', 'BULK TANK RENTAL', '', '1', '75.0', '', '', '', '', '1.0', '', '75.0', '75.0', '75.0'],
-      ['', '2', 'BULK TRUCKING', '', '1', '100.0', '', '', '', '', '', '', '', '', ''],
-      ['', '3', 'SACK TRUCKING', '', '1', '100.0', '', '', '', '', '', '', '', '', ''],
-      ['Engineering', '1', '24 HR ENG.', '', '1', '950.0', '', '', '', '', '1.0', '', '950.0', '950.0', '970.0'],
-      ['', '2', 'PER-DIEM', '', '1', '20.0', '', '', '', '', '1.0', '', '20.0', '20.0', ''],
+      [
+        'Product',
+        '43',
+        'NON-LEASE OBM, bbl',
+        '',
+        '1.00 bbl',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ],
+      [
+        '',
+        '44',
+        'VERSATHIN HF, 5 gal',
+        '',
+        '5.00 gal',
+        '166.0',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '1575.8',
+      ],
+      [
+        '',
+        '45',
+        'BLEND FORCE, 25#',
+        '',
+        '25.00 lb',
+        '20.0',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ],
+      [
+        'Pre-mixed Mud',
+        '1',
+        'Report 14 - Receive 1',
+        '',
+        '1.00 bbl',
+        '',
+        '',
+        '100.0',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ],
+      [
+        '',
+        '2',
+        'Report 14 - Receive 2',
+        '',
+        '1.00 bbl',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ],
+      [
+        '',
+        '3',
+        'Report 14 - Receive 3',
+        '',
+        '1.00 bbl',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ],
+      [
+        '',
+        '4',
+        'Report 14 - Receive 4',
+        '',
+        '1.00 bbl',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ],
+      [
+        '',
+        '5',
+        'Report 14 - Receive 5',
+        '',
+        '1.00 bbl',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ],
+      [
+        'Package',
+        '1',
+        'PALLETS, EA',
+        '',
+        '1',
+        '15.0',
+        '43.0',
+        '',
+        '',
+        '',
+        '',
+        '43.0',
+        '',
+        '',
+        '',
+      ],
+      [
+        '',
+        '2',
+        'SHRINK WRAP, EA',
+        '',
+        '1',
+        '15.0',
+        '37.0',
+        '',
+        '',
+        '',
+        '',
+        '37.0',
+        '',
+        '',
+        '',
+      ],
+      [
+        'Service',
+        '1',
+        'BULK TANK RENTAL',
+        '',
+        '1',
+        '75.0',
+        '',
+        '',
+        '',
+        '',
+        '1.0',
+        '',
+        '75.0',
+        '75.0',
+        '75.0',
+      ],
+      [
+        '',
+        '2',
+        'BULK TRUCKING',
+        '',
+        '1',
+        '100.0',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ],
+      [
+        '',
+        '3',
+        'SACK TRUCKING',
+        '',
+        '1',
+        '100.0',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ],
+      [
+        'Engineering',
+        '1',
+        '24 HR ENG.',
+        '',
+        '1',
+        '950.0',
+        '',
+        '',
+        '',
+        '',
+        '1.0',
+        '',
+        '950.0',
+        '950.0',
+        '970.0',
+      ],
+      [
+        '',
+        '2',
+        'PER-DIEM',
+        '',
+        '1',
+        '20.0',
+        '',
+        '',
+        '',
+        '',
+        '1.0',
+        '',
+        '20.0',
+        '20.0',
+        '',
+      ],
     ];
     const totals = [
       ['Subtotal (\$)', '2498.0'],
@@ -7349,17 +15842,29 @@ class _ManualTopicPage extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Inventory Snapshot',
-                    style: AppTheme.bodyLarge.copyWith(fontSize: 8.5, color: AppTheme.textPrimary),
+                    style: AppTheme.bodyLarge.copyWith(
+                      fontSize: 8.5,
+                      color: AppTheme.textPrimary,
+                    ),
                   ),
                 ),
-                const Icon(Icons.close, size: 11, color: AppTheme.textSecondary),
+                const Icon(
+                  Icons.close,
+                  size: 11,
+                  color: AppTheme.textSecondary,
+                ),
               ],
             ),
           ),
           Row(
             children: [
               for (var i = 0; i < headers.length; i++)
-                _snapshotCell(headers[i], width: widths[i], header: true, alignCenter: i != 2),
+                _snapshotCell(
+                  headers[i],
+                  width: widths[i],
+                  header: true,
+                  alignCenter: i != 2,
+                ),
             ],
           ),
           for (final row in rows)
@@ -7369,14 +15874,18 @@ class _ManualTopicPage extends StatelessWidget {
                   row[0],
                   width: widths[0],
                   fill: row[0].isEmpty ? Colors.white : categoryColor(row[0]),
-                  textColor: row[0].isEmpty ? AppTheme.textPrimary : Colors.white,
+                  textColor: row[0].isEmpty
+                      ? AppTheme.textPrimary
+                      : Colors.white,
                   alignCenter: row[0].isNotEmpty,
                 ),
                 for (var i = 1; i < row.length; i++)
                   _snapshotCell(
                     row[i],
                     width: widths[i],
-                    fill: i == 9 || i == 10 ? const Color(0xFFE6E6E6) : Colors.white,
+                    fill: i == 9 || i == 10
+                        ? const Color(0xFFE6E6E6)
+                        : Colors.white,
                     alignRight: i > 4,
                   ),
               ],
@@ -7384,7 +15893,13 @@ class _ManualTopicPage extends StatelessWidget {
           for (final row in totals)
             Row(
               children: [
-                _snapshotCell(row[0], width: widths.take(14).fold<double>(0, (sum, value) => sum + value), alignRight: false),
+                _snapshotCell(
+                  row[0],
+                  width: widths
+                      .take(14)
+                      .fold<double>(0, (sum, value) => sum + value),
+                  alignRight: false,
+                ),
                 _snapshotCell(row[1], width: widths.last, alignRight: true),
               ],
             ),
@@ -7414,10 +15929,17 @@ class _ManualTopicPage extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Volume Snapshot',
-                    style: AppTheme.bodyLarge.copyWith(fontSize: 8.5, color: AppTheme.textPrimary),
+                    style: AppTheme.bodyLarge.copyWith(
+                      fontSize: 8.5,
+                      color: AppTheme.textPrimary,
+                    ),
                   ),
                 ),
-                const Icon(Icons.close, size: 11, color: AppTheme.textSecondary),
+                const Icon(
+                  Icons.close,
+                  size: 11,
+                  color: AppTheme.textSecondary,
+                ),
               ],
             ),
           ),
@@ -7432,27 +15954,19 @@ class _ManualTopicPage extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _compactVolumePanel(
-                        'Reserve Pit Loss',
-                        const [
-                          ['Dump', ''],
-                          ['Evaporation', ''],
-                          ['Pit Cleaning', ''],
-                        ],
-                        width: 245,
-                      ),
+                      _compactVolumePanel('Reserve Pit Loss', const [
+                        ['Dump', ''],
+                        ['Evaporation', ''],
+                        ['Pit Cleaning', ''],
+                      ], width: 245),
                       const SizedBox(height: 8),
-                      _compactVolumePanel(
-                        'Premixed Mud',
-                        const [
-                          ['Leased Mud Received', '100.000'],
-                          ['Leased Mud Returned', ''],
-                          ['Non-leased Mud Received', ''],
-                          ['Non-leased Mud Returned', ''],
-                          ['Cum. Leased', '100.000'],
-                        ],
-                        width: 245,
-                      ),
+                      _compactVolumePanel('Premixed Mud', const [
+                        ['Leased Mud Received', '100.000'],
+                        ['Leased Mud Returned', ''],
+                        ['Non-leased Mud Received', ''],
+                        ['Non-leased Mud Returned', ''],
+                        ['Cum. Leased', '100.000'],
+                      ], width: 245),
                       const SizedBox(height: 8),
                       _volumeSummaryMock(compact: true),
                       const SizedBox(height: 8),
@@ -7505,34 +16019,87 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Active System Volume', style: AppTheme.bodyLarge.copyWith(fontSize: 8, fontWeight: FontWeight.w700)),
-        Row(children: [_snapshotCell('', width: 96, header: true), _snapshotCell('', width: 130, header: true), _snapshotCell('Vol. (bbl)', width: 65, header: true, alignCenter: true), _snapshotCell('', width: 62, header: true)]),
+        Text(
+          'Active System Volume',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 8,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Row(
+          children: [
+            _snapshotCell('', width: 96, header: true),
+            _snapshotCell('', width: 130, header: true),
+            _snapshotCell(
+              'Vol. (bbl)',
+              width: 65,
+              header: true,
+              alignCenter: true,
+            ),
+            _snapshotCell('', width: 62, header: true),
+          ],
+        ),
         for (final row in rows)
           Row(
             children: [
               _snapshotCell(row[0], width: 96),
               _snapshotCell(row[1], width: 130),
-              _snapshotCell(row[2], width: 65, fill: const Color(0xFFFFFFD8), alignRight: true),
-              _snapshotCell(row.length > 3 ? row[3] : '', width: 62, fill: const Color(0xFFFFFFD8), alignRight: true),
+              _snapshotCell(
+                row[2],
+                width: 65,
+                fill: const Color(0xFFFFFFD8),
+                alignRight: true,
+              ),
+              _snapshotCell(
+                row.length > 3 ? row[3] : '',
+                width: 62,
+                fill: const Color(0xFFFFFFD8),
+                alignRight: true,
+              ),
             ],
           ),
       ],
     );
   }
 
-  Widget _compactVolumePanel(String title, List<List<String>> rows, {required double width}) {
+  Widget _compactVolumePanel(
+    String title,
+    List<List<String>> rows, {
+    required double width,
+  }) {
     return SizedBox(
       width: width,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: AppTheme.bodyLarge.copyWith(fontSize: 8, fontWeight: FontWeight.w700)),
-          Row(children: [_snapshotCell('', width: width - 98, header: true), _snapshotCell('Vol. (bbl)', width: 98, header: true, alignCenter: true)]),
+          Text(
+            title,
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Row(
+            children: [
+              _snapshotCell('', width: width - 98, header: true),
+              _snapshotCell(
+                'Vol. (bbl)',
+                width: 98,
+                header: true,
+                alignCenter: true,
+              ),
+            ],
+          ),
           for (final row in rows)
             Row(
               children: [
                 _snapshotCell(row[0], width: width - 98),
-                _snapshotCell(row[1], width: 98, fill: const Color(0xFFFFFFD8), alignRight: true),
+                _snapshotCell(
+                  row[1],
+                  width: 98,
+                  fill: const Color(0xFFFFFFD8),
+                  alignRight: true,
+                ),
               ],
             ),
         ],
@@ -7554,9 +16121,29 @@ class _ManualTopicPage extends StatelessWidget {
       width: 505,
       child: Column(
         children: [
-          Row(children: [_snapshotCell('Addition', width: 245, header: true, alignCenter: true), _snapshotCell('Operations', width: 260, header: true, alignCenter: true)]),
+          Row(
+            children: [
+              _snapshotCell(
+                'Addition',
+                width: 245,
+                header: true,
+                alignCenter: true,
+              ),
+              _snapshotCell(
+                'Operations',
+                width: 260,
+                header: true,
+                alignCenter: true,
+              ),
+            ],
+          ),
           for (final row in rows)
-            Row(children: [_snapshotCell(row[0], width: 245), _snapshotCell(row[1], width: 260)]),
+            Row(
+              children: [
+                _snapshotCell(row[0], width: 245),
+                _snapshotCell(row[1], width: 260),
+              ],
+            ),
         ],
       ),
     );
@@ -7588,16 +16175,45 @@ class _ManualTopicPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Volume Summary', style: AppTheme.bodyLarge.copyWith(fontSize: compact ? 8 : 10, fontWeight: FontWeight.w700)),
-          Row(children: [_snapshotCell('', width: labelWidth, header: true), _snapshotCell('Vol. (bbl)', width: valueWidth, header: true, alignCenter: true)]),
+          Text(
+            'Volume Summary',
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: compact ? 8 : 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Row(
+            children: [
+              _snapshotCell('', width: labelWidth, header: true),
+              _snapshotCell(
+                'Vol. (bbl)',
+                width: valueWidth,
+                header: true,
+                alignCenter: true,
+              ),
+            ],
+          ),
           for (final row in rows)
-            Row(children: [_snapshotCell(row[0], width: labelWidth), _snapshotCell(row[1], width: valueWidth, fill: const Color(0xFFFFFFD8), alignRight: true)]),
+            Row(
+              children: [
+                _snapshotCell(row[0], width: labelWidth),
+                _snapshotCell(
+                  row[1],
+                  width: valueWidth,
+                  fill: const Color(0xFFFFFFD8),
+                  alignRight: true,
+                ),
+              ],
+            ),
           if (!compact)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
                 '*Total on Location - Cum. Leased',
-                style: AppTheme.bodyLarge.copyWith(fontSize: 10, color: AppTheme.textPrimary),
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 10,
+                  color: AppTheme.textPrimary,
+                ),
               ),
             ),
         ],
@@ -7644,10 +16260,17 @@ class _ManualTopicPage extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Mud Treated',
-                    style: AppTheme.bodyLarge.copyWith(fontSize: 8.5, color: AppTheme.textPrimary),
+                    style: AppTheme.bodyLarge.copyWith(
+                      fontSize: 8.5,
+                      color: AppTheme.textPrimary,
+                    ),
                   ),
                 ),
-                const Icon(Icons.close, size: 11, color: AppTheme.textSecondary),
+                const Icon(
+                  Icons.close,
+                  size: 11,
+                  color: AppTheme.textSecondary,
+                ),
               ],
             ),
           ),
@@ -7659,39 +16282,108 @@ class _ManualTopicPage extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      _snapshotCell(headers[0], width: 70, header: true, alignCenter: true),
-                      _snapshotCell(headers[1], width: 72, header: true, alignCenter: true),
-                      _snapshotCell(headers[2], width: 72, header: true, alignCenter: true),
-                      _snapshotCell(headers[3], width: 72, header: true, alignCenter: true),
+                      _snapshotCell(
+                        headers[0],
+                        width: 70,
+                        header: true,
+                        alignCenter: true,
+                      ),
+                      _snapshotCell(
+                        headers[1],
+                        width: 72,
+                        header: true,
+                        alignCenter: true,
+                      ),
+                      _snapshotCell(
+                        headers[2],
+                        width: 72,
+                        header: true,
+                        alignCenter: true,
+                      ),
+                      _snapshotCell(
+                        headers[3],
+                        width: 72,
+                        header: true,
+                        alignCenter: true,
+                      ),
                     ],
                   ),
                   for (final row in rows)
                     Row(
                       children: [
                         _snapshotCell(row[0], width: 70),
-                        _snapshotCell(row[1], width: 72, fill: const Color(0xFFFFFFD8), alignRight: true),
-                        _snapshotCell(row[2], width: 72, fill: const Color(0xFFFFFFD8), alignRight: true),
-                        _snapshotCell(row[3], width: 72, fill: const Color(0xFFFFFFD8), alignRight: true),
+                        _snapshotCell(
+                          row[1],
+                          width: 72,
+                          fill: const Color(0xFFFFFFD8),
+                          alignRight: true,
+                        ),
+                        _snapshotCell(
+                          row[2],
+                          width: 72,
+                          fill: const Color(0xFFFFFFD8),
+                          alignRight: true,
+                        ),
+                        _snapshotCell(
+                          row[3],
+                          width: 72,
+                          fill: const Color(0xFFFFFFD8),
+                          alignRight: true,
+                        ),
                       ],
                     ),
                   const Spacer(),
-                  Text('Active System', style: AppTheme.bodyLarge.copyWith(fontSize: 7.2, color: AppTheme.textPrimary)),
+                  Text(
+                    'Active System',
+                    style: AppTheme.bodyLarge.copyWith(
+                      fontSize: 7.2,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      SizedBox(width: 94, child: Text('From Reserve Pits', style: AppTheme.bodyLarge.copyWith(fontSize: 7.2))),
-                      _snapshotCell('0.000', width: 72, fill: const Color(0xFFFFFFD8), alignRight: true),
+                      SizedBox(
+                        width: 94,
+                        child: Text(
+                          'From Reserve Pits',
+                          style: AppTheme.bodyLarge.copyWith(fontSize: 7.2),
+                        ),
+                      ),
+                      _snapshotCell(
+                        '0.000',
+                        width: 72,
+                        fill: const Color(0xFFFFFFD8),
+                        alignRight: true,
+                      ),
                       const SizedBox(width: 8),
-                      Text('(bbl)', style: AppTheme.bodyLarge.copyWith(fontSize: 7.2)),
+                      Text(
+                        '(bbl)',
+                        style: AppTheme.bodyLarge.copyWith(fontSize: 7.2),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      SizedBox(width: 94, child: Text('Mud Treated', style: AppTheme.bodyLarge.copyWith(fontSize: 7.2))),
-                      _snapshotCell('101.000', width: 72, fill: const Color(0xFFFFFFD8), alignRight: true),
+                      SizedBox(
+                        width: 94,
+                        child: Text(
+                          'Mud Treated',
+                          style: AppTheme.bodyLarge.copyWith(fontSize: 7.2),
+                        ),
+                      ),
+                      _snapshotCell(
+                        '101.000',
+                        width: 72,
+                        fill: const Color(0xFFFFFFD8),
+                        alignRight: true,
+                      ),
                       const SizedBox(width: 8),
-                      Text('(bbl)', style: AppTheme.bodyLarge.copyWith(fontSize: 7.2)),
+                      Text(
+                        '(bbl)',
+                        style: AppTheme.bodyLarge.copyWith(fontSize: 7.2),
+                      ),
                       const Spacer(),
                       _smallButton('Close'),
                     ],
@@ -7720,8 +16412,8 @@ class _ManualTopicPage extends StatelessWidget {
       alignment: alignCenter
           ? Alignment.center
           : alignRight
-              ? Alignment.centerRight
-              : Alignment.centerLeft,
+          ? Alignment.centerRight
+          : Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 3),
       decoration: BoxDecoration(
         color: fill ?? (header ? AppTheme.tableHeaderBlue : Colors.white),
@@ -7734,7 +16426,9 @@ class _ManualTopicPage extends StatelessWidget {
         style: AppTheme.bodyLarge.copyWith(
           fontSize: header ? 5.8 : 6.2,
           height: 1.0,
-          fontWeight: header || text.isNotEmpty ? FontWeight.w700 : FontWeight.w400,
+          fontWeight: header || text.isNotEmpty
+              ? FontWeight.w700
+              : FontWeight.w400,
           color: textColor ?? AppTheme.textPrimary,
         ),
       ),
@@ -7751,7 +16445,11 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        screenshot ?? _operationDetailMock(operation: operation, body: body ?? const SizedBox.shrink()),
+        screenshot ??
+            _operationDetailMock(
+              operation: operation,
+              body: body ?? const SizedBox.shrink(),
+            ),
         const SizedBox(height: 24),
         for (final paragraph in paragraphs) _manualParagraph(paragraph),
         for (final numberedParagraph in numberedParagraphs)
@@ -7760,7 +16458,10 @@ class _ManualTopicPage extends StatelessWidget {
     );
   }
 
-  Widget _operationDetailMock({required String operation, required Widget body}) {
+  Widget _operationDetailMock({
+    required String operation,
+    required Widget body,
+  }) {
     return Container(
       width: 720,
       height: 480,
@@ -7791,14 +16492,26 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Safety', 'Remarks'])
+                for (final tab in const [
+                  'Well',
+                  'Mud',
+                  'Pump',
+                  'Operation',
+                  'Pit',
+                  'Safety',
+                  'Remarks',
+                ])
                   Container(
                     height: 27,
                     padding: const EdgeInsets.symmetric(horizontal: 11),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Operation' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Operation'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -7869,7 +16582,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Current-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -7917,7 +16633,13 @@ class _ManualTopicPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [_operationFieldRow('BOL No.', ''), const SizedBox(width: 12), _manualActionButton('Return All Inventory', width: 112)]),
+          Row(
+            children: [
+              _operationFieldRow('BOL No.', ''),
+              const SizedBox(width: 12),
+              _manualActionButton('Return All Inventory', width: 112),
+            ],
+          ),
           const SizedBox(height: 8),
           _operationSmallTable(
             title: 'Product',
@@ -8019,7 +16741,7 @@ class _ManualTopicPage extends StatelessWidget {
 
   Widget _addWaterBodyMock() {
     return SizedBox(
-      width: 260,
+      width: 288,
       child: _operationFormTable(const [
         ['To', 'Active System', ''],
         ['Vol.', '', '(bbl)'],
@@ -8033,26 +16755,20 @@ class _ManualTopicPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _pitSwitchTable(
-            'Active Pits - Check to Move to Reserve Pits',
-            const [
-              ['Active System', 'checked'],
-              ['Slug Pit', ''],
-              ['Trip Tank', ''],
-            ],
-          ),
+          _pitSwitchTable('Active Pits - Check to Move to Reserve Pits', const [
+            ['Active System', 'checked'],
+            ['Slug Pit', ''],
+            ['Trip Tank', ''],
+          ]),
           const SizedBox(height: 10),
-          _pitSwitchTable(
-            'Reserve Pits - Check to Move to Active Pits',
-            const [
-              ['Frac 6', ''],
-              ['Frac 1', ''],
-              ['Frac 2', ''],
-              ['Frac 3', ''],
-              ['Gas Buster', ''],
-              ['Mixing Pits', ''],
-            ],
-          ),
+          _pitSwitchTable('Reserve Pits - Check to Move to Active Pits', const [
+            ['Frac 6', ''],
+            ['Frac 1', ''],
+            ['Frac 2', ''],
+            ['Frac 3', ''],
+            ['Gas Buster', ''],
+            ['Mixing Pits', ''],
+          ]),
         ],
       ),
     );
@@ -8064,11 +16780,32 @@ class _ManualTopicPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _switchMudSection('1. Remove Mud from Active Pits', 'Transfer to', const [['Pit', 'Vol.\n(bbl)'], ['', '']]),
+          _switchMudSection(
+            '1. Remove Mud from Active Pits',
+            'Transfer to',
+            const [
+              ['Pit', 'Vol.\n(bbl)'],
+              ['', ''],
+            ],
+          ),
           const SizedBox(height: 6),
-          _switchMudSection('2. Fill Active Pits', 'Make Reserve Pits Active Pits', const [['Pit', 'Measured Vol.\n(bbl)'], ['', '']]),
+          _switchMudSection(
+            '2. Fill Active Pits',
+            'Make Reserve Pits Active Pits',
+            const [
+              ['Pit', 'Measured Vol.\n(bbl)'],
+              ['', ''],
+            ],
+          ),
           const SizedBox(height: 6),
-          _switchMudSection('3. Displace Fluid in Hole with', 'Reserve Pits', const [['Pit', 'Vol.\n(bbl)'], ['', '']]),
+          _switchMudSection(
+            '3. Displace Fluid in Hole with',
+            'Reserve Pits',
+            const [
+              ['Pit', 'Vol.\n(bbl)'],
+              ['', ''],
+            ],
+          ),
         ],
       ),
     );
@@ -8121,7 +16858,12 @@ class _ManualTopicPage extends StatelessWidget {
       width: 340,
       child: _operationSmallTable(
         title: 'Mud Loss - Reserve Pit',
-        headers: const ['Reserve Pits', 'Dump\n(bbl)', 'Evaporation\n(bbl)', 'Pit Cleaning\n(bbl)'],
+        headers: const [
+          'Reserve Pits',
+          'Dump\n(bbl)',
+          'Evaporation\n(bbl)',
+          'Pit Cleaning\n(bbl)',
+        ],
         widths: const [106, 70, 78, 78],
         rows: const [
           ['Frac 6', '', '', ''],
@@ -8138,7 +16880,13 @@ class _ManualTopicPage extends StatelessWidget {
       children: [
         SizedBox(
           width: 70,
-          child: Text(label, style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w700)),
+          child: Text(
+            label,
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
         _gridCell(value, width: 145, yellow: true),
       ],
@@ -8153,7 +16901,12 @@ class _ManualTopicPage extends StatelessWidget {
           Row(
             children: [
               _gridCell(row[0], width: 112),
-              _gridCell(row[1] == 'checked' ? 'X' : row[1], width: 118, yellow: true, alignCenter: row[1] == 'checked'),
+              _gridCell(
+                row[1] == 'checked' ? 'X' : row[1],
+                width: 118,
+                yellow: true,
+                alignCenter: row[1] == 'checked',
+              ),
               _gridCell(row[2], width: 58),
             ],
           ),
@@ -8168,11 +16921,22 @@ class _ManualTopicPage extends StatelessWidget {
           width: 12,
           height: 12,
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade500)),
-          child: checked ? const Icon(Icons.check, size: 10, color: AppTheme.textPrimary) : null,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: Colors.grey.shade500),
+          ),
+          child: checked
+              ? const Icon(Icons.check, size: 10, color: AppTheme.textPrimary)
+              : null,
         ),
         const SizedBox(width: 5),
-        Text(label, style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w700)),
+        Text(
+          label,
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ],
     );
   }
@@ -8186,7 +16950,8 @@ class _ManualTopicPage extends StatelessWidget {
   }) {
     final paddedRows = [
       ...rows,
-      for (var i = rows.length; i < minRows; i++) List<String>.filled(headers.length, ''),
+      for (var i = rows.length; i < minRows; i++)
+        List<String>.filled(headers.length, ''),
     ];
 
     return Column(
@@ -8195,11 +16960,23 @@ class _ManualTopicPage extends StatelessWidget {
         if (title.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 2),
-            child: Text(title, style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+            child: Text(
+              title,
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         Row(
           children: [
-            for (var i = 0; i < headers.length; i++) _gridCell(headers[i], width: widths[i], header: true, alignCenter: true),
+            for (var i = 0; i < headers.length; i++)
+              _gridCell(
+                headers[i],
+                width: widths[i],
+                header: true,
+                alignCenter: true,
+              ),
           ],
         ),
         for (final row in paddedRows)
@@ -8222,19 +16999,35 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+        Text(
+          title,
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         Row(
           children: [
             _gridCell('Pit', width: 130, header: true),
             _gridCell('Checked', width: 62, header: true, alignCenter: true),
-            _gridCell('Measured Vol.\n(bbl)', width: 78, header: true, alignCenter: true),
+            _gridCell(
+              'Measured Vol.\n(bbl)',
+              width: 78,
+              header: true,
+              alignCenter: true,
+            ),
           ],
         ),
         for (final row in rows)
           Row(
             children: [
               _gridCell(row[0], width: 130, yellow: true),
-              _gridCell(row[1] == 'checked' ? 'X' : '', width: 62, yellow: true, alignCenter: true),
+              _gridCell(
+                row[1] == 'checked' ? 'X' : '',
+                width: 62,
+                yellow: true,
+                alignCenter: true,
+              ),
               _gridCell('', width: 78, alignRight: true),
             ],
           ),
@@ -8242,11 +17035,21 @@ class _ManualTopicPage extends StatelessWidget {
     );
   }
 
-  Widget _switchMudSection(String title, String choice, List<List<String>> rows) {
+  Widget _switchMudSection(
+    String title,
+    String choice,
+    List<List<String>> rows,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+        Text(
+          title,
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         _operationCheckboxLine(choice, true),
         const SizedBox(height: 3),
         _operationSmallTable(
@@ -8313,7 +17116,13 @@ class _ManualTopicPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Offshore Connection', style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w800)),
+          Text(
+            'Offshore Connection',
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           Row(
             children: [
               Expanded(child: _checkboxMock('Riser', true)),
@@ -8326,7 +17135,13 @@ class _ManualTopicPage extends StatelessWidget {
               Expanded(child: _checkboxMock('Choke Line', false)),
             ],
           ),
-          Text('ML = 0.0 (ft)', style: AppTheme.bodyLarge.copyWith(fontSize: 10, color: AppTheme.textPrimary)),
+          Text(
+            'ML = 0.0 (ft)',
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 10,
+              color: AppTheme.textPrimary,
+            ),
+          ),
         ],
       ),
     );
@@ -8388,14 +17203,24 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Well', 'Casing', 'Interval', 'Plan', 'Survey'])
+                for (final tab in const [
+                  'Well',
+                  'Casing',
+                  'Interval',
+                  'Plan',
+                  'Survey',
+                ])
                   Container(
                     height: 27,
                     padding: const EdgeInsets.symmetric(horizontal: 11),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == activeTab ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == activeTab
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -8449,7 +17274,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Sample-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -8464,7 +17292,8 @@ class _ManualTopicPage extends StatelessWidget {
   }) {
     final allRows = [
       ...rows,
-      for (var i = rows.length; i < minRows; i++) List<String>.filled(headers.length, ''),
+      for (var i = rows.length; i < minRows; i++)
+        List<String>.filled(headers.length, ''),
     ];
 
     return Column(
@@ -8497,7 +17326,7 @@ class _ManualTopicPage extends StatelessWidget {
   }
 
   double _casingColumnWidth(int index) {
-    const widths = [82.0, 70.0, 52.0, 58.0, 54.0, 54.0, 58.0, 50.0, 50.0];
+    const widths = [74.0, 64.0, 50.0, 54.0, 50.0, 50.0, 56.0, 48.0, 48.0];
     return widths[index];
   }
 
@@ -8515,15 +17344,15 @@ class _ManualTopicPage extends StatelessWidget {
       alignment: alignCenter
           ? Alignment.center
           : alignRight
-              ? Alignment.centerRight
-              : Alignment.centerLeft,
+          ? Alignment.centerRight
+          : Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         color: header
             ? AppTheme.tableHeaderBlue
             : yellow
-                ? const Color(0xFFFFFFD8)
-                : Colors.white,
+            ? const Color(0xFFFFFFD8)
+            : Colors.white,
         border: Border.all(color: Colors.grey.shade300, width: 0.6),
       ),
       child: Text(
@@ -8532,7 +17361,9 @@ class _ManualTopicPage extends StatelessWidget {
         textAlign: alignCenter ? TextAlign.center : TextAlign.left,
         style: AppTheme.bodyLarge.copyWith(
           fontSize: header ? 8.5 : 9,
-          fontWeight: header || text.isNotEmpty ? FontWeight.w700 : FontWeight.w400,
+          fontWeight: header || text.isNotEmpty
+              ? FontWeight.w700
+              : FontWeight.w400,
           color: AppTheme.textPrimary,
         ),
       ),
@@ -8553,16 +17384,43 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Cased Hole', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
-        Row(children: [for (final h in headers) _gridCell(h, width: 58, header: true, alignCenter: true)]),
+        Text(
+          'Cased Hole',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Row(
+          children: [
+            for (final h in headers)
+              _gridCell(h, width: 58, header: true, alignCenter: true),
+          ],
+        ),
         for (final row in rows)
-          Row(children: [for (final cell in row) _gridCell(cell, width: 58, yellow: true, alignRight: cell != row[0])]),
+          Row(
+            children: [
+              for (final cell in row)
+                _gridCell(
+                  cell,
+                  width: 58,
+                  yellow: true,
+                  alignRight: cell != row[0],
+                ),
+            ],
+          ),
       ],
     );
   }
 
   Widget _casingDropdownMock() {
-    final items = const ['Conductor', 'Surface', 'Intermediate', 'Production', 'Production 5'];
+    final items = const [
+      'Conductor',
+      'Surface',
+      'Intermediate',
+      'Production',
+      'Production 5',
+    ];
     return Container(
       width: 110,
       padding: const EdgeInsets.all(4),
@@ -8576,7 +17434,13 @@ class _ManualTopicPage extends StatelessWidget {
           for (final item in items)
             Padding(
               padding: const EdgeInsets.only(bottom: 3),
-              child: Text(item, style: AppTheme.bodyLarge.copyWith(fontSize: 8.5, color: AppTheme.textPrimary)),
+              child: Text(
+                item,
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 8.5,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
             ),
         ],
       ),
@@ -8588,10 +17452,26 @@ class _ManualTopicPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Drill String', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
-        Row(children: [for (final h in headers) _gridCell(h, width: 55, header: true, alignCenter: true)]),
+        Text(
+          'Drill String',
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Row(
+          children: [
+            for (final h in headers)
+              _gridCell(h, width: 55, header: true, alignCenter: true),
+          ],
+        ),
         for (final row in rows)
-          Row(children: [for (final cell in row) _gridCell(cell, width: 55, alignRight: cell != row[0])]),
+          Row(
+            children: [
+              for (final cell in row)
+                _gridCell(cell, width: 55, alignRight: cell != row[0]),
+            ],
+          ),
       ],
     );
   }
@@ -8602,7 +17482,13 @@ class _ManualTopicPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Bit', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w800)),
+          Text(
+            'Bit',
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           _reportSideField('Mfr.', 'ULTRERA'),
           _reportSideField('Type', 'RRJ75U'),
           _reportSideField('No. of Bits', '2'),
@@ -8644,14 +17530,24 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Well', 'Casing', 'Interval', 'Plan', 'Survey'])
+                for (final tab in const [
+                  'Well',
+                  'Casing',
+                  'Interval',
+                  'Plan',
+                  'Survey',
+                ])
                   Container(
                     height: 28,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Well' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Well'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -8707,7 +17603,10 @@ class _ManualTopicPage extends StatelessWidget {
                           const SizedBox(height: 12),
                           Text(
                             'Memo',
-                            style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w800),
+                            style: AppTheme.bodyLarge.copyWith(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Container(
@@ -8715,7 +17614,10 @@ class _ManualTopicPage extends StatelessWidget {
                             height: 72,
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              border: Border.all(color: Colors.grey.shade300, width: 0.6),
+                              border: Border.all(
+                                color: Colors.grey.shade300,
+                                width: 0.6,
+                              ),
                             ),
                           ),
                         ],
@@ -8734,7 +17636,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Sample-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -8772,7 +17677,10 @@ class _ManualTopicPage extends StatelessWidget {
           child: Text(
             value,
             overflow: TextOverflow.ellipsis,
-            style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: value.isEmpty ? FontWeight.w400 : FontWeight.w700),
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 9,
+              fontWeight: value.isEmpty ? FontWeight.w400 : FontWeight.w700,
+            ),
           ),
         ),
         Container(
@@ -8784,10 +17692,7 @@ class _ManualTopicPage extends StatelessWidget {
             color: Colors.white,
             border: Border.all(color: Colors.grey.shade300, width: 0.6),
           ),
-          child: Text(
-            unit,
-            style: AppTheme.bodyLarge.copyWith(fontSize: 8.5),
-          ),
+          child: Text(unit, style: AppTheme.bodyLarge.copyWith(fontSize: 8.5)),
         ),
       ],
     );
@@ -8850,14 +17755,27 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Pad', 'Inventory', 'Pit', 'Pump', 'SCE', 'Formation', 'Report', 'Alert'])
+                for (final tab in const [
+                  'Pad',
+                  'Inventory',
+                  'Pit',
+                  'Pump',
+                  'SCE',
+                  'Formation',
+                  'Report',
+                  'Alert',
+                ])
                   Container(
                     height: 28,
                     padding: const EdgeInsets.symmetric(horizontal: 9),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Pad' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Pad'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -8922,7 +17840,13 @@ class _ManualTopicPage extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Logo', style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
+                              Text(
+                                'Logo',
+                                style: AppTheme.bodyLarge.copyWith(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                               const SizedBox(height: 5),
                               Container(
                                 width: 86,
@@ -8930,7 +17854,9 @@ class _ManualTopicPage extends StatelessWidget {
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: AppTheme.tableHeaderBlue,
-                                  border: Border.all(color: AppTheme.tableBorderBlue),
+                                  border: Border.all(
+                                    color: AppTheme.tableBorderBlue,
+                                  ),
                                 ),
                                 child: Text(
                                   'MSR2\nDMR',
@@ -8943,13 +17869,21 @@ class _ManualTopicPage extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 14),
-                              Text('Memo', style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
+                              Text(
+                                'Memo',
+                                style: AppTheme.bodyLarge.copyWith(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                               const SizedBox(height: 5),
                               Expanded(
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: Colors.white,
-                                    border: Border.all(color: Colors.grey.shade300),
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -8976,8 +17910,14 @@ class _ManualTopicPage extends StatelessWidget {
           height: 20,
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.symmetric(horizontal: 4),
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300, width: 0.6)),
-          child: Text(label, overflow: TextOverflow.ellipsis, style: AppTheme.bodyLarge.copyWith(fontSize: 10)),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300, width: 0.6),
+          ),
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.bodyLarge.copyWith(fontSize: 10),
+          ),
         ),
         Expanded(
           child: Container(
@@ -9007,10 +17947,18 @@ class _ManualTopicPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        _manualBullet('Vol. Addition: when selected, consumed product volume is calculated and added into the mud volume workflow.'),
-        _manualBullet('Concentration - Calculate: when selected, the product concentration is calculated and shown in concentration tables.'),
-        _manualBullet('Concentration - Plot: becomes available for products with concentration calculation enabled. Select the products that should appear in output and recap concentration plots.'),
-        _manualBullet('Pre-mixed mud: records whole mud received or prepared in the field. The product components are still selected from the Mud Company setup.'),
+        _manualBullet(
+          'Vol. Addition: when selected, consumed product volume is calculated and added into the mud volume workflow.',
+        ),
+        _manualBullet(
+          'Concentration - Calculate: when selected, the product concentration is calculated and shown in concentration tables.',
+        ),
+        _manualBullet(
+          'Concentration - Plot: becomes available for products with concentration calculation enabled. Select the products that should appear in output and recap concentration plots.',
+        ),
+        _manualBullet(
+          'Pre-mixed mud: records whole mud received or prepared in the field. The product components are still selected from the Mud Company setup.',
+        ),
         const SizedBox(height: 16),
         Text(
           'Tax can be enabled for inventory items when tax should be included in report cost calculations. If the tax option is not selected, no tax is applied for that item.',
@@ -9032,9 +17980,18 @@ class _ManualTopicPage extends StatelessWidget {
         const SizedBox(height: 12),
         _applyChangedPricesMock(),
         const SizedBox(height: 14),
-        _numberedHelp('1.', 'Apply changed prices to all: use this when the item price was wrong from the first report and should be updated across all reports.'),
-        _numberedHelp('2.', 'Apply changed prices from now on: use this when the new price should apply from the current report date and time forward.'),
-        _numberedHelp('3.', 'Apply changed prices from: use this when the new price should start from a specific date selected by the user.'),
+        _numberedHelp(
+          '1.',
+          'Apply changed prices to all: use this when the item price was wrong from the first report and should be updated across all reports.',
+        ),
+        _numberedHelp(
+          '2.',
+          'Apply changed prices from now on: use this when the new price should apply from the current report date and time forward.',
+        ),
+        _numberedHelp(
+          '3.',
+          'Apply changed prices from: use this when the new price should start from a specific date selected by the user.',
+        ),
         const SizedBox(height: 10),
         Text(
           'Example: if a product price is corrected after several drilling days, choose the correct price application mode so inventory cost and report totals recalculate from the intended point.',
@@ -9078,14 +18035,27 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Pad', 'Inventory', 'Pit', 'Pump', 'SCE', 'Formation', 'Report', 'Alert'])
+                for (final tab in const [
+                  'Pad',
+                  'Inventory',
+                  'Pit',
+                  'Pump',
+                  'SCE',
+                  'Formation',
+                  'Report',
+                  'Alert',
+                ])
                   Container(
                     height: 28,
                     padding: const EdgeInsets.symmetric(horizontal: 9),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Inventory' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Inventory'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -9131,13 +18101,85 @@ class _ManualTopicPage extends StatelessWidget {
                               Expanded(
                                 flex: 7,
                                 child: _inventoryGrid(
-                                  headers: const ['Product', 'Code', 'SG', 'Unit', 'Price', 'Initial', 'Group', 'Vol.', 'Calc.', 'Plot', 'Tax'],
+                                  headers: const [
+                                    'Product',
+                                    'Code',
+                                    'SG',
+                                    'Unit',
+                                    'Price',
+                                    'Initial',
+                                    'Group',
+                                    'Vol.',
+                                    'Calc.',
+                                    'Plot',
+                                    'Tax',
+                                  ],
                                   rows: const [
-                                    ['DIESEL', '', '0.78', '1 gal', '0.00', '100.00', 'Base Fluid', 'x', 'x', '', 'x'],
-                                    ['BARITE', '', '4.10', '100 Ton', '145.00', '100.00', 'Weight Material', 'x', 'x', '', 'x'],
-                                    ['BENTONITE', '', '2.60', '50 lb', '0.00', '100.00', 'Viscosifier', 'x', 'x', 'x', ''],
-                                    ['LIME', '', '2.20', '50 lb', '0.00', '100.00', 'Alkalinity', 'x', '', '', ''],
-                                    ['PAC-LV', '', '1.59', '50 lb', '0.00', '100.00', 'Filtration', 'x', 'x', 'x', ''],
+                                    [
+                                      'DIESEL',
+                                      '',
+                                      '0.78',
+                                      '1 gal',
+                                      '0.00',
+                                      '100.00',
+                                      'Base Fluid',
+                                      'x',
+                                      'x',
+                                      '',
+                                      'x',
+                                    ],
+                                    [
+                                      'BARITE',
+                                      '',
+                                      '4.10',
+                                      '100 Ton',
+                                      '145.00',
+                                      '100.00',
+                                      'Weight Material',
+                                      'x',
+                                      'x',
+                                      '',
+                                      'x',
+                                    ],
+                                    [
+                                      'BENTONITE',
+                                      '',
+                                      '2.60',
+                                      '50 lb',
+                                      '0.00',
+                                      '100.00',
+                                      'Viscosifier',
+                                      'x',
+                                      'x',
+                                      'x',
+                                      '',
+                                    ],
+                                    [
+                                      'LIME',
+                                      '',
+                                      '2.20',
+                                      '50 lb',
+                                      '0.00',
+                                      '100.00',
+                                      'Alkalinity',
+                                      'x',
+                                      '',
+                                      '',
+                                      '',
+                                    ],
+                                    [
+                                      'PAC-LV',
+                                      '',
+                                      '1.59',
+                                      '50 lb',
+                                      '0.00',
+                                      '100.00',
+                                      'Filtration',
+                                      'x',
+                                      'x',
+                                      'x',
+                                      '',
+                                    ],
                                   ],
                                   height: 155,
                                 ),
@@ -9146,16 +18188,26 @@ class _ManualTopicPage extends StatelessWidget {
                               Expanded(
                                 flex: 3,
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
                                     Text(
                                       'Report 10 - Receive',
-                                      style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w800),
+                                      style: AppTheme.bodyLarge.copyWith(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                      ),
                                     ),
                                     const SizedBox(height: 4),
                                     Expanded(
                                       child: _inventoryGrid(
-                                        headers: const ['Product', 'Code', 'SG', 'Conc.', 'Unit'],
+                                        headers: const [
+                                          'Product',
+                                          'Code',
+                                          'SG',
+                                          'Conc.',
+                                          'Unit',
+                                        ],
                                         rows: const [
                                           ['', '', '', '', ''],
                                           ['', '', '', '', ''],
@@ -9180,11 +18232,20 @@ class _ManualTopicPage extends StatelessWidget {
                                 children: [
                                   Text(
                                     'Pre-mixed Mud',
-                                    style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w800),
+                                    style: AppTheme.bodyLarge.copyWith(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   _inventoryGrid(
-                                    headers: const ['Description', 'MW', 'Leasing Fee', 'Mud Type', 'Tax'],
+                                    headers: const [
+                                      'Description',
+                                      'MW',
+                                      'Leasing Fee',
+                                      'Mud Type',
+                                      'Tax',
+                                    ],
                                     rows: const [
                                       ['Receive 1', '15.20', '10.00', '', ''],
                                       ['Receive 2', '15.20', '12.00', '', ''],
@@ -9203,7 +18264,10 @@ class _ManualTopicPage extends StatelessWidget {
                                 children: [
                                   Text(
                                     'Bulk Tank Setup Fee',
-                                    style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w800),
+                                    style: AppTheme.bodyLarge.copyWith(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
                                   const SizedBox(height: 6),
                                   _fieldLine('Tax Rate (%)'),
@@ -9220,7 +18284,10 @@ class _ManualTopicPage extends StatelessWidget {
                                 children: [
                                   Text(
                                     'Apply Changed Prices',
-                                    style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w800),
+                                    style: AppTheme.bodyLarge.copyWith(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
                                   _radioMock('to All', selected: true),
                                   _radioMock('from Now On', selected: false),
@@ -9231,7 +18298,10 @@ class _ManualTopicPage extends StatelessWidget {
                                       Expanded(child: _fieldLine('7/1/2026')),
                                     ],
                                   ),
-                                  Align(alignment: Alignment.centerRight, child: _smallButton('Apply')),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: _smallButton('Apply'),
+                                  ),
                                 ],
                               ),
                             ),
@@ -9269,15 +18339,22 @@ class _ManualTopicPage extends StatelessWidget {
                         alignment: Alignment.centerLeft,
                         padding: const EdgeInsets.symmetric(horizontal: 3),
                         decoration: BoxDecoration(
-                          color: rowIndex == 0 ? AppTheme.tableHeaderBlue : const Color(0xFFFFFFD8),
-                          border: Border.all(color: Colors.grey.shade300, width: 0.6),
+                          color: rowIndex == 0
+                              ? AppTheme.tableHeaderBlue
+                              : const Color(0xFFFFFFD8),
+                          border: Border.all(
+                            color: Colors.grey.shade300,
+                            width: 0.6,
+                          ),
                         ),
                         child: Text(
                           cell,
                           overflow: TextOverflow.ellipsis,
                           style: AppTheme.bodyLarge.copyWith(
                             fontSize: rowIndex == 0 ? 8 : 9,
-                            fontWeight: rowIndex == 0 ? FontWeight.w800 : FontWeight.w600,
+                            fontWeight: rowIndex == 0
+                                ? FontWeight.w800
+                                : FontWeight.w600,
                             color: AppTheme.textPrimary,
                           ),
                         ),
@@ -9386,6 +18463,7 @@ class _ManualTopicPage extends StatelessWidget {
     return Container(
       width: 338,
       height: 494,
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.grey.shade400),
@@ -9398,14 +18476,17 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 _pitCell('', width: 34, header: true),
-                _pitCell('Pit', width: 108, header: true),
+                _pitCell('Pit', width: 106, header: true),
                 _pitCell('Capacity\n(bbl)', width: 88, header: true),
                 _pitCell('Initial Active', width: 90, header: true),
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
                       color: AppTheme.tableHeaderBlue,
-                      border: Border.all(color: Colors.grey.shade300, width: 0.6),
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                        width: 0.6,
+                      ),
                     ),
                   ),
                 ),
@@ -9423,9 +18504,14 @@ class _ManualTopicPage extends StatelessWidget {
                           child: Row(
                             children: [
                               _pitCell(row[0], width: 34, alignRight: true),
-                              _pitCell(row[1], width: 108),
+                              _pitCell(row[1], width: 106),
                               _pitCell(row[2], width: 88, alignRight: true),
-                              _pitCell('', width: 90, checkbox: true, checked: row[3] == 'x'),
+                              _pitCell(
+                                '',
+                                width: 90,
+                                checkbox: true,
+                                checked: row[3] == 'x',
+                              ),
                             ],
                           ),
                         ),
@@ -9440,13 +18526,21 @@ class _ManualTopicPage extends StatelessWidget {
                       Container(
                         height: 18,
                         alignment: Alignment.center,
-                        child: Icon(Icons.keyboard_arrow_up, size: 14, color: Colors.grey.shade700),
+                        child: Icon(
+                          Icons.keyboard_arrow_up,
+                          size: 14,
+                          color: Colors.grey.shade700,
+                        ),
                       ),
                       Expanded(child: Container(color: Colors.grey.shade300)),
                       Container(
                         height: 18,
                         alignment: Alignment.center,
-                        child: Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.grey.shade700),
+                        child: Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 14,
+                          color: Colors.grey.shade700,
+                        ),
                       ),
                     ],
                   ),
@@ -9472,15 +18566,19 @@ class _ManualTopicPage extends StatelessWidget {
       alignment: checkbox
           ? Alignment.center
           : alignRight
-              ? Alignment.centerRight
-              : Alignment.centerLeft,
+          ? Alignment.centerRight
+          : Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         color: header ? AppTheme.tableHeaderBlue : Colors.white,
         border: Border.all(color: Colors.grey.shade300, width: 0.6),
       ),
       child: checkbox
-          ? Icon(checked ? Icons.check_box : Icons.check_box_outline_blank, size: 13, color: Colors.grey.shade700)
+          ? Icon(
+              checked ? Icons.check_box : Icons.check_box_outline_blank,
+              size: 13,
+              color: Colors.grey.shade700,
+            )
           : Text(
               text,
               maxLines: header ? 2 : 1,
@@ -9488,7 +18586,9 @@ class _ManualTopicPage extends StatelessWidget {
               textAlign: header ? TextAlign.center : TextAlign.left,
               style: AppTheme.bodyLarge.copyWith(
                 fontSize: header ? 8 : 9,
-                fontWeight: header || text.isNotEmpty ? FontWeight.w700 : FontWeight.w400,
+                fontWeight: header || text.isNotEmpty
+                    ? FontWeight.w700
+                    : FontWeight.w400,
                 color: AppTheme.textPrimary,
                 height: 1.0,
               ),
@@ -9568,14 +18668,27 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Pad', 'Inventory', 'Pit', 'Pump', 'SCE', 'Formation', 'Report', 'Alert'])
+                for (final tab in const [
+                  'Pad',
+                  'Inventory',
+                  'Pit',
+                  'Pump',
+                  'SCE',
+                  'Formation',
+                  'Report',
+                  'Alert',
+                ])
                   Container(
                     height: 28,
                     padding: const EdgeInsets.symmetric(horizontal: 9),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Pump' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Pump'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -9617,7 +18730,10 @@ class _ManualTopicPage extends StatelessWidget {
                       children: [
                         Text(
                           'Pump',
-                          style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w800),
+                          style: AppTheme.bodyLarge.copyWith(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         _pumpGrid(),
@@ -9626,9 +18742,18 @@ class _ManualTopicPage extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: const Color(0xFFF0F0F0),
                               border: Border(
-                                left: BorderSide(color: Colors.grey.shade300, width: 0.6),
-                                right: BorderSide(color: Colors.grey.shade300, width: 0.6),
-                                bottom: BorderSide(color: Colors.grey.shade300, width: 0.6),
+                                left: BorderSide(
+                                  color: Colors.grey.shade300,
+                                  width: 0.6,
+                                ),
+                                right: BorderSide(
+                                  color: Colors.grey.shade300,
+                                  width: 0.6,
+                                ),
+                                bottom: BorderSide(
+                                  color: Colors.grey.shade300,
+                                  width: 0.6,
+                                ),
                               ),
                             ),
                           ),
@@ -9648,7 +18773,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Sample-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -9672,8 +18800,34 @@ class _ManualTopicPage extends StatelessWidget {
       'ID (in)',
     ];
     final rows = const [
-      ['1', 'Triplex', 'PZ-11', '6.500', '', '11.000', '95.0', '0.1073', '', '', '', ''],
-      ['2', 'Triplex', 'PZ-11', '5.250', '', '11.000', '95.0', '0.0700', '', '', '', ''],
+      [
+        '1',
+        'Triplex',
+        'PZ-11',
+        '6.500',
+        '',
+        '11.000',
+        '95.0',
+        '0.1073',
+        '',
+        '',
+        '',
+        '',
+      ],
+      [
+        '2',
+        'Triplex',
+        'PZ-11',
+        '5.250',
+        '',
+        '11.000',
+        '95.0',
+        '0.0700',
+        '',
+        '',
+        '',
+        '',
+      ],
       ['3', '', '', '', '', '', '', '', '', '', '', ''],
       ['4', '', '', '', '', '', '', '', '', '', '', ''],
       ['5', '', '', '', '', '', '', '', '', '', '', ''],
@@ -9697,28 +18851,45 @@ class _ManualTopicPage extends StatelessWidget {
                   Expanded(
                     child: Row(
                       children: [
-                        for (var colIndex = 0; colIndex < table[rowIndex].length; colIndex++)
+                        for (
+                          var colIndex = 0;
+                          colIndex < table[rowIndex].length;
+                          colIndex++
+                        )
                           Expanded(
                             flex: _pumpColumnFlex(colIndex),
                             child: Container(
-                              alignment: colIndex == 0 || colIndex >= 3 ? Alignment.center : Alignment.centerLeft,
-                              padding: const EdgeInsets.symmetric(horizontal: 3),
+                              alignment: colIndex == 0 || colIndex >= 3
+                                  ? Alignment.center
+                                  : Alignment.centerLeft,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: rowIndex == 0
                                     ? AppTheme.tableHeaderBlue
                                     : colIndex == 4 || colIndex == 7
-                                        ? const Color(0xFFFFFFD8)
-                                        : Colors.white,
-                                border: Border.all(color: Colors.grey.shade300, width: 0.6),
+                                    ? const Color(0xFFFFFFD8)
+                                    : Colors.white,
+                                border: Border.all(
+                                  color: Colors.grey.shade300,
+                                  width: 0.6,
+                                ),
                               ),
                               child: Text(
                                 table[rowIndex][colIndex],
                                 maxLines: rowIndex == 0 ? 2 : 1,
                                 overflow: TextOverflow.ellipsis,
-                                textAlign: colIndex == 0 || colIndex >= 3 ? TextAlign.center : TextAlign.left,
+                                textAlign: colIndex == 0 || colIndex >= 3
+                                    ? TextAlign.center
+                                    : TextAlign.left,
                                 style: AppTheme.bodyLarge.copyWith(
                                   fontSize: rowIndex == 0 ? 7.5 : 8.5,
-                                  fontWeight: rowIndex == 0 || table[rowIndex][colIndex].isNotEmpty ? FontWeight.w700 : FontWeight.w400,
+                                  fontWeight:
+                                      rowIndex == 0 ||
+                                          table[rowIndex][colIndex].isNotEmpty
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
                                   height: 1.0,
                                   color: AppTheme.textPrimary,
                                 ),
@@ -9739,13 +18910,21 @@ class _ManualTopicPage extends StatelessWidget {
                 Container(
                   height: 18,
                   alignment: Alignment.center,
-                  child: Icon(Icons.keyboard_arrow_up, size: 14, color: Colors.grey.shade700),
+                  child: Icon(
+                    Icons.keyboard_arrow_up,
+                    size: 14,
+                    color: Colors.grey.shade700,
+                  ),
                 ),
                 Expanded(child: Container(color: Colors.grey.shade300)),
                 Container(
                   height: 18,
                   alignment: Alignment.center,
-                  child: Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.grey.shade700),
+                  child: Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 14,
+                    color: Colors.grey.shade700,
+                  ),
                 ),
               ],
             ),
@@ -9825,14 +19004,27 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Pad', 'Inventory', 'Pit', 'Pump', 'SCE', 'Formation', 'Report', 'Alert'])
+                for (final tab in const [
+                  'Pad',
+                  'Inventory',
+                  'Pit',
+                  'Pump',
+                  'SCE',
+                  'Formation',
+                  'Report',
+                  'Alert',
+                ])
                   Container(
                     height: 28,
                     padding: const EdgeInsets.symmetric(horizontal: 9),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'SCE' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'SCE'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -9879,11 +19071,19 @@ class _ManualTopicPage extends StatelessWidget {
                             children: [
                               Text(
                                 'Shaker',
-                                style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w800),
+                                style: AppTheme.bodyLarge.copyWith(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               _sceTable(
-                                headers: const ['Shaker', 'Model', 'No. of Screen', 'Plot'],
+                                headers: const [
+                                  'Shaker',
+                                  'Model',
+                                  'No. of Screen',
+                                  'Plot',
+                                ],
                                 rows: const [
                                   ['1', '140/140/140/140', '8', ''],
                                   ['2', '170/170/170/140', '8', ''],
@@ -9912,11 +19112,20 @@ class _ManualTopicPage extends StatelessWidget {
                             children: [
                               Text(
                                 'Solid Control Equipment',
-                                style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w800),
+                                style: AppTheme.bodyLarge.copyWith(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               _sceTable(
-                                headers: const ['Type', 'Model 1', 'Model 2', 'Model 3', 'Plot'],
+                                headers: const [
+                                  'Type',
+                                  'Model 1',
+                                  'Model 2',
+                                  'Model 3',
+                                  'Plot',
+                                ],
                                 rows: const [
                                   ['Degasser', '', '', '', ''],
                                   ['Desander', '', '', '', ''],
@@ -9931,9 +19140,7 @@ class _ManualTopicPage extends StatelessWidget {
                           ),
                         ),
                         Expanded(
-                          child: Container(
-                            color: const Color(0xFFF0F0F0),
-                          ),
+                          child: Container(color: const Color(0xFFF0F0F0)),
                         ),
                       ],
                     ),
@@ -9950,7 +19157,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Sample-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -9974,25 +19184,44 @@ class _ManualTopicPage extends StatelessWidget {
             Expanded(
               child: Row(
                 children: [
-                  for (var colIndex = 0; colIndex < table[rowIndex].length; colIndex++)
+                  for (
+                    var colIndex = 0;
+                    colIndex < table[rowIndex].length;
+                    colIndex++
+                  )
                     Expanded(
                       flex: colIndex == 0 ? 4 : 3,
                       child: Container(
-                        alignment: colIndex == plotColumn ? Alignment.center : Alignment.centerLeft,
+                        alignment: colIndex == plotColumn
+                            ? Alignment.center
+                            : Alignment.centerLeft,
                         padding: const EdgeInsets.symmetric(horizontal: 3),
                         decoration: BoxDecoration(
-                          color: rowIndex == 0 ? AppTheme.tableHeaderBlue : Colors.white,
-                          border: Border.all(color: Colors.grey.shade300, width: 0.6),
+                          color: rowIndex == 0
+                              ? AppTheme.tableHeaderBlue
+                              : Colors.white,
+                          border: Border.all(
+                            color: Colors.grey.shade300,
+                            width: 0.6,
+                          ),
                         ),
                         child: colIndex == plotColumn && rowIndex > 0
-                            ? Icon(Icons.check_box_outline_blank, size: 12, color: Colors.grey.shade700)
+                            ? Icon(
+                                Icons.check_box_outline_blank,
+                                size: 12,
+                                color: Colors.grey.shade700,
+                              )
                             : Text(
                                 table[rowIndex][colIndex],
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTheme.bodyLarge.copyWith(
                                   fontSize: rowIndex == 0 ? 7.5 : 8.5,
-                                  fontWeight: rowIndex == 0 || table[rowIndex][colIndex].isNotEmpty ? FontWeight.w700 : FontWeight.w400,
+                                  fontWeight:
+                                      rowIndex == 0 ||
+                                          table[rowIndex][colIndex].isNotEmpty
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
                                   color: AppTheme.textPrimary,
                                   height: 1.0,
                                 ),
@@ -10064,14 +19293,27 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Pad', 'Inventory', 'Pit', 'Pump', 'SCE', 'Formation', 'Report', 'Alert'])
+                for (final tab in const [
+                  'Pad',
+                  'Inventory',
+                  'Pit',
+                  'Pump',
+                  'SCE',
+                  'Formation',
+                  'Report',
+                  'Alert',
+                ])
                   Container(
                     height: 28,
                     padding: const EdgeInsets.symmetric(horizontal: 9),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Formation' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Formation'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -10117,15 +19359,26 @@ class _ManualTopicPage extends StatelessWidget {
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.check_box, size: 12, color: Colors.grey.shade700),
+                                  Icon(
+                                    Icons.check_box,
+                                    size: 12,
+                                    color: Colors.grey.shade700,
+                                  ),
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
                                       'Pore and Fracture from top downward',
-                                      style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w700),
+                                      style: AppTheme.bodyLarge.copyWith(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ),
-                                  Icon(Icons.settings_outlined, size: 13, color: AppTheme.primaryColor),
+                                  Icon(
+                                    Icons.settings_outlined,
+                                    size: 13,
+                                    color: AppTheme.primaryColor,
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 4),
@@ -10150,7 +19403,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'Formation properties below the last entered depth are constant.',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -10173,7 +19429,17 @@ class _ManualTopicPage extends StatelessWidget {
     final rows = const [
       ['1', 'Shale', '1000.0', '10.00', '0.520', '520', '0.572', '572', ''],
       ['2', 'Carbon', '5000.0', '12.00', '0.624', '3120', '0.676', '3380', ''],
-      ['3', 'Production', '10000.0', '13.00', '0.676', '6760', '0.780', '7800', ''],
+      [
+        '3',
+        'Production',
+        '10000.0',
+        '13.00',
+        '0.676',
+        '6760',
+        '0.780',
+        '7800',
+        '',
+      ],
       ['4', 'Water', '15000.0', '12.00', '0.624', '9360', '0.676', '10140', ''],
       ['5', '', '', '', '', '', '', '', ''],
       ['6', '', '', '', '', '', '', '', ''],
@@ -10207,28 +19473,48 @@ class _ManualTopicPage extends StatelessWidget {
                   Expanded(
                     child: Row(
                       children: [
-                        for (var colIndex = 0; colIndex < table[rowIndex].length; colIndex++)
+                        for (
+                          var colIndex = 0;
+                          colIndex < table[rowIndex].length;
+                          colIndex++
+                        )
                           Expanded(
                             flex: _formationColumnFlex(colIndex),
                             child: Container(
-                              alignment: colIndex == 1 ? Alignment.centerLeft : Alignment.center,
-                              padding: const EdgeInsets.symmetric(horizontal: 3),
+                              alignment: colIndex == 1
+                                  ? Alignment.centerLeft
+                                  : Alignment.center,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: rowIndex == 0
                                     ? AppTheme.tableHeaderBlue
-                                    : colIndex == 4 || colIndex == 5 || colIndex == 6 || colIndex == 7
-                                        ? const Color(0xFFFFFFD8)
-                                        : Colors.white,
-                                border: Border.all(color: Colors.grey.shade300, width: 0.6),
+                                    : colIndex == 4 ||
+                                          colIndex == 5 ||
+                                          colIndex == 6 ||
+                                          colIndex == 7
+                                    ? const Color(0xFFFFFFD8)
+                                    : Colors.white,
+                                border: Border.all(
+                                  color: Colors.grey.shade300,
+                                  width: 0.6,
+                                ),
                               ),
                               child: Text(
                                 table[rowIndex][colIndex],
                                 maxLines: rowIndex == 0 ? 2 : 1,
                                 overflow: TextOverflow.ellipsis,
-                                textAlign: colIndex == 1 ? TextAlign.left : TextAlign.center,
+                                textAlign: colIndex == 1
+                                    ? TextAlign.left
+                                    : TextAlign.center,
                                 style: AppTheme.bodyLarge.copyWith(
                                   fontSize: rowIndex == 0 ? 7.5 : 8.3,
-                                  fontWeight: rowIndex == 0 || table[rowIndex][colIndex].isNotEmpty ? FontWeight.w700 : FontWeight.w400,
+                                  fontWeight:
+                                      rowIndex == 0 ||
+                                          table[rowIndex][colIndex].isNotEmpty
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
                                   height: 1.0,
                                   color: AppTheme.textPrimary,
                                 ),
@@ -10246,9 +19532,25 @@ class _ManualTopicPage extends StatelessWidget {
             color: Colors.grey.shade200,
             child: Column(
               children: [
-                Container(height: 18, alignment: Alignment.center, child: Icon(Icons.keyboard_arrow_up, size: 14, color: Colors.grey.shade700)),
+                Container(
+                  height: 18,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.keyboard_arrow_up,
+                    size: 14,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
                 Expanded(child: Container(color: Colors.grey.shade300)),
-                Container(height: 18, alignment: Alignment.center, child: Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.grey.shade700)),
+                Container(
+                  height: 18,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 14,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
               ],
             ),
           ),
@@ -10380,14 +19682,27 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Pad', 'Inventory', 'Pit', 'Pump', 'SCE', 'Formation', 'Report', 'Alert'])
+                for (final tab in const [
+                  'Pad',
+                  'Inventory',
+                  'Pit',
+                  'Pump',
+                  'SCE',
+                  'Formation',
+                  'Report',
+                  'Alert',
+                ])
                   Container(
                     height: 28,
                     padding: const EdgeInsets.symmetric(horizontal: 9),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Report' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Report'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -10438,13 +19753,9 @@ class _ManualTopicPage extends StatelessWidget {
                           width: 180,
                         ),
                         const SizedBox(width: 28),
-                        _reportOptionGroup(
-                          'Rheology',
-                          const [
-                            ('Multi-rheology', false),
-                          ],
-                          width: 140,
-                        ),
+                        _reportOptionGroup('Rheology', const [
+                          ('Multi-rheology', false),
+                        ], width: 140),
                       ],
                     ),
                   ),
@@ -10460,7 +19771,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Sample-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -10584,14 +19898,27 @@ class _ManualTopicPage extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 100),
-                for (final tab in const ['Pad', 'Inventory', 'Pit', 'Pump', 'SCE', 'Formation', 'Report', 'Alert'])
+                for (final tab in const [
+                  'Pad',
+                  'Inventory',
+                  'Pit',
+                  'Pump',
+                  'SCE',
+                  'Formation',
+                  'Report',
+                  'Alert',
+                ])
                   Container(
                     height: 28,
                     padding: const EdgeInsets.symmetric(horizontal: 9),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Alert' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: const Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      color: tab == 'Alert'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: const Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -10638,7 +19965,10 @@ class _ManualTopicPage extends StatelessWidget {
                         _alertColorBar(),
                         const SizedBox(height: 10),
                         _alertLegend(Colors.green.shade700, 'Safe [0, 80] %'),
-                        _alertLegend(Colors.yellow.shade600, 'Warning (80, 100] %'),
+                        _alertLegend(
+                          Colors.yellow.shade600,
+                          'Warning (80, 100] %',
+                        ),
                         _alertLegend(Colors.red.shade600, 'Failed'),
                       ],
                     ),
@@ -10655,7 +19985,10 @@ class _ManualTopicPage extends StatelessWidget {
             child: Text(
               'C:/MSR2_DMR/Sample-Project.msr',
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyLarge.copyWith(fontSize: 9, color: AppTheme.textSecondary),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -10677,7 +20010,13 @@ class _ManualTopicPage extends StatelessWidget {
                 color: Colors.white,
                 border: Border.all(color: Colors.grey.shade300, width: 0.6),
               ),
-              child: Text('Safety Margin', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w700)),
+              child: Text(
+                'Safety Margin',
+                style: AppTheme.bodyLarge.copyWith(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
           Container(
@@ -10687,7 +20026,13 @@ class _ManualTopicPage extends StatelessWidget {
               color: const Color(0xFFFFFFD8),
               border: Border.all(color: Colors.grey.shade300, width: 0.6),
             ),
-            child: Text('80.0', style: AppTheme.bodyLarge.copyWith(fontSize: 9, fontWeight: FontWeight.w700)),
+            child: Text(
+              '80.0',
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
           Container(
             width: 32,
@@ -10756,15 +20101,32 @@ class _ManualTopicPage extends StatelessWidget {
             height: 32,
             child: Row(
               children: [
-                for (final tab in const ['Well', 'Casing', 'Interval', 'Plan', 'Survey'])
+                for (final tab in const [
+                  'Well',
+                  'Casing',
+                  'Interval',
+                  'Plan',
+                  'Survey',
+                ])
                   Container(
                     width: 80,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: tab == 'Plan' ? Colors.white : AppTheme.tableHeaderBlue,
-                      border: Border.all(color: Colors.grey.shade300, width: 0.6),
+                      color: tab == 'Plan'
+                          ? Colors.white
+                          : AppTheme.tableHeaderBlue,
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                        width: 0.6,
+                      ),
                     ),
-                    child: Text(tab, style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      tab,
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -10782,7 +20144,12 @@ class _ManualTopicPage extends StatelessWidget {
     );
   }
 
-  Widget _planCell(String text, {required double width, bool fill = false, bool alignRight = false}) {
+  Widget _planCell(
+    String text, {
+    required double width,
+    bool fill = false,
+    bool alignRight = false,
+  }) {
     return Container(
       width: width,
       height: 26,
@@ -10856,7 +20223,10 @@ class _ManualTopicPage extends StatelessWidget {
                         const SizedBox(height: 10),
                         Text(
                           'Alert',
-                          style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w800),
+                          style: AppTheme.bodyLarge.copyWith(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Expanded(child: _alertOutputTable()),
@@ -10894,7 +20264,13 @@ class _ManualTopicPage extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 5),
       child: Row(
         children: [
-          SizedBox(width: 38, child: Text(label, style: AppTheme.bodyLarge.copyWith(fontSize: 8.5))),
+          SizedBox(
+            width: 38,
+            child: Text(
+              label,
+              style: AppTheme.bodyLarge.copyWith(fontSize: 8.5),
+            ),
+          ),
           Expanded(
             child: LinearProgressIndicator(
               value: value,
@@ -10943,8 +20319,13 @@ class _ManualTopicPage extends StatelessWidget {
                   flex: 2,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: row[4] == 'red' ? Colors.red.shade600 : Colors.green.shade700,
-                      border: Border.all(color: Colors.grey.shade300, width: 0.6),
+                      color: row[4] == 'red'
+                          ? Colors.red.shade600
+                          : Colors.green.shade700,
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                        width: 0.6,
+                      ),
                     ),
                   ),
                 ),
@@ -10965,12 +20346,22 @@ class _ManualTopicPage extends StatelessWidget {
           color: AppTheme.tableHeaderBlue,
           border: Border.all(color: Colors.grey.shade300, width: 0.6),
         ),
-        child: Text(text, style: AppTheme.bodyLarge.copyWith(fontSize: 8.5, fontWeight: FontWeight.w800)),
+        child: Text(
+          text,
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 8.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _alertBodyCell(String text, {required int flex, bool alignRight = false}) {
+  Widget _alertBodyCell(
+    String text, {
+    required int flex,
+    bool alignRight = false,
+  }) {
     return Expanded(
       flex: flex,
       child: Container(
@@ -10983,7 +20374,10 @@ class _ManualTopicPage extends StatelessWidget {
         child: Text(
           text,
           overflow: TextOverflow.ellipsis,
-          style: AppTheme.bodyLarge.copyWith(fontSize: 8.5, color: AppTheme.textPrimary),
+          style: AppTheme.bodyLarge.copyWith(
+            fontSize: 8.5,
+            color: AppTheme.textPrimary,
+          ),
         ),
       ),
     );
@@ -11028,7 +20422,13 @@ class _ManualTopicPage extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 border: Border.all(color: Colors.grey.shade300),
-                boxShadow: const [BoxShadow(color: Colors.black12, offset: Offset(2, 2), blurRadius: 2)],
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    offset: Offset(2, 2),
+                    blurRadius: 2,
+                  ),
+                ],
               ),
               child: Column(
                 children: [
@@ -11107,6 +20507,7 @@ class _ManualTopicPage extends StatelessWidget {
 
     return Container(
       width: 372,
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.grey.shade400),
@@ -11145,10 +20546,14 @@ class _ManualTopicPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
-                for (final item in items) ...[
-                  Icon(item.icon, size: 17, color: AppTheme.textPrimary),
-                  const SizedBox(width: 13),
-                ],
+                for (final item in items)
+                  Expanded(
+                    child: Icon(
+                      item.icon,
+                      size: 17,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -11158,10 +20563,10 @@ class _ManualTopicPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
-                for (final item in items) ...[
-                  _toolbarNumber(item.label),
-                  const SizedBox(width: 15),
-                ],
+                for (final item in items)
+                  Expanded(
+                    child: Center(child: _toolbarNumber(item.label)),
+                  ),
               ],
             ),
           ),
@@ -11191,42 +20596,95 @@ class _ManualTopicPage extends StatelessWidget {
       children: [
         _toolbarOverviewMock(),
         const SizedBox(height: 22),
-        _numberedHelp('1.', 'New clears the current input entries so a new project or pad file can be started.'),
-        _numberedHelp('2.', 'Open displays a file dialog for selecting an existing MSR2_DMR data file or project file.'),
-        _numberedHelp('3.', 'Save stores the current input data. Use it after editing pad, well, report, inventory, or configuration data.'),
-        _numberedHelp('4.', 'Save As stores the current data under a different file name or location when a separate copy is required.'),
-        _numberedHelp('5.', 'Carry-over Pad copies selected pad information and inventory values into a new pad setup.'),
+        _numberedHelp(
+          '1.',
+          'New clears the current input entries so a new project or pad file can be started.',
+        ),
+        _numberedHelp(
+          '2.',
+          'Open displays a file dialog for selecting an existing MSR2_DMR data file or project file.',
+        ),
+        _numberedHelp(
+          '3.',
+          'Save stores the current input data. Use it after editing pad, well, report, inventory, or configuration data.',
+        ),
+        _numberedHelp(
+          '4.',
+          'Save As stores the current data under a different file name or location when a separate copy is required.',
+        ),
+        _numberedHelp(
+          '5.',
+          'Carry-over Pad copies selected pad information and inventory values into a new pad setup.',
+        ),
         const SizedBox(height: 8),
         _carryOverPadMock(),
         const SizedBox(height: 10),
-        _manualBullet('Pad data and final inventory: product/package opening values are copied from the final values of the previous pad/report set.'),
-        _manualBullet('Pad data and initial inventory: product/package opening values are copied from the configured initial inventory tables.'),
+        _manualBullet(
+          'Pad data and final inventory: product/package opening values are copied from the final values of the previous pad/report set.',
+        ),
+        _manualBullet(
+          'Pad data and initial inventory: product/package opening values are copied from the configured initial inventory tables.',
+        ),
         const SizedBox(height: 10),
-        _numberedHelp('6.', 'New Report creates a blank daily report under the active well. The active well or report must be selected first.'),
-        _numberedHelp('7.', 'Carry-over copies selected values from the previous report into the current report, such as mud properties, operation data, pump data, pit data, and remarks when enabled.'),
+        _numberedHelp(
+          '6.',
+          'New Report creates a blank daily report under the active well. The active well or report must be selected first.',
+        ),
+        _numberedHelp(
+          '7.',
+          'Carry-over copies selected values from the previous report into the current report, such as mud properties, operation data, pump data, pit data, and remarks when enabled.',
+        ),
         const SizedBox(height: 8),
         _optionsMock(compact: true),
         const SizedBox(height: 10),
-        _numberedHelp('8.', 'Lock changes the edit status of the current screen. Locked reports protect previously entered data from accidental edits.'),
-        _numberedHelp('9.', 'Calculate refreshes the active report calculations. If required inputs are missing, correct the highlighted issue and calculate again.'),
-        _numberedHelp('10.', 'Options controls units, report carry-over preferences, language, backup, solids-analysis display preferences, mud-volume warning, inventory warning, and multiple daily report behavior.'),
+        _numberedHelp(
+          '8.',
+          'Lock changes the edit status of the current screen. Locked reports protect previously entered data from accidental edits.',
+        ),
+        _numberedHelp(
+          '9.',
+          'Calculate refreshes the active report calculations. If required inputs are missing, correct the highlighted issue and calculate again.',
+        ),
+        _numberedHelp(
+          '10.',
+          'Options controls units, report carry-over preferences, language, backup, solids-analysis display preferences, mud-volume warning, inventory warning, and multiple daily report behavior.',
+        ),
         const SizedBox(height: 8),
         _optionsMock(compact: false),
         const SizedBox(height: 12),
-        _manualBullet('Carry-over: controls whether mud properties and operation information are copied from the previous report.'),
-        _manualBullet('Solids analysis: controls whether negative solids-analysis values are displayed or replaced according to the configured preference.'),
-        _manualBullet('Mud volume: enables a warning when the mud volume is not balanced.'),
-        _manualBullet('Inventory: enables warning behavior for negative inventory values.'),
-        _manualBullet('Multiple Daily Reports: enables multiple reports to be generated for the same day when required.'),
+        _manualBullet(
+          'Carry-over: controls whether mud properties and operation information are copied from the previous report.',
+        ),
+        _manualBullet(
+          'Solids analysis: controls whether negative solids-analysis values are displayed or replaced according to the configured preference.',
+        ),
+        _manualBullet(
+          'Mud volume: enables a warning when the mud volume is not balanced.',
+        ),
+        _manualBullet(
+          'Inventory: enables warning behavior for negative inventory values.',
+        ),
+        _manualBullet(
+          'Multiple Daily Reports: enables multiple reports to be generated for the same day when required.',
+        ),
         const SizedBox(height: 10),
-        _numberedHelp('11.', 'Mud Company Setup stores company details, engineers, products, services, operators, categories, currency, and other master data used by pads and daily reports.'),
+        _numberedHelp(
+          '11.',
+          'Mud Company Setup stores company details, engineers, products, services, operators, categories, currency, and other master data used by pads and daily reports.',
+        ),
         const SizedBox(height: 8),
         _mudCompanySetupMock(),
         const SizedBox(height: 12),
-        _manualBullet('Import existing master data when a compatible company setup file is available.'),
+        _manualBullet(
+          'Import existing master data when a compatible company setup file is available.',
+        ),
         _manualBullet('Export current company setup data for reuse or backup.'),
-        _manualBullet('Currency settings apply to prices used in inventory, cost, and report calculations.'),
-        _manualBullet('Products, services, engineering, operators, and other categories are defined here for later selection in pads and reports.'),
+        _manualBullet(
+          'Currency settings apply to prices used in inventory, cost, and report calculations.',
+        ),
+        _manualBullet(
+          'Products, services, engineering, operators, and other categories are defined here for later selection in pads and reports.',
+        ),
       ],
     );
   }
@@ -11272,7 +20730,13 @@ class _ManualTopicPage extends StatelessWidget {
         children: [
           _fieldLine('New Pad Name'),
           const SizedBox(height: 14),
-          Text('Copy contents', style: AppTheme.bodyLarge.copyWith(fontSize: 12, fontWeight: FontWeight.w700)),
+          Text(
+            'Copy contents',
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 8),
           _radioMock('Pad data and final inventory', selected: true),
           _radioMock('Pad data and initial inventory', selected: false),
@@ -11336,7 +20800,11 @@ class _ManualTopicPage extends StatelessWidget {
                   const Spacer(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
-                    children: [_smallButton('OK'), const SizedBox(width: 8), _smallButton('Cancel')],
+                    children: [
+                      _smallButton('OK'),
+                      const SizedBox(width: 8),
+                      _smallButton('Cancel'),
+                    ],
                   ),
                 ],
               ],
@@ -11359,7 +20827,12 @@ class _ManualTopicPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _miniTabRow(const ['Mud Company', 'Product', 'Services', 'Others']),
+                _miniTabRow(const [
+                  'Mud Company',
+                  'Product',
+                  'Services',
+                  'Others',
+                ]),
                 const SizedBox(height: 10),
                 _fieldLine('Company'),
                 _fieldLine('Address'),
@@ -11371,7 +20844,13 @@ class _ManualTopicPage extends StatelessWidget {
                   height: 48,
                   alignment: Alignment.center,
                   color: AppTheme.tableHeaderBlue,
-                  child: Text('MSR2_DMR', style: AppTheme.bodyLarge.copyWith(fontSize: 12, fontWeight: FontWeight.w800)),
+                  child: Text(
+                    'MSR2_DMR',
+                    style: AppTheme.bodyLarge.copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 _fieldLine('Currency'),
@@ -11388,24 +20867,40 @@ class _ManualTopicPage extends StatelessWidget {
                   color: AppTheme.tableHeaderBlue,
                   alignment: Alignment.centerLeft,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('Engineer', style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
+                  child: Text(
+                    'Engineer',
+                    style: AppTheme.bodyLarge.copyWith(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: GridView.builder(
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      childAspectRatio: 3.8,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          childAspectRatio: 3.8,
+                        ),
                     itemCount: 32,
                     itemBuilder: (_, index) => Container(
-                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300, width: 0.6)),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          width: 0.6,
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
-                  children: [_smallButton('Save'), const SizedBox(width: 8), _smallButton('Close')],
+                  children: [
+                    _smallButton('Save'),
+                    const SizedBox(width: 8),
+                    _smallButton('Close'),
+                  ],
                 ),
               ],
             ),
@@ -11436,13 +20931,16 @@ class _ManualTopicPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             alignment: Alignment.centerLeft,
             color: AppTheme.tableHeaderBlue,
-            child: Text(title, style: AppTheme.bodyLarge.copyWith(fontSize: 12, fontWeight: FontWeight.w800)),
+            child: Text(
+              title,
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: child,
-            ),
+            child: Padding(padding: const EdgeInsets.all(10), child: child),
           ),
         ],
       ),
@@ -11455,9 +20953,20 @@ class _ManualTopicPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTheme.bodyLarge.copyWith(fontSize: 10, fontWeight: FontWeight.w700)),
+          Text(
+            label,
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 3),
-          Container(height: 18, decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300))),
+          Container(
+            height: 18,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+          ),
         ],
       ),
     );
@@ -11469,7 +20978,11 @@ class _ManualTopicPage extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, size: 14, color: Colors.grey.shade700),
+          Icon(
+            selected ? Icons.radio_button_checked : Icons.radio_button_off,
+            size: 14,
+            color: Colors.grey.shade700,
+          ),
           const SizedBox(width: 5),
           Text(label, style: AppTheme.bodyLarge.copyWith(fontSize: 11)),
         ],
@@ -11482,7 +20995,11 @@ class _ManualTopicPage extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 5),
       child: Row(
         children: [
-          Icon(checked ? Icons.check_box : Icons.check_box_outline_blank, size: 14, color: Colors.blue.shade600),
+          Icon(
+            checked ? Icons.check_box : Icons.check_box_outline_blank,
+            size: 14,
+            color: Colors.blue.shade600,
+          ),
           const SizedBox(width: 5),
           Text(label, style: AppTheme.bodyLarge.copyWith(fontSize: 11)),
         ],
@@ -11497,7 +21014,13 @@ class _ManualTopicPage extends StatelessWidget {
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       color: AppTheme.tableHeaderBlue,
-      child: Text(label, style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
+      child: Text(
+        label,
+        style: AppTheme.bodyLarge.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 
@@ -11506,7 +21029,13 @@ class _ManualTopicPage extends StatelessWidget {
       height: 28,
       alignment: Alignment.center,
       color: active ? AppTheme.tableHeaderBlue : Colors.white,
-      child: Text(label, style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w700)),
+      child: Text(
+        label,
+        style: AppTheme.bodyLarge.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 
@@ -11551,9 +21080,24 @@ class _ManualTopicPage extends StatelessWidget {
         const SizedBox(height: 8),
         _mockAppScreenshot(
           title: 'MSR2_DMR - Recap',
-          leftMenu: const ['Summary', 'Cost', 'Usage', 'Hydraulics', 'Solids', 'Volume', 'Survey'],
+          leftMenu: const [
+            'Summary',
+            'Cost',
+            'Usage',
+            'Hydraulics',
+            'Solids',
+            'Volume',
+            'Survey',
+          ],
           tabs: const ['Home', 'Report'],
-          panels: const ['Wellbore Schematic', 'KPI Dashboard', 'Top Products', 'Cost Distribution', 'Progress', 'Mud Weight'],
+          panels: const [
+            'Wellbore Schematic',
+            'KPI Dashboard',
+            'Top Products',
+            'Cost Distribution',
+            'Progress',
+            'Mud Weight',
+          ],
         ),
         const SizedBox(height: 18),
         _numberedHelp(
@@ -11591,21 +21135,34 @@ class _ManualTopicPage extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(8, 6, 0, 0),
-                    child: Icon(Icons.science_outlined, size: 16, color: Colors.white),
+                    child: Icon(
+                      Icons.science_outlined,
+                      size: 16,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
                 Row(
                   children: [
-                    for (final tab in const ['Home', 'Report', 'Utility', 'Help'])
+                    for (final tab in const [
+                      'Home',
+                      'Report',
+                      'Utility',
+                      'Help',
+                    ])
                       Container(
                         width: 52,
                         height: 25,
                         alignment: Alignment.center,
-                        color: tab == 'Report' ? Colors.white : AppTheme.panelHeaderBlue,
+                        color: tab == 'Report'
+                            ? Colors.white
+                            : AppTheme.panelHeaderBlue,
                         child: Text(
                           tab,
                           style: AppTheme.bodyLarge.copyWith(
-                            color: tab == 'Report' ? AppTheme.textPrimary : Colors.white,
+                            color: tab == 'Report'
+                                ? AppTheme.textPrimary
+                                : Colors.white,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
@@ -11660,23 +21217,50 @@ class _ManualTopicPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _fieldLine('Current Well'),
-                Text('Search Criteria', style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
+                Text(
+                  'Search Criteria',
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 5),
                 Expanded(
                   child: Column(
                     children: [
-                      for (final item in const ['Date', 'Report No.', 'Depth', 'Mud Weight', 'Activity', 'Remarks'])
+                      for (final item in const [
+                        'Date',
+                        'Report No.',
+                        'Depth',
+                        'Mud Weight',
+                        'Activity',
+                        'Remarks',
+                      ])
                         Container(
                           height: 24,
                           alignment: Alignment.centerLeft,
                           padding: const EdgeInsets.symmetric(horizontal: 6),
-                          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300, width: 0.6)),
-                          child: Text(item, style: AppTheme.bodyLarge.copyWith(fontSize: 10)),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.grey.shade300,
+                              width: 0.6,
+                            ),
+                          ),
+                          child: Text(
+                            item,
+                            style: AppTheme.bodyLarge.copyWith(fontSize: 10),
+                          ),
                         ),
                     ],
                   ),
                 ),
-                Row(children: [_smallButton('Clear All'), const SizedBox(width: 8), _smallButton('Search')]),
+                Row(
+                  children: [
+                    _smallButton('Clear All'),
+                    const SizedBox(width: 8),
+                    _smallButton('Search'),
+                  ],
+                ),
               ],
             ),
           ),
@@ -11685,11 +21269,23 @@ class _ManualTopicPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Result', style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
+                Text(
+                  'Result',
+                  style: AppTheme.bodyLarge.copyWith(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 Expanded(child: _simpleGrid(columns: 6, rows: 8)),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
-                  children: [_smallButton('Delete'), const SizedBox(width: 8), _smallButton('Select'), const SizedBox(width: 8), _smallButton('Close')],
+                  children: [
+                    _smallButton('Delete'),
+                    const SizedBox(width: 8),
+                    _smallButton('Select'),
+                    const SizedBox(width: 8),
+                    _smallButton('Close'),
+                  ],
                 ),
               ],
             ),
@@ -11728,24 +21324,44 @@ class _ManualTopicPage extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               'Cost Summary - Pad',
-              style: AppTheme.bodyLarge.copyWith(fontSize: 13, fontWeight: FontWeight.w800),
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           _summaryRow(const ['Pad', 'New Pad', 'Operator', 'MSR2_DMR']),
-          _summaryRow(const ['Field/Block', 'Current Field', 'Contractor', 'Contractor']),
+          _summaryRow(const [
+            'Field/Block',
+            'Current Field',
+            'Contractor',
+            'Contractor',
+          ]),
           _summaryRow(const ['Generated Date', 'Current Date', '', '']),
           Container(
             height: 26,
             alignment: Alignment.center,
             color: AppTheme.tableHeaderBlue,
-            child: Text('Cost Summary', style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
+            child: Text(
+              'Cost Summary',
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
           _simpleGrid(columns: 7, rows: 4, height: 92),
           Container(
             height: 26,
             alignment: Alignment.center,
             color: AppTheme.tableHeaderBlue,
-            child: Text('Inventory', style: AppTheme.bodyLarge.copyWith(fontSize: 11, fontWeight: FontWeight.w800)),
+            child: Text(
+              'Inventory',
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
           _simpleGrid(columns: 8, rows: 7, height: 145),
         ],
@@ -11762,15 +21378,25 @@ class _ManualTopicPage extends StatelessWidget {
               height: 24,
               alignment: Alignment.centerLeft,
               padding: const EdgeInsets.symmetric(horizontal: 5),
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400, width: 0.6)),
-              child: Text(cell, overflow: TextOverflow.ellipsis, style: AppTheme.bodyLarge.copyWith(fontSize: 10)),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade400, width: 0.6),
+              ),
+              child: Text(
+                cell,
+                overflow: TextOverflow.ellipsis,
+                style: AppTheme.bodyLarge.copyWith(fontSize: 10),
+              ),
             ),
           ),
       ],
     );
   }
 
-  Widget _simpleGrid({required int columns, required int rows, double? height}) {
+  Widget _simpleGrid({
+    required int columns,
+    required int rows,
+    double? height,
+  }) {
     return SizedBox(
       height: height,
       child: Column(
@@ -11783,8 +21409,13 @@ class _ManualTopicPage extends StatelessWidget {
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: row == 0 ? AppTheme.tableHeaderBlue : const Color(0xFFFFFFD8),
-                          border: Border.all(color: Colors.grey.shade300, width: 0.6),
+                          color: row == 0
+                              ? AppTheme.tableHeaderBlue
+                              : const Color(0xFFFFFFD8),
+                          border: Border.all(
+                            color: Colors.grey.shade300,
+                            width: 0.6,
+                          ),
                         ),
                       ),
                     ),
@@ -11810,19 +21441,13 @@ class _ManualTopicPage extends StatelessWidget {
           '2.',
           'Unit Conversion opens the conversion tool for switching between configured engineering units.',
         ),
-        _numberedHelp(
-          '3.',
-          'Calculator opens the Windows system calculator.',
-        ),
-        _numberedHelp(
-          '4.',
-          'Notepad opens the Windows system notepad.',
-        ),
+        _numberedHelp('3.', 'Calculator opens the Windows system calculator.'),
+        _numberedHelp('4.', 'Notepad opens the Windows system notepad.'),
         const SizedBox(height: 18),
         _helpToolbarMock(),
         const SizedBox(height: 24),
         Text(
-          'The Help menu contains the user manual, about information, disclaimer, and abbreviation list for MSR2_DMR.',
+          'The Help menu contains the user manual, about information, and abbreviation list for MSR2_DMR.',
           style: AppTheme.bodyLarge.copyWith(
             fontSize: 15,
             height: 1.35,
@@ -11851,7 +21476,6 @@ class _ManualTopicPage extends StatelessWidget {
   Widget _helpToolbarMock() {
     final helpItems = <IconData>[
       Icons.info_outline,
-      Icons.warning_amber_outlined,
       Icons.sort_by_alpha_outlined,
       Icons.menu_book_outlined,
     ];
@@ -11887,11 +21511,15 @@ class _ManualTopicPage extends StatelessWidget {
                   Container(
                     width: 54,
                     alignment: Alignment.center,
-                    color: tab == activeTab ? Colors.white : AppTheme.panelHeaderBlue,
+                    color: tab == activeTab
+                        ? Colors.white
+                        : AppTheme.panelHeaderBlue,
                     child: Text(
                       tab,
                       style: AppTheme.bodyLarge.copyWith(
-                        color: tab == activeTab ? AppTheme.textPrimary : Colors.white,
+                        color: tab == activeTab
+                            ? AppTheme.textPrimary
+                            : Colors.white,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                       ),
@@ -11906,10 +21534,10 @@ class _ManualTopicPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
-                for (final icon in icons) ...[
-                  Icon(icon, size: 18, color: AppTheme.textPrimary),
-                  const SizedBox(width: 16),
-                ],
+                for (final icon in icons)
+                  Expanded(
+                    child: Icon(icon, size: 18, color: AppTheme.textPrimary),
+                  ),
               ],
             ),
           ),
@@ -11920,10 +21548,10 @@ class _ManualTopicPage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
-                  for (final number in numbers) ...[
-                    _toolbarNumber(number),
-                    const SizedBox(width: 18),
-                  ],
+                  for (final number in numbers)
+                    Expanded(
+                      child: Center(child: _toolbarNumber(number)),
+                    ),
                 ],
               ),
             ),
@@ -12000,11 +21628,34 @@ class _ManualTopicPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _miniTabRow(const ['Pad', 'Inventory', 'Pit', 'Pump', 'SCE', 'Formation', 'Report', 'Alert']),
+                _miniTabRow(const [
+                  'Pad',
+                  'Inventory',
+                  'Pit',
+                  'Pump',
+                  'SCE',
+                  'Formation',
+                  'Report',
+                  'Alert',
+                ]),
                 const SizedBox(height: 8),
-                _miniTabRow(const ['Well', 'Casing', 'Interval', 'Plan', 'Survey']),
+                _miniTabRow(const [
+                  'Well',
+                  'Casing',
+                  'Interval',
+                  'Plan',
+                  'Survey',
+                ]),
                 const SizedBox(height: 8),
-                _miniTabRow(const ['Well', 'Mud', 'Pump', 'Operation', 'Pit', 'Safety', 'Remarks']),
+                _miniTabRow(const [
+                  'Well',
+                  'Mud',
+                  'Pump',
+                  'Operation',
+                  'Pit',
+                  'Safety',
+                  'Remarks',
+                ]),
               ],
             ),
           ),
@@ -12015,13 +21666,21 @@ class _ManualTopicPage extends StatelessWidget {
 
   Widget _treeLine(String text, int indent) {
     return Padding(
-      padding: EdgeInsets.only(left: indent * 16.0, bottom: 7),
-      child: Text(
-        text,
-        style: AppTheme.bodyLarge.copyWith(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: AppTheme.textPrimary,
+      padding: EdgeInsets.only(left: indent * 12.0),
+      child: SizedBox(
+        height: 20,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.bodyLarge.copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary,
+            ),
+          ),
         ),
       ),
     );
@@ -12150,7 +21809,9 @@ class _ManualTopicPage extends StatelessWidget {
                     alignment: Alignment.center,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: const BoxDecoration(
-                      border: Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+                      border: Border(
+                        right: BorderSide(color: AppTheme.tableBorderBlue),
+                      ),
                     ),
                     child: Text(
                       tab,
@@ -12204,7 +21865,9 @@ class _ManualTopicPage extends StatelessWidget {
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: const Color(0xFFFFFFD8),
-                              border: Border.all(color: AppTheme.tableBorderBlue),
+                              border: Border.all(
+                                color: AppTheme.tableBorderBlue,
+                              ),
                             ),
                             child: Text(
                               panel,
@@ -12350,7 +22013,7 @@ class _ManualTopicPage extends StatelessWidget {
       case 'Home':
         return 'The Home menu contains the main project actions used to create, open, save, and manage the active MSR2_DMR work area.';
       case 'Utility & Help':
-        return 'The Utility and Help menu areas provide engineering tools, unit conversion, calculator, notepad access, this user manual, abbreviations, disclaimer, and application information.';
+        return 'The Utility and Help menu areas provide engineering tools, unit conversion, calculator, notepad access, this user manual, abbreviations, and application information.';
       case 'Pad':
         return 'The Pad input area contains data shared across wells and reports. Typical pad-level tabs include inventory, pit, pump, SCE, formation, report, and alert information.';
       case 'Inventory':
@@ -12383,6 +22046,73 @@ class _ManualTopicPage extends StatelessWidget {
   }
 
   void _goNext() {
+    if (topic == 'Comparison Job Explorer') {
+      onNavigate(_comparisonJobExplorerLinks.values.first);
+      return;
+    }
+    final comparisonIndex = _comparisonJobExplorerLinks.values
+        .toList()
+        .indexOf(topic);
+    if (comparisonIndex >= 0 &&
+        comparisonIndex < _comparisonJobExplorerLinks.length - 1) {
+      onNavigate(
+        _comparisonJobExplorerLinks.values.elementAt(comparisonIndex + 1),
+      );
+      return;
+    }
+    if (topic == 'Recap Job Explorer') {
+      onNavigate(_recapJobExplorerLinks.values.first);
+      return;
+    }
+    final recapIndex = _recapJobExplorerLinks.values.toList().indexOf(topic);
+    if (recapIndex >= 0 && recapIndex < _recapJobExplorerLinks.length - 1) {
+      onNavigate(_recapJobExplorerLinks.values.elementAt(recapIndex + 1));
+      return;
+    }
+    if (topic == 'Recap Home & Report') {
+      onNavigate('Recap Options');
+      return;
+    }
+    if (topic == 'Recap Options') {
+      onNavigate('Recap Job Explorer');
+      return;
+    }
+    if (topic == 'Recap Toolbar') {
+      onNavigate('Recap Home & Report');
+      return;
+    }
+    if (topic == 'Recap Windows') {
+      onNavigate('Recap Toolbar');
+      return;
+    }
+    if (topic == 'Output Survey') {
+      onNavigate('Output Alert');
+      return;
+    }
+    if (topic == 'Output Time Distribution') {
+      onNavigate('Output Survey');
+      return;
+    }
+    if (topic == 'Output Concentration') {
+      onNavigate('Output Time Distribution');
+      return;
+    }
+    if (topic == 'Output Total Cost') {
+      onNavigate('Output Concentration');
+      return;
+    }
+    if (topic == 'Output Daily Cost') {
+      onNavigate('Output Total Cost');
+      return;
+    }
+    if (topic == 'Output Detail') {
+      onNavigate('Output Daily Cost');
+      return;
+    }
+    if (topic == 'Output Summary') {
+      onNavigate('Output Detail');
+      return;
+    }
     if (topic == 'Introduction') {
       onNavigate(_introLinks.first);
       return;
@@ -12435,7 +22165,8 @@ class _ManualTopicPage extends StatelessWidget {
       return;
     }
     final operationIndex = _operationLinkLabels.indexOf(topic);
-    if (operationIndex >= 0 && operationIndex < _operationLinkLabels.length - 1) {
+    if (operationIndex >= 0 &&
+        operationIndex < _operationLinkLabels.length - 1) {
       onNavigate(_operationLinkLabels[operationIndex + 1]);
       return;
     }
@@ -12446,6 +22177,88 @@ class _ManualTopicPage extends StatelessWidget {
   }
 
   void _goBack() {
+    if (topic == 'Comparison Job Explorer') {
+      onNavigate('Comparison Toolbar');
+      return;
+    }
+    final comparisonIndex = _comparisonJobExplorerLinks.values
+        .toList()
+        .indexOf(topic);
+    if (comparisonIndex == 0) {
+      onNavigate('Comparison Job Explorer');
+      return;
+    }
+    if (comparisonIndex > 0) {
+      onNavigate(
+        _comparisonJobExplorerLinks.values.elementAt(comparisonIndex - 1),
+      );
+      return;
+    }
+    if (topic == 'Recap Job Explorer') {
+      onNavigate('Recap Options');
+      return;
+    }
+    final recapIndex = _recapJobExplorerLinks.values.toList().indexOf(topic);
+    if (recapIndex == 0) {
+      onNavigate('Recap Job Explorer');
+      return;
+    }
+    if (recapIndex > 0) {
+      onNavigate(_recapJobExplorerLinks.values.elementAt(recapIndex - 1));
+      return;
+    }
+    if (topic == 'Recap Options') {
+      onNavigate('Recap Home & Report');
+      return;
+    }
+    if (topic == 'Recap Home & Report') {
+      onNavigate('Recap Toolbar');
+      return;
+    }
+    if (topic == 'Recap Toolbar') {
+      onNavigate('Recap Windows');
+      return;
+    }
+    if (topic == 'Recap Windows') {
+      onNavigate('Output Survey');
+      return;
+    }
+    if (topic == 'Output Survey') {
+      onNavigate('Output Time Distribution');
+      return;
+    }
+    if (topic == 'Output Time Distribution') {
+      onNavigate('Output Concentration');
+      return;
+    }
+    if (topic == 'Output Concentration') {
+      onNavigate('Output Total Cost');
+      return;
+    }
+    if (topic == 'Output Total Cost') {
+      onNavigate('Output Daily Cost');
+      return;
+    }
+    if (topic == 'Output Daily Cost') {
+      onNavigate('Output Detail');
+      return;
+    }
+    if (topic == 'Output Detail') {
+      onNavigate('Output Summary');
+      return;
+    }
+    if (topic == 'Output Summary') {
+      onNavigate('Output Job Explorer');
+      return;
+    }
+    if (topic == 'Output Job Explorer') {
+      onNavigate('Introduction');
+      return;
+    }
+    if (topic == 'Output Home') {
+      onNavigate('Output Toolbar');
+      return;
+    }
     if (topic == 'Output Options') {
       onNavigate('Introduction');
       return;
@@ -12479,7 +22292,9 @@ class _ManualTopicPage extends StatelessWidget {
       return;
     }
     if (topic == 'Pad Report' ||
-        (_padLevelLinks.contains(topic) && topic != 'Pad' && topic != 'Report')) {
+        (_padLevelLinks.contains(topic) &&
+            topic != 'Pad' &&
+            topic != 'Report')) {
       onNavigate('Pad');
       return;
     }
@@ -12499,6 +22314,63 @@ class _ManualTopicPage extends StatelessWidget {
   }
 
   String get _breadcrumb {
+    if (_comparisonJobExplorerLinks.containsValue(topic)) {
+      return 'MSR2_DMR >> Well Comparison Windows >> Comparison Job Explorer >>';
+    }
+    if (topic == 'Comparison Job Explorer') {
+      return 'MSR2_DMR >> Well Comparison Windows >>';
+    }
+    if (topic == 'Comparison Toolbar') {
+      return 'MSR2_DMR >> Well Comparison Windows >>';
+    }
+    if (topic == 'Well Comparison Windows') {
+      return 'MSR2_DMR >>';
+    }
+    if (_recapJobExplorerLinks.containsValue(topic)) {
+      return 'MSR2_DMR >> Recap Windows >> Recap Job Explorer >>';
+    }
+    if (topic == 'Recap Job Explorer') {
+      return 'MSR2_DMR >> Recap Windows >>';
+    }
+    if (topic == 'Recap Home & Report' || topic == 'Recap Options') {
+      return 'MSR2_DMR >> Recap Windows >> Toolbar >>';
+    }
+    if (topic == 'Recap Toolbar') {
+      return 'MSR2_DMR >> Recap Windows >>';
+    }
+    if (topic == 'Recap Windows') {
+      return 'MSR2_DMR >>';
+    }
+    if (topic == 'Output Toolbar') {
+      return 'MSR2_DMR >> Output Windows >>';
+    }
+    if (topic == 'Output Home') {
+      return 'MSR2_DMR >> Output Windows >> Toolbar >>';
+    }
+    if (topic == 'Output Survey') {
+      return 'MSR2_DMR >> Output Windows >> Output Job Explorer >>';
+    }
+    if (topic == 'Output Time Distribution') {
+      return 'MSR2_DMR >> Output Windows >> Output Job Explorer >>';
+    }
+    if (topic == 'Output Concentration') {
+      return 'MSR2_DMR >> Output Windows >> Output Job Explorer >>';
+    }
+    if (topic == 'Output Total Cost') {
+      return 'MSR2_DMR >> Output Windows >> Output Job Explorer >>';
+    }
+    if (topic == 'Output Daily Cost') {
+      return 'MSR2_DMR >> Output Windows >> Output Job Explorer >>';
+    }
+    if (topic == 'Output Detail') {
+      return 'MSR2_DMR >> Output Windows >> Output Job Explorer >>';
+    }
+    if (topic == 'Output Summary') {
+      return 'MSR2_DMR >> Output Windows >> Output Job Explorer >>';
+    }
+    if (topic == 'Output Job Explorer') {
+      return 'MSR2_DMR >> Output Windows >>';
+    }
     if (topic == 'Output Options') {
       return 'MSR2_DMR >> Output Windows >> Toolbar >>';
     }
@@ -12536,7 +22408,9 @@ class _ManualTopicPage extends StatelessWidget {
       return 'MSR2_DMR >> Input Windows >> Report >>';
     }
     if (topic == 'Pad Report' ||
-        (_padLevelLinks.contains(topic) && topic != 'Pad' && topic != 'Report')) {
+        (_padLevelLinks.contains(topic) &&
+            topic != 'Pad' &&
+            topic != 'Report')) {
       return 'MSR2_DMR >> Input Windows >> Pad >>';
     }
     if (_wellLevelLinks.contains(topic) && topic != 'Well') {
@@ -12552,8 +22426,51 @@ class _ManualTopicPage extends StatelessWidget {
   }
 
   String get _displayTitle {
+    for (final entry in _comparisonJobExplorerLinks.entries) {
+      if (entry.value == topic) {
+        return entry.key;
+      }
+    }
+    for (final entry in _recapJobExplorerLinks.entries) {
+      if (entry.value == topic) {
+        return entry.key;
+      }
+    }
+    if (topic == 'Recap Home & Report') {
+      return 'Home & Report';
+    }
+    if (topic == 'Recap Options') {
+      return 'Options';
+    }
+    if (topic == 'Output Survey') {
+      return 'Survey';
+    }
+    if (topic == 'Output Time Distribution') {
+      return 'Time Distribution';
+    }
+    if (topic == 'Output Concentration') {
+      return 'Concentration';
+    }
+    if (topic == 'Output Total Cost') {
+      return 'Total Cost';
+    }
+    if (topic == 'Output Daily Cost') {
+      return 'Daily Cost';
+    }
+    if (topic == 'Output Detail') {
+      return 'Detail';
+    }
+    if (topic == 'Output Summary') {
+      return 'Summary';
+    }
     if (topic == 'Output Options') {
       return 'Options';
+    }
+    if (topic == 'Output Toolbar') {
+      return 'Toolbar';
+    }
+    if (topic == 'Output Home') {
+      return 'Home';
     }
     if (topic == 'Pad Detail') {
       return 'Pad';
@@ -12592,11 +22509,31 @@ class _ManualWellborePainter extends CustomPainter {
       ..color = const Color(0xFFE07B32)
       ..strokeWidth = 4;
 
-    canvas.drawLine(Offset(center - 17, 10), Offset(center - 17, size.height - 10), line);
-    canvas.drawLine(Offset(center + 17, 10), Offset(center + 17, size.height - 10), line);
-    canvas.drawLine(Offset(center - 7, 18), Offset(center - 7, size.height - 18), casing);
-    canvas.drawLine(Offset(center + 7, 18), Offset(center + 7, size.height - 18), casing);
-    canvas.drawLine(Offset(center - 20, size.height * 0.28), Offset(center + 20, size.height * 0.28), marker);
+    canvas.drawLine(
+      Offset(center - 17, 10),
+      Offset(center - 17, size.height - 10),
+      line,
+    );
+    canvas.drawLine(
+      Offset(center + 17, 10),
+      Offset(center + 17, size.height - 10),
+      line,
+    );
+    canvas.drawLine(
+      Offset(center - 7, 18),
+      Offset(center - 7, size.height - 18),
+      casing,
+    );
+    canvas.drawLine(
+      Offset(center + 7, 18),
+      Offset(center + 7, size.height - 18),
+      casing,
+    );
+    canvas.drawLine(
+      Offset(center - 20, size.height * 0.28),
+      Offset(center + 20, size.height * 0.28),
+      marker,
+    );
 
     final path = Path()..moveTo(center, size.height * 0.52);
     for (var y = size.height * 0.52; y < size.height - 10; y += 8) {
@@ -12699,7 +22636,11 @@ class _PadReportArrowPainter extends CustomPainter {
 }
 
 class _SurveyMiniPlotPainter extends CustomPainter {
-  const _SurveyMiniPlotPainter(this.title, this.verticalLabel, this.horizontalLabel);
+  const _SurveyMiniPlotPainter(
+    this.title,
+    this.verticalLabel,
+    this.horizontalLabel,
+  );
 
   final String title;
   final String verticalLabel;
@@ -12743,12 +22684,29 @@ class _SurveyMiniPlotPainter extends CustomPainter {
       ..lineTo(chart.left + 52, chart.bottom - 8);
     final bluePath = Path()
       ..moveTo(chart.left + 5, chart.top + 8)
-      ..cubicTo(chart.left + 24, chart.top + 34, chart.left + 50, chart.top + 46, chart.right - 8, chart.top + 48);
+      ..cubicTo(
+        chart.left + 24,
+        chart.top + 34,
+        chart.left + 50,
+        chart.top + 46,
+        chart.right - 8,
+        chart.top + 48,
+      );
     canvas.drawPath(redPath, actual);
     canvas.drawPath(bluePath, plan);
 
-    _paintSmallText(canvas, verticalLabel, Offset(2, chart.top + chart.height / 2), rotate: -math.pi / 2);
-    _paintSmallText(canvas, horizontalLabel, Offset(size.width / 2, size.height - 14), center: true);
+    _paintSmallText(
+      canvas,
+      verticalLabel,
+      Offset(2, chart.top + chart.height / 2),
+      rotate: -math.pi / 2,
+    );
+    _paintSmallText(
+      canvas,
+      horizontalLabel,
+      Offset(size.width / 2, size.height - 14),
+      center: true,
+    );
   }
 
   @override
@@ -12776,7 +22734,12 @@ class _RheologyCurvePainter extends CustomPainter {
       ..strokeWidth = 1.2;
 
     final chart = Rect.fromLTWH(34, 18, size.width - 48, size.height - 46);
-    _paintSmallText(canvas, 'Shear Stress vs. Shear Rate', Offset(size.width / 2, 4), center: true);
+    _paintSmallText(
+      canvas,
+      'Shear Stress vs. Shear Rate',
+      Offset(size.width / 2, 4),
+      center: true,
+    );
     canvas.drawRect(chart, border);
 
     for (var i = 1; i < 9; i++) {
@@ -12810,9 +22773,24 @@ class _RheologyCurvePainter extends CustomPainter {
       canvas.drawCircle(point, 3, dotPaint);
     }
 
-    _paintSmallText(canvas, 'Shear Stress (lbf/100ft2)', Offset(4, chart.top + chart.height / 2), rotate: -math.pi / 2);
-    _paintSmallText(canvas, 'Shear Rate (1/s)', Offset(size.width / 2, size.height - 18), center: true);
-    _paintSmallText(canvas, 'Sample 1', Offset(chart.left + chart.width * 0.48, size.height - 32), center: true);
+    _paintSmallText(
+      canvas,
+      'Shear Stress (lbf/100ft2)',
+      Offset(4, chart.top + chart.height / 2),
+      rotate: -math.pi / 2,
+    );
+    _paintSmallText(
+      canvas,
+      'Shear Rate (1/s)',
+      Offset(size.width / 2, size.height - 18),
+      center: true,
+    );
+    _paintSmallText(
+      canvas,
+      'Sample 1',
+      Offset(chart.left + chart.width * 0.48, size.height - 32),
+      center: true,
+    );
   }
 
   @override
@@ -12872,8 +22850,18 @@ class _DoglegPlotPainter extends CustomPainter {
     canvas.drawPath(bluePath, plan);
     canvas.drawPath(redPath, actual);
 
-    _paintSmallText(canvas, 'MD (ft)', Offset(3, chart.top + chart.height / 2), rotate: -math.pi / 2);
-    _paintSmallText(canvas, 'Dogleg Severity ( /100ft)', Offset(size.width / 2, size.height - 13), center: true);
+    _paintSmallText(
+      canvas,
+      'MD (ft)',
+      Offset(3, chart.top + chart.height / 2),
+      rotate: -math.pi / 2,
+    );
+    _paintSmallText(
+      canvas,
+      'Dogleg Severity ( /100ft)',
+      Offset(size.width / 2, size.height - 13),
+      center: true,
+    );
 
     final legendY = size.height - 7;
     canvas.drawLine(Offset(52, legendY), Offset(68, legendY), actual);
@@ -12918,23 +22906,59 @@ class _PitSnapshotSchematicPainter extends CustomPainter {
     for (final depth in const [0, 5000, 10000, 15000, 22482]) {
       final y = top + (bottom - top) * depth / 22482;
       canvas.drawCircle(Offset(35, y), 2, Paint()..color = Colors.red.shade300);
-      _paintSmallText(canvas, depth == 0 ? '0.0' : depth.toString(), Offset(8, y - 5));
+      _paintSmallText(
+        canvas,
+        depth == 0 ? '0.0' : depth.toString(),
+        Offset(8, y - 5),
+      );
       if (depth > 0 && depth < 22482) {
         canvas.drawLine(Offset(52, y), Offset(leftX + 12, y), axisPaint);
       }
     }
 
     canvas.drawLine(Offset(leftX, top), Offset(leftX, bottom), casingPaint);
-    canvas.drawLine(Offset(leftX + 12, top), Offset(leftX + 12, bottom), casingPaint);
+    canvas.drawLine(
+      Offset(leftX + 12, top),
+      Offset(leftX + 12, bottom),
+      casingPaint,
+    );
     canvas.drawLine(Offset(rightX, top), Offset(rightX, bottom), casingPaint);
-    canvas.drawLine(Offset(rightX + 12, top), Offset(rightX + 12, bottom), casingPaint);
-    canvas.drawLine(Offset(leftX - 20, top + 8), Offset(leftX, top + 8), axisPaint);
-    canvas.drawLine(Offset(rightX - 20, top + 8), Offset(rightX, top + 8), axisPaint);
+    canvas.drawLine(
+      Offset(rightX + 12, top),
+      Offset(rightX + 12, bottom),
+      casingPaint,
+    );
+    canvas.drawLine(
+      Offset(leftX - 20, top + 8),
+      Offset(leftX, top + 8),
+      axisPaint,
+    );
+    canvas.drawLine(
+      Offset(rightX - 20, top + 8),
+      Offset(rightX, top + 8),
+      axisPaint,
+    );
 
-    canvas.drawLine(Offset(leftX + 6, top), Offset(leftX + 6, bottom - 6), pipePaint);
-    canvas.drawLine(Offset(rightX + 6, top), Offset(rightX + 6, bottom - 6), pipePaint);
-    canvas.drawLine(Offset(leftX, top + 20), Offset(leftX + 12, top + 20), orange);
-    canvas.drawLine(Offset(rightX, top + 20), Offset(rightX + 12, top + 20), orange);
+    canvas.drawLine(
+      Offset(leftX + 6, top),
+      Offset(leftX + 6, bottom - 6),
+      pipePaint,
+    );
+    canvas.drawLine(
+      Offset(rightX + 6, top),
+      Offset(rightX + 6, bottom - 6),
+      pipePaint,
+    );
+    canvas.drawLine(
+      Offset(leftX, top + 20),
+      Offset(leftX + 12, top + 20),
+      orange,
+    );
+    canvas.drawLine(
+      Offset(rightX, top + 20),
+      Offset(rightX + 12, top + 20),
+      orange,
+    );
 
     final wiggle = Path()..moveTo(leftX + 6, bottom - 112);
     for (var i = 0; i < 11; i++) {
@@ -12953,6 +22977,121 @@ class _PitSnapshotSchematicPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _TotalCostMiniChartPainter extends CustomPainter {
+  const _TotalCostMiniChartPainter({
+    required this.points,
+    required this.lineColor,
+  });
+
+  final List<Offset> points;
+  final Color lineColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final chart = Rect.fromLTWH(18, 4, size.width - 22, size.height - 18);
+    final gridPaint = Paint()
+      ..color = const Color(0xFFD8E1EC)
+      ..strokeWidth = 0.7;
+    final axisPaint = Paint()
+      ..color = const Color(0xFF8292A6)
+      ..strokeWidth = 0.9;
+    final linePaint = Paint()
+      ..color = lineColor
+      ..strokeWidth = 1.8
+      ..style = PaintingStyle.stroke;
+
+    for (var index = 0; index <= 5; index++) {
+      final x = chart.left + chart.width * index / 5;
+      final y = chart.top + chart.height * index / 5;
+      canvas.drawLine(Offset(x, chart.top), Offset(x, chart.bottom), gridPaint);
+      canvas.drawLine(Offset(chart.left, y), Offset(chart.right, y), gridPaint);
+    }
+    canvas.drawLine(
+      Offset(chart.left, chart.top),
+      Offset(chart.left, chart.bottom),
+      axisPaint,
+    );
+    canvas.drawLine(
+      Offset(chart.left, chart.bottom),
+      Offset(chart.right, chart.bottom),
+      axisPaint,
+    );
+
+    if (points.isNotEmpty) {
+      final path = Path();
+      for (var index = 0; index < points.length; index++) {
+        final point = points[index];
+        final plotted = Offset(
+          chart.left + point.dx * chart.width,
+          chart.top + point.dy * chart.height,
+        );
+        if (index == 0) {
+          path.moveTo(plotted.dx, plotted.dy);
+        } else {
+          path.lineTo(plotted.dx, plotted.dy);
+        }
+      }
+      canvas.drawPath(path, linePaint);
+    }
+
+    _paintSmallText(canvas, '0', Offset(chart.left - 3, chart.bottom + 2));
+    _paintSmallText(canvas, '30', Offset(chart.right - 7, chart.bottom + 2));
+  }
+
+  @override
+  bool shouldRepaint(covariant _TotalCostMiniChartPainter oldDelegate) {
+    return oldDelegate.points != points || oldDelegate.lineColor != lineColor;
+  }
+}
+
+class _ConcentrationTrendPainter extends CustomPainter {
+  const _ConcentrationTrendPainter({required this.points});
+
+  final List<Offset> points;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final chart = Rect.fromLTWH(5, 4, size.width - 10, size.height - 8);
+    final gridPaint = Paint()
+      ..color = const Color(0xFFD8E1EC)
+      ..strokeWidth = 0.6;
+    final linePaint = Paint()
+      ..color = const Color(0xFF5D9FE5)
+      ..strokeWidth = 1.8
+      ..style = PaintingStyle.stroke;
+
+    for (var index = 0; index <= 8; index++) {
+      final x = chart.left + chart.width * index / 8;
+      canvas.drawLine(Offset(x, chart.top), Offset(x, chart.bottom), gridPaint);
+    }
+    for (var index = 0; index <= 3; index++) {
+      final y = chart.top + chart.height * index / 3;
+      canvas.drawLine(Offset(chart.left, y), Offset(chart.right, y), gridPaint);
+    }
+
+    if (points.isEmpty) return;
+    final path = Path();
+    for (var index = 0; index < points.length; index++) {
+      final point = points[index];
+      final plotted = Offset(
+        chart.left + point.dx * chart.width,
+        chart.top + point.dy * chart.height,
+      );
+      if (index == 0) {
+        path.moveTo(plotted.dx, plotted.dy);
+      } else {
+        path.lineTo(plotted.dx, plotted.dy);
+      }
+    }
+    canvas.drawPath(path, linePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConcentrationTrendPainter oldDelegate) {
+    return oldDelegate.points != points;
+  }
 }
 
 void _paintSmallText(
@@ -13063,7 +23202,7 @@ class _PrintTopicsDialogState extends State<_PrintTopicsDialog> {
                           width: 112,
                           height: 36,
                           child: OutlinedButton(
-                            onPressed: () => Navigator.of(context).pop(),
+                            onPressed: () => Navigator.of(context).pop(_selection),
                             child: Text(
                               'OK',
                               style: AppTheme.bodyLarge.copyWith(fontSize: 14),
@@ -13111,20 +23250,14 @@ class _PrintTopicsDialogState extends State<_PrintTopicsDialog> {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            label,
-            style: AppTheme.bodyLarge.copyWith(fontSize: 14),
-          ),
+          Text(label, style: AppTheme.bodyLarge.copyWith(fontSize: 14)),
         ],
       ),
     );
   }
 }
 
-enum _PrintTopicSelection {
-  selectedTopic,
-  headingAndSubtopics,
-}
+enum _PrintTopicSelection { selectedTopic, headingAndSubtopics }
 
 class _PlaceholderPanel extends StatelessWidget {
   const _PlaceholderPanel({required this.text});
@@ -13143,11 +23276,8 @@ class _PlaceholderPanel extends StatelessWidget {
 }
 
 class _ManualNode {
-  const _ManualNode(
-    this.title, {
-    this.children = const [],
-    String? topic,
-  }) : topic = topic ?? title;
+  const _ManualNode(this.title, {this.children = const [], String? topic})
+    : topic = topic ?? title;
 
   final String title;
   final String topic;

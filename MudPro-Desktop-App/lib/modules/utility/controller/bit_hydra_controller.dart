@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
@@ -26,10 +29,12 @@ class BitHydraulicsController extends GetxController {
   final jetImpactForce = RxnDouble();
 
   final List<Worker> _unitWorkers = <Worker>[];
+  var _unitSyncScheduled = false;
   late String _mudWeightUnit;
   late String _flowUnit;
   late String _pressureUnit;
   late String _diameterUnit;
+  late String _nozzleUnit;
 
   @override
   void onInit() {
@@ -38,10 +43,11 @@ class BitHydraulicsController extends GetxController {
     _flowUnit = AppUnits.drillingFlowRate;
     _pressureUnit = AppUnits.pressure;
     _diameterUnit = AppUnits.diameter;
+    _nozzleUnit = AppUnits.nozzleDiameter;
     _unitWorkers.addAll([
-      ever(_options.unitSystem, (_) => _handleUnitChange()),
-      ever(_options.selectedCustomSystemId, (_) => _handleUnitChange()),
-      ever(_options.customUnits, (_) => _handleUnitChange()),
+      ever(_options.unitSystem, (_) => _scheduleUnitChange()),
+      ever(_options.selectedCustomSystemId, (_) => _scheduleUnitChange()),
+      ever(_options.customUnits, (_) => _scheduleUnitChange()),
     ]);
   }
 
@@ -53,15 +59,26 @@ class BitHydraulicsController extends GetxController {
     super.onClose();
   }
 
+  void _scheduleUnitChange() {
+    if (_unitSyncScheduled) return;
+    _unitSyncScheduled = true;
+    scheduleMicrotask(() {
+      _unitSyncScheduled = false;
+      if (!isClosed) _handleUnitChange();
+    });
+  }
+
   void _handleUnitChange() {
     final nextMudWeight = AppUnits.mudWeight;
     final nextFlow = AppUnits.drillingFlowRate;
     final nextPressure = AppUnits.pressure;
     final nextDiameter = AppUnits.diameter;
+    final nextNozzle = AppUnits.nozzleDiameter;
     if (_mudWeightUnit == nextMudWeight &&
         _flowUnit == nextFlow &&
         _pressureUnit == nextPressure &&
-        _diameterUnit == nextDiameter) {
+        _diameterUnit == nextDiameter &&
+        _nozzleUnit == nextNozzle) {
       return;
     }
 
@@ -73,11 +90,15 @@ class BitHydraulicsController extends GetxController {
       nextPressure,
     );
     bitSize.value = _convertText(bitSize.value, _diameterUnit, nextDiameter);
+    for (final jet in jetNozzles) {
+      jet.value = _convertText(jet.value, _nozzleUnit, nextNozzle);
+    }
 
     _mudWeightUnit = nextMudWeight;
     _flowUnit = nextFlow;
     _pressureUnit = nextPressure;
     _diameterUnit = nextDiameter;
+    _nozzleUnit = nextNozzle;
 
     if (_hasCompleteInputs()) {
       calculateBitHydraulics();
@@ -122,17 +143,29 @@ class BitHydraulicsController extends GetxController {
         AppUnits.convertValue(bitSizeValue, AppUnits.diameter, '(in)') ??
         bitSizeValue;
 
+    if (mwPpg <= 0 || gpm <= 0 || spp <= 0 || bitIn <= 0) {
+      resetBitHydraulics();
+      Get.snackbar('Invalid Inputs', 'All input values must be greater than 0');
+      return;
+    }
+
     double totalJetArea = 0;
     for (final jet in jetNozzles) {
       if (jet.value.isEmpty) {
         continue;
       }
-      final size32 = double.tryParse(jet.value);
-      if (size32 == null) {
+      final nozzleInput = double.tryParse(jet.value);
+      if (nozzleInput == null || nozzleInput <= 0) {
         continue;
       }
-      final diaIn = size32 / 32;
-      totalJetArea += 0.785 * diaIn * diaIn;
+      final diaIn =
+          AppUnits.convertValue(
+            nozzleInput,
+            AppUnits.nozzleDiameter,
+            '(in)',
+          ) ??
+          nozzleInput;
+      totalJetArea += (math.pi / 4) * diaIn * diaIn;
     }
 
     if (totalJetArea == 0) {
@@ -143,13 +176,13 @@ class BitHydraulicsController extends GetxController {
       return;
     }
 
-    final nozzleVelocityBase = (0.408 * gpm) / totalJetArea;
-    final bitPressureDropBase = spp * 0.65;
+    final nozzleVelocityBase = (0.32086 * gpm) / totalJetArea;
+    final bitPressureDropBase =
+        (mwPpg * gpm * gpm) / (10858 * totalJetArea * totalJetArea);
     final hydraulicHpBase = (bitPressureDropBase * gpm) / 1714;
-    final bitArea = 0.785 * bitIn * bitIn;
-    final hhpPerAreaBase = hydraulicHpBase / bitArea;
+    final hhpPerAreaBase = (1.27314 * hydraulicHpBase) / (bitIn * bitIn);
     final pressureDropPct = (bitPressureDropBase / spp) * 100;
-    final jetImpactBase = 0.01823 * mwPpg * gpm * nozzleVelocityBase;
+    final jetImpactBase = (mwPpg * gpm * nozzleVelocityBase) / 1932;
 
     nozzleArea.value =
         AppUnits.convertValue(totalJetArea, '(in2)', AppUnits.crossSection) ??
