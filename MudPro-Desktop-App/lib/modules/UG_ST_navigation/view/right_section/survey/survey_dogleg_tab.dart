@@ -60,11 +60,10 @@ class SurveyDoglegTab extends StatelessWidget {
 class _DoglegGraphPainter extends CustomPainter {
   _DoglegGraphPainter({required this.points});
 
-  static const double _mdMinMax = 12000;
   static const double _mdStep = 2000;
-  static const double _doglegMinMax = 2;
-  static const double _doglegStep = 0.5;
-  static const int _gridDivisions = 12;
+  static const double _mdMinorGridStep = 1000;
+  static const double _doglegStep = 2;
+  static const double _doglegMinorGridStep = 1;
 
   final List<dynamic> points;
 
@@ -83,23 +82,6 @@ class _DoglegGraphPainter extends CustomPainter {
       ..strokeWidth = 6
       ..style = PaintingStyle.stroke;
 
-    canvas.drawRect(plot, border);
-    for (var i = 0; i <= _gridDivisions; i++) {
-      final x = plot.left + (plot.width * i / _gridDivisions);
-      drawDashedLine(canvas, Offset(x, plot.top), Offset(x, plot.bottom), grid);
-      final y = plot.top + (plot.height * i / _gridDivisions);
-      drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
-    }
-
-    if (points.isEmpty) {
-      drawSurveyText(
-        canvas,
-        'No survey data',
-        Offset(plot.center.dx - 34, plot.center.dy - 8),
-      );
-      return;
-    }
-
     final maxMd = _mdAxisMaxFor(
       points.fold<double>(0, (maxValue, point) {
         return math.max(maxValue, _numberValue(point.md));
@@ -110,20 +92,32 @@ class _DoglegGraphPainter extends CustomPainter {
         return math.max(maxValue, _numberValue(point.dogleg));
       }),
     );
-    final mdLabelDivisions = (maxMd / _mdStep).round();
-    final doglegLabelDivisions = (maxDogleg / _doglegStep).round();
 
-    for (var i = 0; i <= mdLabelDivisions; i++) {
-      final value = _mdStep * i;
+    canvas.drawRect(plot, border);
+    _drawGrid(canvas, plot, grid, maxMd, maxDogleg);
+
+    if (points.isEmpty) {
+      drawSurveyText(
+        canvas,
+        'No survey data',
+        Offset(plot.center.dx - 34, plot.center.dy - 8),
+      );
+      return;
+    }
+
+    for (var value = 0.0; value <= maxMd + 0.1; value += _mdStep) {
       final py = plot.top + (plot.height * value / maxMd);
       _drawLeftAxisLabel(canvas, value.toStringAsFixed(0), plot.left, py);
     }
-    for (var i = 0; i <= doglegLabelDivisions; i++) {
-      final value = _doglegStep * i;
+    for (
+      var value = 0.0;
+      value <= maxDogleg + 0.1;
+      value += _doglegStep
+    ) {
       final px = plot.left + (plot.width * value / maxDogleg);
       drawSurveyText(
         canvas,
-        value.toStringAsFixed(value == value.roundToDouble() ? 0 : 1),
+        value.toStringAsFixed(0),
         Offset(px - 8, plot.bottom + 8),
       );
     }
@@ -149,13 +143,38 @@ class _DoglegGraphPainter extends CustomPainter {
   }
 
   double _mdAxisMaxFor(double value) {
-    if (value <= 0) return _mdMinMax;
-    return math.max((value / _mdStep).ceil() * _mdStep, _mdMinMax);
+    if (value <= 0) return _mdStep;
+    return (value / _mdStep).ceil() * _mdStep;
   }
 
   double _doglegAxisMaxFor(double value) {
-    if (value <= 0) return _doglegMinMax;
-    return math.max((value / _doglegStep).ceil() * _doglegStep, _doglegMinMax);
+    if (value <= 0) return _doglegStep;
+    return (value / _doglegStep).ceil() * _doglegStep;
+  }
+
+  void _drawGrid(
+    Canvas canvas,
+    Rect plot,
+    Paint grid,
+    double maxMd,
+    double maxDogleg,
+  ) {
+    for (
+      var value = 0.0;
+      value <= maxDogleg + 0.1;
+      value += _doglegMinorGridStep
+    ) {
+      final x = plot.left + (plot.width * value / maxDogleg);
+      drawDashedLine(canvas, Offset(x, plot.top), Offset(x, plot.bottom), grid);
+    }
+    for (
+      var value = 0.0;
+      value <= maxMd + 0.1;
+      value += _mdMinorGridStep
+    ) {
+      final y = plot.top + (plot.height * value / maxMd);
+      drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
+    }
   }
 
   double _numberValue(dynamic value) {
