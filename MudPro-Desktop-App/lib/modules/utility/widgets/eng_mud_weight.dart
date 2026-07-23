@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
@@ -113,7 +115,8 @@ class MudWeightPage extends StatelessWidget {
           outputs: [
             _MudWeightOutput(
               label: 'Kill mud weight ${AppUnits.mudWeight}',
-              value: _format(c.killMudWeight.value),
+              value: c.killMudWeight,
+              decimals: 1,
             ),
           ],
           onCalculate: () => c.calculateKillMudWeight(),
@@ -136,7 +139,7 @@ class MudWeightPage extends StatelessWidget {
           outputs: [
             _MudWeightOutput(
               label: 'Overbalance mud weight ${AppUnits.mudWeight}',
-              value: _format(c.overbalanceMudWeight.value),
+              value: c.overbalanceMudWeight,
             ),
           ],
           onCalculate: () => c.calculateOverbalanceMudWeight(),
@@ -159,7 +162,7 @@ class MudWeightPage extends StatelessWidget {
           outputs: [
             _MudWeightOutput(
               label: 'Equivalent mud weight ${AppUnits.mudWeight}',
-              value: _format(c.equivalentMudWeight.value),
+              value: c.equivalentMudWeight,
             ),
           ],
           onCalculate: () => c.calculateEquivalentMudWeight(),
@@ -181,11 +184,12 @@ class MudWeightPage extends StatelessWidget {
           outputs: [
             _MudWeightOutput(
               label: 'Barite addition per 100 bbls (sk)',
-              value: _format(c.weightUpNoVolumeBarite.value),
+              value: c.weightUpNoVolumeBarite,
+              decimals: 2,
             ),
             _MudWeightOutput(
               label: 'Volume of original mud to jet ${AppUnits.fluidVolume}',
-              value: _format(c.weightUpNoVolumeJet.value),
+              value: c.weightUpNoVolumeJet,
             ),
           ],
           onCalculate: () => c.calculateWeightUpNoVolume(),
@@ -207,11 +211,11 @@ class MudWeightPage extends StatelessWidget {
           outputs: [
             _MudWeightOutput(
               label: 'Barite addition per 100 bbls (sk)',
-              value: _format(c.weightUpVolumeBarite.value),
+              value: c.weightUpVolumeBarite,
             ),
             _MudWeightOutput(
               label: 'Volume increase ${AppUnits.fluidVolume}',
-              value: _format(c.weightUpVolumeIncrease.value),
+              value: c.weightUpVolumeIncrease,
             ),
           ],
           onCalculate: () => c.calculateWeightUpVolume(),
@@ -242,7 +246,7 @@ class MudWeightPage extends StatelessWidget {
           outputs: [
             _MudWeightOutput(
               label: 'Volume of mud to jet ${AppUnits.fluidVolume}',
-              value: _format(c.cutBackVolumeToJet.value),
+              value: c.cutBackVolumeToJet,
             ),
           ],
           onCalculate: () => c.calculateCutBackNoVolume(),
@@ -347,7 +351,17 @@ class MudWeightPage extends StatelessWidget {
       child: Row(
         children: [
           _labelCell(row.label, width: width * 0.70),
-          Expanded(child: _resultCell(row.value)),
+          Expanded(
+            child: Obx(
+              () => _resultCell(
+                _format(
+                  row.value.value,
+                  decimals: row.decimals,
+                  truncate: row.truncate,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -418,8 +432,17 @@ class MudWeightPage extends StatelessWidget {
     );
   }
 
-  String _format(double? value) {
+  String _format(
+    double? value, {
+    int? decimals,
+    bool truncate = false,
+  }) {
     if (value == null || value.isNaN || value.isInfinite) return '';
+    if (decimals != null) {
+      final factor = math.pow(10, decimals).toDouble();
+      final displayValue = truncate ? (value * factor).truncate() / factor : value;
+      return displayValue.toStringAsFixed(decimals);
+    }
     return formatOperationNumber(
       value,
       fallbackDecimals: 2,
@@ -436,10 +459,17 @@ class _MudWeightInput {
 }
 
 class _MudWeightOutput {
-  const _MudWeightOutput({required this.label, required this.value});
+  const _MudWeightOutput({
+    required this.label,
+    required this.value,
+    this.decimals,
+    this.truncate = false,
+  });
 
   final String label;
-  final String value;
+  final RxnDouble value;
+  final int? decimals;
+  final bool truncate;
 }
 
 class _MudWeightWidths {

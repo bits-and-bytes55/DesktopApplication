@@ -92,8 +92,16 @@ class OilMudPage extends StatelessWidget {
             _OilMudInput(label: 'Retort water (%)', value: c.owRetortWater),
           ],
           outputs: [
-            _OilMudOutput(label: 'Oil in liquid phase (%)', value: _format(c.owOilInLiquidPhase.value)),
-            _OilMudOutput(label: 'Water in liquid phase (%)', value: _format(c.owWaterInLiquidPhase.value)),
+            _OilMudOutput(
+              label: 'Oil in liquid phase (%)',
+              value: c.owOilInLiquidPhase,
+              decimals: 1,
+            ),
+            _OilMudOutput(
+              label: 'Water in liquid phase (%)',
+              value: c.owWaterInLiquidPhase,
+              decimals: 1,
+            ),
           ],
           onCalculate: () => c.calculateOilWaterRatio(),
           leftWidth: widths.left,
@@ -106,11 +114,10 @@ class OilMudPage extends StatelessWidget {
             _OilMudInput(label: 'Retort water (%)', value: c.ratioRetortWater),
             _OilMudInput(label: 'Oil in liquid phase (%)', value: c.ratioOilInLiquidPhase),
             _OilMudInput(label: 'Water in liquid phase (%)', value: c.ratioWaterInLiquidPhase),
-            _OilMudInput(label: 'Add', value: c.ratioAdd),
           ],
           outputs: [
-            const _OilMudOutput(label: 'Add', value: ''),
-            _OilMudOutput(label: 'Volume ${AppUnits.fluidVolume}', value: _format(c.ratioVolume.value)),
+            _OilMudOutput.text(label: 'Add', value: c.ratioAdd),
+            _OilMudOutput(label: 'Volume ${AppUnits.fluidVolume}', value: c.ratioVolume),
           ],
           onCalculate: () => c.calculateOilMudRatioChange(),
           leftWidth: widths.left,
@@ -125,7 +132,7 @@ class OilMudPage extends StatelessWidget {
             _OilMudInput(label: 'Water in liquid phase (%)', value: c.mixtureWaterInLiquidPhase),
           ],
           outputs: [
-            _OilMudOutput(label: 'Mixture density ${AppUnits.mudWeight}', value: _format(c.mixtureDensity.value)),
+            _OilMudOutput(label: 'Mixture density ${AppUnits.mudWeight}', value: c.mixtureDensity),
           ],
           onCalculate: () => c.calculateMixtureDensity(),
           leftWidth: widths.left,
@@ -137,10 +144,11 @@ class OilMudPage extends StatelessWidget {
           inputs: [
             _OilMudInput(label: 'Initial density ${AppUnits.mudWeight}', value: c.startingInitialDensity),
             _OilMudInput(label: 'Desired density ${AppUnits.mudWeight}', value: c.startingDesiredDensity),
+            _OilMudInput(label: 'Barite density ${AppUnits.mudWeight}', value: c.startingBariteDensity),
             _OilMudInput(label: 'Desired volume ${AppUnits.fluidVolume}', value: c.startingDesiredVolume),
           ],
           outputs: [
-            _OilMudOutput(label: 'Starting volume ${AppUnits.fluidVolume}', value: _format(c.startingVolume.value)),
+            _OilMudOutput(label: 'Starting volume ${AppUnits.fluidVolume}', value: c.startingVolume),
           ],
           onCalculate: () => c.calculateStartingVolume(),
           leftWidth: widths.left,
@@ -244,7 +252,20 @@ class OilMudPage extends StatelessWidget {
       child: Row(
         children: [
           _labelCell(row.label, width: width * 0.70),
-          Expanded(child: _resultCell(row.value)),
+          Expanded(
+            child: row.textValue != null
+                ? Obx(() => _resultCell(row.textValue!.value))
+                : row.value == null
+                ? _resultCell('')
+                : Obx(
+                    () => _resultCell(
+                      _format(
+                        row.value!.value,
+                        decimals: row.decimals,
+                      ),
+                    ),
+                  ),
+          ),
         ],
       ),
     );
@@ -315,8 +336,9 @@ class OilMudPage extends StatelessWidget {
     );
   }
 
-  String _format(double? value) {
+  String _format(double? value, {int? decimals}) {
     if (value == null || value.isNaN || value.isInfinite) return '';
+    if (decimals != null) return value.toStringAsFixed(decimals);
     return formatOperationNumber(
       value,
       fallbackDecimals: 2,
@@ -333,10 +355,28 @@ class _OilMudInput {
 }
 
 class _OilMudOutput {
-  const _OilMudOutput({required this.label, required this.value});
+  const _OilMudOutput({
+    required this.label,
+    required this.value,
+    this.decimals,
+  }) : textValue = null;
+
+  const _OilMudOutput.empty({required this.label})
+    : value = null,
+      textValue = null,
+      decimals = null;
+
+  const _OilMudOutput.text({
+    required this.label,
+    required RxString value,
+  }) : value = null,
+       textValue = value,
+       decimals = null;
 
   final String label;
-  final String value;
+  final RxnDouble? value;
+  final RxString? textValue;
+  final int? decimals;
 }
 
 class _OilMudWidths {

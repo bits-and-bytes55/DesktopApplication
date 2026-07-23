@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/help/view/abbreviation_page.dart';
 import 'package:mudpro_desktop_app/modules/help/view/about_page.dart';
-import 'package:mudpro_desktop_app/modules/help/view/disclaimer_page.dart';
 import 'package:mudpro_desktop_app/modules/help/view/user_manual_page.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import '../controller/dashboard_controller.dart';
@@ -15,7 +14,6 @@ class HelpSecondaryTabbar extends StatelessWidget {
   final tabs = const [
     {"title": "User Manual", "icon": Icons.menu_book},
     {"title": "About", "icon": Icons.info},
-    {"title": "Disclaimer", "icon": Icons.warning},
     {"title": "Abbreviation", "icon": Icons.short_text},
   ];
 
@@ -89,9 +87,6 @@ class HelpSecondaryTabbar extends StatelessWidget {
         controller.openOverlay(const AboutPage());
         break;
       case 2:
-        controller.openOverlay(const DisclaimerPage());
-        break;
-      case 3:
         controller.openOverlay(const AbbreviationPage());
         break;
       default:

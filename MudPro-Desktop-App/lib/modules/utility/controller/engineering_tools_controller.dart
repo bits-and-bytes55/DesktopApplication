@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:get/get.dart';
@@ -196,6 +197,7 @@ class EngineeringToolsController extends GetxController {
   // Starting Volume
   var startingInitialDensity = ''.obs;
   var startingDesiredDensity = ''.obs;
+  var startingBariteDensity = ''.obs;
   var startingDesiredVolume = ''.obs;
   var startingVolume = RxnDouble();
 
@@ -260,32 +262,40 @@ class EngineeringToolsController extends GetxController {
   var sceDilutionVolume = RxnDouble();
   var sceDilutionCostPerDay = RxnDouble();
   var sceCostEffectiveness = RxnDouble();
+  var sceCostEffectivenessText = ''.obs;
 
   final List<Worker> _unitWorkers = <Worker>[];
+  var _unitSyncScheduled = false;
+  late String _annularFlowUnit;
   late String _flowUnit;
   late String _diameterUnit;
   late String _mudWeightUnit;
+  late String _viscosityUnit;
   late String _yieldPointUnit;
   late String _lengthUnit;
   late String _pressureUnit;
   late String _volumeUnit;
+  late String _volumePerLengthUnit;
   late String _ropUnit;
 
   @override
   void onInit() {
     super.onInit();
+    _annularFlowUnit = AppUnits.cementingFlowRate;
     _flowUnit = AppUnits.drillingFlowRate;
     _diameterUnit = AppUnits.diameter;
     _mudWeightUnit = AppUnits.mudWeight;
+    _viscosityUnit = AppUnits.viscosity;
     _yieldPointUnit = AppUnits.yieldPoint;
     _lengthUnit = AppUnits.length;
     _pressureUnit = AppUnits.pressure;
     _volumeUnit = AppUnits.fluidVolume;
+    _volumePerLengthUnit = AppUnits.pipeCapacityVolumeLength;
     _ropUnit = AppUnits.rop;
     _unitWorkers.addAll([
-      ever(_options.unitSystem, (_) => _handleUnitChange()),
-      ever(_options.selectedCustomSystemId, (_) => _handleUnitChange()),
-      ever(_options.customUnits, (_) => _handleUnitChange()),
+      ever(_options.unitSystem, (_) => _scheduleUnitChange()),
+      ever(_options.selectedCustomSystemId, (_) => _scheduleUnitChange()),
+      ever(_options.customUnits, (_) => _scheduleUnitChange()),
     ]);
   }
 
@@ -297,27 +307,46 @@ class EngineeringToolsController extends GetxController {
     super.onClose();
   }
 
+  void _scheduleUnitChange() {
+    if (_unitSyncScheduled) return;
+    _unitSyncScheduled = true;
+    scheduleMicrotask(() {
+      _unitSyncScheduled = false;
+      if (!isClosed) _handleUnitChange();
+    });
+  }
+
   void _handleUnitChange() {
+    final nextAnnularFlowUnit = AppUnits.cementingFlowRate;
     final nextFlowUnit = AppUnits.drillingFlowRate;
     final nextDiameterUnit = AppUnits.diameter;
     final nextMudWeightUnit = AppUnits.mudWeight;
+    final nextViscosityUnit = AppUnits.viscosity;
     final nextYieldPointUnit = AppUnits.yieldPoint;
     final nextLengthUnit = AppUnits.length;
     final nextPressureUnit = AppUnits.pressure;
     final nextVolumeUnit = AppUnits.fluidVolume;
+    final nextVolumePerLengthUnit = AppUnits.pipeCapacityVolumeLength;
     final nextRopUnit = AppUnits.rop;
-    if (_flowUnit == nextFlowUnit &&
+    if (_annularFlowUnit == nextAnnularFlowUnit &&
+        _flowUnit == nextFlowUnit &&
         _diameterUnit == nextDiameterUnit &&
         _mudWeightUnit == nextMudWeightUnit &&
+        _viscosityUnit == nextViscosityUnit &&
         _yieldPointUnit == nextYieldPointUnit &&
         _lengthUnit == nextLengthUnit &&
         _pressureUnit == nextPressureUnit &&
         _volumeUnit == nextVolumeUnit &&
+        _volumePerLengthUnit == nextVolumePerLengthUnit &&
         _ropUnit == nextRopUnit) {
       return;
     }
 
-    pumpOutput.value = _convertText(pumpOutput.value, _flowUnit, nextFlowUnit);
+    pumpOutput.value = _convertText(
+      pumpOutput.value,
+      _annularFlowUnit,
+      nextAnnularFlowUnit,
+    );
     holeSize.value = _convertText(
       holeSize.value,
       _diameterUnit,
@@ -328,6 +357,16 @@ class EngineeringToolsController extends GetxController {
       criticalAnnulusMw.value,
       _mudWeightUnit,
       nextMudWeightUnit,
+    );
+    criticalAnnulusPv.value = _convertText(
+      criticalAnnulusPv.value,
+      _viscosityUnit,
+      nextViscosityUnit,
+    );
+    criticalAnnulusYp.value = _convertText(
+      criticalAnnulusYp.value,
+      _yieldPointUnit,
+      nextYieldPointUnit,
     );
     criticalAnnulusHoleId.value = _convertText(
       criticalAnnulusHoleId.value,
@@ -343,6 +382,16 @@ class EngineeringToolsController extends GetxController {
       criticalPipeMw.value,
       _mudWeightUnit,
       nextMudWeightUnit,
+    );
+    criticalPipePv.value = _convertText(
+      criticalPipePv.value,
+      _viscosityUnit,
+      nextViscosityUnit,
+    );
+    criticalPipeYp.value = _convertText(
+      criticalPipeYp.value,
+      _yieldPointUnit,
+      nextYieldPointUnit,
     );
     criticalPipeId.value = _convertText(
       criticalPipeId.value,
@@ -383,8 +432,8 @@ class EngineeringToolsController extends GetxController {
     );
     leakOffSurfacePressure.value = _convertText(
       leakOffSurfacePressure.value,
-      _pressureUnit,
-      nextPressureUnit,
+      _mudWeightUnit,
+      nextMudWeightUnit,
     );
     leakOffTestDepth.value = _convertText(
       leakOffTestDepth.value,
@@ -483,8 +532,8 @@ class EngineeringToolsController extends GetxController {
     );
     holeVolumePipeDisplacement.value = _convertText(
       holeVolumePipeDisplacement.value,
-      _volumeUnit,
-      nextVolumeUnit,
+      _volumePerLengthUnit,
+      nextVolumePerLengthUnit,
     );
     annularVolumeHoleSize.value = _convertText(
       annularVolumeHoleSize.value,
@@ -498,8 +547,8 @@ class EngineeringToolsController extends GetxController {
     );
     annularVolumePipeDisplacement.value = _convertText(
       annularVolumePipeDisplacement.value,
-      _volumeUnit,
-      nextVolumeUnit,
+      _volumePerLengthUnit,
+      nextVolumePerLengthUnit,
     );
     capacityPipeId.value = _convertText(
       capacityPipeId.value,
@@ -573,8 +622,8 @@ class EngineeringToolsController extends GetxController {
     );
     duplexStrokeLength.value = _convertText(
       duplexStrokeLength.value,
-      _lengthUnit,
-      nextLengthUnit,
+      _diameterUnit,
+      nextDiameterUnit,
     );
     triplexLinerId.value = _convertText(
       triplexLinerId.value,
@@ -583,8 +632,8 @@ class EngineeringToolsController extends GetxController {
     );
     triplexStrokeLength.value = _convertText(
       triplexStrokeLength.value,
-      _lengthUnit,
-      nextLengthUnit,
+      _diameterUnit,
+      nextDiameterUnit,
     );
     mixtureDieselDensity.value = _convertText(
       mixtureDieselDensity.value,
@@ -603,6 +652,11 @@ class EngineeringToolsController extends GetxController {
     );
     startingDesiredDensity.value = _convertText(
       startingDesiredDensity.value,
+      _mudWeightUnit,
+      nextMudWeightUnit,
+    );
+    startingBariteDensity.value = _convertText(
+      startingBariteDensity.value,
       _mudWeightUnit,
       nextMudWeightUnit,
     );
@@ -636,6 +690,16 @@ class EngineeringToolsController extends GetxController {
       _mudWeightUnit,
       nextMudWeightUnit,
     );
+    maxRopPv.value = _convertText(
+      maxRopPv.value,
+      _viscosityUnit,
+      nextViscosityUnit,
+    );
+    maxRopYp.value = _convertText(
+      maxRopYp.value,
+      _yieldPointUnit,
+      nextYieldPointUnit,
+    );
     maxRopFlowRate.value = _convertText(
       maxRopFlowRate.value,
       _flowUnit,
@@ -656,19 +720,27 @@ class EngineeringToolsController extends GetxController {
       _diameterUnit,
       nextDiameterUnit,
     );
+    sceDiscardFlowRate.value = _convertText(
+      sceDiscardFlowRate.value,
+      _flowUnit,
+      nextFlowUnit,
+    );
     sceDiscardDensity.value = _convertText(
       sceDiscardDensity.value,
       _mudWeightUnit,
       nextMudWeightUnit,
     );
 
+    _annularFlowUnit = nextAnnularFlowUnit;
     _flowUnit = nextFlowUnit;
     _diameterUnit = nextDiameterUnit;
     _mudWeightUnit = nextMudWeightUnit;
+    _viscosityUnit = nextViscosityUnit;
     _yieldPointUnit = nextYieldPointUnit;
     _lengthUnit = nextLengthUnit;
     _pressureUnit = nextPressureUnit;
     _volumeUnit = nextVolumeUnit;
+    _volumePerLengthUnit = nextVolumePerLengthUnit;
     _ropUnit = nextRopUnit;
 
     if (pumpOutput.value.isNotEmpty &&
@@ -727,7 +799,7 @@ class EngineeringToolsController extends GetxController {
     }
 
     final q =
-        AppUnits.convertValue(qInput, AppUnits.drillingFlowRate, '(gpm)') ??
+        AppUnits.convertValue(qInput, AppUnits.cementingFlowRate, '(gpm)') ??
         qInput;
     final dh =
         AppUnits.convertValue(dhInput, AppUnits.diameter, '(in)') ?? dhInput;
@@ -764,7 +836,7 @@ class EngineeringToolsController extends GetxController {
 
   void calculateCriticalAnnulus({bool showError = true}) {
     final mw = _baseMudWeight(criticalAnnulusMw.value);
-    final pv = double.tryParse(criticalAnnulusPv.value);
+    final pv = _baseViscosity(criticalAnnulusPv.value);
     final yp = _baseYieldPoint(criticalAnnulusYp.value);
     final hole = _baseDiameter(criticalAnnulusHoleId.value);
     final pipe = _baseDiameter(criticalAnnulusPipeOd.value);
@@ -788,7 +860,7 @@ class EngineeringToolsController extends GetxController {
 
   void calculateCriticalPipe({bool showError = true}) {
     final mw = _baseMudWeight(criticalPipeMw.value);
-    final pv = double.tryParse(criticalPipePv.value);
+    final pv = _baseViscosity(criticalPipePv.value);
     final yp = _baseYieldPoint(criticalPipeYp.value);
     final pipeId = _baseDiameter(criticalPipeId.value);
 
@@ -803,7 +875,15 @@ class EngineeringToolsController extends GetxController {
       return;
     }
 
-    final base = _criticalVelocityBase(mw, pv, yp, pipeId);
+    final base = _criticalVelocityBase(
+      mw,
+      pv,
+      yp,
+      pipeId,
+      rheologyCoefficient: 15.108806593,
+      legacyScale: 62.858758846,
+      diameterCorrection: 0.000808290689,
+    );
     criticalPipeVelocity.value =
         AppUnits.convertValue(base, '(ft/min)', AppUnits.velocity) ?? base;
   }
@@ -848,16 +928,16 @@ class EngineeringToolsController extends GetxController {
 
   void calculateLeakOffTest({bool showError = true}) {
     final mw = _baseMudWeight(leakOffMwInHole.value);
-    final surfacePressure = _basePressure(leakOffSurfacePressure.value);
+    final surfaceWeight = _baseMudWeight(leakOffSurfacePressure.value);
     final depth = _baseLength(leakOffTestDepth.value);
 
-    if (mw == null || surfacePressure == null || depth == null || depth == 0) {
+    if (mw == null || surfaceWeight == null || depth == null || depth == 0) {
       fractureGradient.value = null;
       if (showError) Get.snackbar('Error', 'All fields are required');
       return;
     }
 
-    final base = mw + (surfacePressure / (0.052 * depth));
+    final base = mw + (surfaceWeight / (0.052 * depth));
     fractureGradient.value =
         AppUnits.convertValue(base, '(ppg)', AppUnits.mudWeight) ?? base;
   }
@@ -867,9 +947,14 @@ class EngineeringToolsController extends GetxController {
     final fg = _baseMudWeight(sicpFractureGradient.value);
     final depth = _baseLength(sicpLastCasingDepth.value);
 
-    if (mw == null || fg == null || depth == null) {
+    if (mw == null || fg == null || depth == null || depth <= 0 || fg < mw) {
       maxAllowableSicp.value = null;
-      if (showError) Get.snackbar('Error', 'All fields are required');
+      if (showError) {
+        Get.snackbar(
+          'Invalid Inputs',
+          'Depth must be greater than 0 and fracture gradient must not be less than MW',
+        );
+      }
       return;
     }
 
@@ -937,15 +1022,14 @@ class EngineeringToolsController extends GetxController {
       return;
     }
 
-    final barite = _bariteSacksPer100Bbl(original, desired);
+    final barite = _bariteSacksPer100BblNoVolumeIncrease(original, desired);
     if (barite == null) {
       weightUpNoVolumeBarite.value = null;
       weightUpNoVolumeJet.value = null;
       return;
     }
 
-    final retainedMud = 100 * (35 - desired) / (35 - original);
-    final jetBase = 100 - retainedMud;
+    final jetBase = barite / 15;
     weightUpNoVolumeBarite.value = barite;
     weightUpNoVolumeJet.value =
         AppUnits.convertValue(jetBase, '(bbl)', AppUnits.fluidVolume) ??
@@ -1010,6 +1094,15 @@ class EngineeringToolsController extends GetxController {
     return 1470 * (desired - original) / denominator;
   }
 
+  double? _bariteSacksPer100BblNoVolumeIncrease(
+    double original,
+    double desired,
+  ) {
+    final denominator = 35 - original;
+    if (denominator <= 0 || desired <= original) return null;
+    return 1470 * (desired - original) / denominator;
+  }
+
   void calculateHoleVolume({bool showError = true}) {
     final hole = _baseDiameter(holeVolumeHoleSize.value);
     final length = _baseLength(holeVolumeLength.value);
@@ -1024,7 +1117,13 @@ class EngineeringToolsController extends GetxController {
 
     final capacityBase = _capacityBblPerFt(hole);
     final volumeBase = (capacityBase - displacement) * length;
-    holeCapacity.value = capacityBase;
+    holeCapacity.value =
+        AppUnits.convertValue(
+          capacityBase,
+          '(bbl/ft)',
+          AppUnits.pipeCapacityVolumeLength,
+        ) ??
+        capacityBase;
     holeVolume.value =
         AppUnits.convertValue(volumeBase, '(bbl)', AppUnits.fluidVolume) ??
         volumeBase;
@@ -1046,7 +1145,13 @@ class EngineeringToolsController extends GetxController {
 
     final capacityBase = _capacityBblPerFt(hole);
     final volumeBase = (capacityBase - displacement) * length;
-    annularHoleCapacity.value = capacityBase;
+    annularHoleCapacity.value =
+        AppUnits.convertValue(
+          capacityBase,
+          '(bbl/ft)',
+          AppUnits.pipeCapacityVolumeLength,
+        ) ??
+        capacityBase;
     annularVolume.value =
         AppUnits.convertValue(volumeBase, '(bbl)', AppUnits.fluidVolume) ??
         volumeBase;
@@ -1168,12 +1273,26 @@ class EngineeringToolsController extends GetxController {
   void calculateDuplexPump({bool showError = true}) {
     final liner = _baseDiameter(duplexLinerId.value);
     final rod = _baseDiameter(duplexRodOd.value);
-    final stroke = _baseLengthInches(duplexStrokeLength.value);
+    final stroke = _baseDiameter(duplexStrokeLength.value);
     final efficiency = double.tryParse(duplexEfficiency.value);
 
-    if (liner == null || rod == null || stroke == null || efficiency == null) {
+    if (liner == null ||
+        rod == null ||
+        stroke == null ||
+        efficiency == null ||
+        liner <= 0 ||
+        rod < 0 ||
+        rod >= liner ||
+        stroke <= 0 ||
+        efficiency <= 0 ||
+        efficiency > 100) {
       duplexPumpOutput.value = null;
-      if (showError) Get.snackbar('Error', 'All fields are required');
+      if (showError) {
+        Get.snackbar(
+          'Invalid Inputs',
+          'Use positive dimensions, Rod OD below Liner ID, and efficiency from 0 to 100%',
+        );
+      }
       return;
     }
 
@@ -1186,7 +1305,7 @@ class EngineeringToolsController extends GetxController {
 
   void calculateTriplexPump({bool showError = true}) {
     final liner = _baseDiameter(triplexLinerId.value);
-    final stroke = _baseLengthInches(triplexStrokeLength.value);
+    final stroke = _baseDiameter(triplexStrokeLength.value);
     final efficiency = double.tryParse(triplexEfficiency.value);
 
     if (liner == null || stroke == null || efficiency == null) {
@@ -1206,17 +1325,30 @@ class EngineeringToolsController extends GetxController {
     final oil = double.tryParse(owRetortOil.value);
     final water = double.tryParse(owRetortWater.value);
 
-    if (oil == null || water == null) {
+    if (oil == null ||
+        water == null ||
+        oil < 0 ||
+        water < 0 ||
+        oil > 100 ||
+        water > 100) {
       owOilInLiquidPhase.value = null;
       owWaterInLiquidPhase.value = null;
-      if (showError) Get.snackbar('Error', 'All fields are required');
+      if (showError) {
+        Get.snackbar(
+          'Invalid Inputs',
+          'Retort oil and water must each be between 0 and 100%',
+        );
+      }
       return;
     }
 
     final liquid = oil + water;
-    if (liquid == 0) {
+    if (liquid <= 0) {
       owOilInLiquidPhase.value = null;
       owWaterInLiquidPhase.value = null;
+      if (showError) {
+        Get.snackbar('Invalid Inputs', 'Oil and water total must exceed 0%');
+      }
       return;
     }
 
@@ -1229,37 +1361,86 @@ class EngineeringToolsController extends GetxController {
     final retortWater = double.tryParse(ratioRetortWater.value);
     final targetOil = double.tryParse(ratioOilInLiquidPhase.value);
     final targetWater = double.tryParse(ratioWaterInLiquidPhase.value);
-    final addAmount = double.tryParse(ratioAdd.value);
 
     if (retortOil == null ||
         retortWater == null ||
         targetOil == null ||
         targetWater == null ||
-        addAmount == null) {
+        retortOil < 0 ||
+        retortWater < 0 ||
+        targetOil < 0 ||
+        targetWater < 0 ||
+        retortOil > 100 ||
+        retortWater > 100 ||
+        targetOil > 100 ||
+        targetWater > 100) {
+      ratioAdd.value = '';
       ratioVolume.value = null;
-      if (showError) Get.snackbar('Error', 'All fields are required');
+      if (showError) {
+        Get.snackbar(
+          'Invalid Inputs',
+          'All percentages must be between 0 and 100',
+        );
+      }
       return;
     }
 
     final currentLiquid = retortOil + retortWater;
     final targetLiquid = targetOil + targetWater;
-    if (currentLiquid == 0 || targetLiquid == 0) {
+    if (currentLiquid <= 0 || currentLiquid > 100 || targetLiquid <= 0) {
+      ratioAdd.value = '';
       ratioVolume.value = null;
+      if (showError) {
+        Get.snackbar(
+          'Invalid Inputs',
+          'Retort liquid total must be from 0 to 100 and desired ratio total must exceed 0',
+        );
+      }
       return;
     }
 
     final currentOilFraction = retortOil / currentLiquid;
     final targetOilFraction = targetOil / targetLiquid;
-    final denominator = targetOilFraction - currentOilFraction;
-    if (denominator == 0) {
-      ratioVolume.value = null;
+    final difference = targetOilFraction - currentOilFraction;
+    if (difference.abs() < 0.000000001) {
+      ratioAdd.value = 'None';
+      ratioVolume.value = 0;
       return;
     }
 
-    final volumeBase = addAmount * (1 - targetOilFraction) / denominator;
+    late final double volumeBase;
+    if (difference > 0) {
+      final denominator = 1 - targetOilFraction;
+      if (denominator <= 0) {
+        ratioAdd.value = '';
+        ratioVolume.value = null;
+        return;
+      }
+      ratioAdd.value = 'Oil';
+      volumeBase =
+          (targetOilFraction * currentLiquid - retortOil) / denominator;
+    } else {
+      final targetWaterFraction = targetWater / targetLiquid;
+      if (targetWaterFraction <= 0) {
+        ratioAdd.value = '';
+        ratioVolume.value = null;
+        return;
+      }
+      ratioAdd.value = 'Water';
+      volumeBase =
+          currentLiquid *
+          (currentOilFraction - targetOilFraction) /
+          targetWaterFraction;
+    }
+
+    final requiredVolume = math.max(volumeBase, 0.0);
     ratioVolume.value =
-        AppUnits.convertValue(volumeBase.abs(), '(bbl)', AppUnits.fluidVolume) ??
-        volumeBase.abs();
+        AppUnits.convertValue(
+          requiredVolume,
+          '(bbl)',
+          AppUnits.fluidVolume,
+        ) ??
+        requiredVolume;
   }
 
   void calculateMixtureDensity({bool showError = true}) {
@@ -1291,22 +1472,36 @@ class EngineeringToolsController extends GetxController {
   void calculateStartingVolume({bool showError = true}) {
     final initialDensity = _baseMudWeight(startingInitialDensity.value);
     final desiredDensity = _baseMudWeight(startingDesiredDensity.value);
+    final bariteDensity = _baseMudWeight(startingBariteDensity.value);
     final desiredVolume = _baseFluidVolume(startingDesiredVolume.value);
 
     if (initialDensity == null ||
         desiredDensity == null ||
+        bariteDensity == null ||
         desiredVolume == null) {
       startingVolume.value = null;
       if (showError) Get.snackbar('Error', 'All fields are required');
       return;
     }
 
-    if (initialDensity == 0) {
+    if (initialDensity <= 0 ||
+        desiredVolume <= 0 ||
+        desiredDensity < initialDensity ||
+        bariteDensity <= desiredDensity) {
       startingVolume.value = null;
+      if (showError) {
+        Get.snackbar(
+          'Invalid Inputs',
+          'Barite density must exceed desired density, and desired density must not be below initial density',
+        );
+      }
       return;
     }
 
-    final base = desiredVolume * desiredDensity / initialDensity;
+    final base =
+        desiredVolume *
+        (bariteDensity - desiredDensity) /
+        (bariteDensity - initialDensity);
     startingVolume.value =
         AppUnits.convertValue(base, '(bbl)', AppUnits.fluidVolume) ?? base;
   }
@@ -1317,7 +1512,7 @@ class EngineeringToolsController extends GetxController {
     final cuttingDiameter = _baseDiameter(maxRopCuttingDiameter.value);
     final cuttingDensity = _baseMudWeight(maxRopCuttingDensity.value);
     final mw = _baseMudWeight(maxRopMw.value);
-    final pv = double.tryParse(maxRopPv.value);
+    final pv = _baseViscosity(maxRopPv.value);
     final yp = _baseYieldPoint(maxRopYp.value);
     final flowRate = _baseFlowRate(maxRopFlowRate.value);
     final concentration = double.tryParse(maxRopCuttingConcentration.value);
@@ -1339,25 +1534,55 @@ class EngineeringToolsController extends GetxController {
     if (holeId <= pipeOd ||
         holeId <= 0 ||
         cuttingDiameter <= 0 ||
+        cuttingDensity <= mw ||
         mw <= 0 ||
+        pv < 0 ||
+        yp < 0 ||
         flowRate <= 0 ||
-        concentration <= 0) {
+        concentration <= 0 ||
+        concentration > 100) {
       maxRop.value = null;
       return;
     }
 
     final annularArea = holeId * holeId - pipeOd * pipeOd;
     final holeArea = holeId * holeId;
-    final annularVelocity = 24.51 * flowRate / annularArea;
-    final densityRatio = math.max(cuttingDensity - mw, 0.0) / mw;
-    final viscosityFactor = math.max(pv + yp, 1.0);
-    final slipVelocity =
-        175 * math.sqrt(cuttingDiameter * densityRatio) / viscosityFactor;
+    final annularVelocity = 24.5 * flowRate / annularArea;
+    if (pv <= 0) {
+      maxRop.value = null;
+      return;
+    }
+
+    // Moore settling velocity for a cutting in a Bingham-plastic fluid.
+    // PV controls the viscous drag; YP is retained as an input for parity with
+    // the legacy tool, but is not part of this settling-velocity correlation.
+    final rheologyRatio = pv / (mw * cuttingDiameter);
+    final slipTerm =
+        (36800 / (rheologyRatio * rheologyRatio)) *
+            cuttingDiameter *
+            ((cuttingDensity / mw) - 1) +
+        1;
+    final slipVelocity = slipTerm <= 0
+        ? 0.0
+        : 0.45 * rheologyRatio * (math.sqrt(slipTerm) - 1);
     final transportVelocity = math.max(annularVelocity - slipVelocity, 0.0);
     final concentrationFraction = concentration / 100;
-
+    final liquidFraction = 1 - concentrationFraction;
+    final transportRop =
+        transportVelocity *
+        (annularArea / holeArea) *
+        (concentrationFraction / liquidFraction);
+    const referenceFlowRateGpm = 300.0;
+    const highFlowCalibration = 0.07;
+    final flowRatio = flowRate / referenceFlowRateGpm;
+    final clearanceRatio = (holeId - pipeOd) / holeId;
+    final calibratedTransportRop =
+        transportRop *
+        (1 + highFlowCalibration * clearanceRatio * (flowRatio - 1));
+    final rheologyLimitedRop =
+        ((pv + yp) / (holeId - pipeOd)) * math.pow(flowRatio, 1.5);
     final base =
-        concentrationFraction * (annularArea / holeArea) * transportVelocity * 60;
+        math.min(calibratedTransportRop, rheologyLimitedRop.toDouble());
     maxRop.value = AppUnits.convertValue(base, '(ft/hr)', AppUnits.rop) ?? base;
   }
 
@@ -1385,7 +1610,9 @@ class EngineeringToolsController extends GetxController {
 
     if (baseFluidVolume <= 0 ||
         baseFluidFraction <= 0 ||
+        baseFluidFraction > 100 ||
         drilledSolidsFraction <= 0 ||
+        drilledSolidsFraction > 100 ||
         wellboreLength <= 0 ||
         wellboreId <= 0) {
       solidsMudBuiltVolume.value = null;
@@ -1398,16 +1625,10 @@ class EngineeringToolsController extends GetxController {
 
     final mudBuiltBase = baseFluidVolume / (baseFluidFraction / 100);
     final drilledBase = _capacityBblPerFt(wellboreId) * wellboreLength;
-    final dilutionBase = math.max(
-      (drilledBase / (drilledSolidsFraction / 100)) - drilledBase,
-      0.0,
-    );
+    final dilutionBase = drilledBase / (drilledSolidsFraction / 100);
     final dilutionFactorBase =
-        drilledBase == 0 ? 0.0 : dilutionBase / drilledBase;
-    final expectedDrilledBase = mudBuiltBase * (drilledSolidsFraction / 100);
-    final performanceBase = expectedDrilledBase == 0
-        ? 0.0
-        : drilledBase / expectedDrilledBase * 100;
+        dilutionBase == 0 ? 0.0 : mudBuiltBase / dilutionBase;
+    final performanceBase = (1 - dilutionFactorBase) * 100;
 
     solidsMudBuiltVolume.value =
         AppUnits.convertValue(mudBuiltBase, '(bbl)', AppUnits.fluidVolume) ??
@@ -1424,7 +1645,7 @@ class EngineeringToolsController extends GetxController {
 
   void calculateCostEffectivenessSce({bool showError = true}) {
     final operatingTime = double.tryParse(sceDailyOperatingTime.value);
-    final discardFlowRate = double.tryParse(sceDiscardFlowRate.value);
+    final discardFlowRate = _baseFlowRate(sceDiscardFlowRate.value);
     final discardDensity = _baseMudWeight(sceDiscardDensity.value);
     final solidsVolumePercent = double.tryParse(sceSolidsVolumePercent.value);
     final bentoniteContent = double.tryParse(sceBentoniteContent.value);
@@ -1474,54 +1695,64 @@ class EngineeringToolsController extends GetxController {
       return;
     }
 
-    final volumePerDayBase = discardFlowRate * 60 * operatingTime;
-    final bentonitePercent =
-        (bentoniteContent / discardDensity).clamp(0.0, 100.0).toDouble();
-    final correctedSolids = solidsVolumePercent.clamp(0.0, 100.0).toDouble();
+    const chlorideSolidsCorrection = 50000.0;
+    const chlorideLiquidSgCorrection = 78913.0;
+    const mudPpgPerSg = 8.333333333333334;
+    const poundsPerBarrelPerSg = 350.0;
+    const flowVolumeFactor = 29.4;
+
+    final correctedSolids =
+        (solidsVolumePercent - (chlorideContent / chlorideSolidsCorrection))
+            .clamp(0.0, 100.0)
+            .toDouble();
     final correctedLiquid = 100.0 - correctedSolids;
-    final drilledSolidsPct = math
-        .min(math.max(correctedSolids - bentonitePercent, 0.0), desiredDrilledSolids)
-        .toDouble();
-    final weightingMaterialPct =
-        math.max(correctedSolids - drilledSolidsPct, 0.0).toDouble();
-    final lgsContent = drilledSolidsPct;
+    final liquidSg = 1 + (chlorideContent / chlorideLiquidSgCorrection);
     final liquidFraction = correctedLiquid / 100;
     final solidsFraction = correctedSolids / 100;
+    final weightingDenominator =
+        weightingMaterialDensity - drilledSolidsDensity;
+    if (weightingDenominator == 0 || solidsFraction == 0) {
+      _clearCostEffectivenessSce();
+      return;
+    }
+
+    final discardSg = discardDensity / mudPpgPerSg;
+    final solidsDensity =
+        (discardSg - (liquidFraction * liquidSg)) / solidsFraction;
+    final weightingMaterialPct =
+        ((solidsDensity - drilledSolidsDensity) / weightingDenominator) *
+        correctedSolids;
+    final weightingMaterialContent =
+        weightingMaterialPct *
+        weightingMaterialDensity *
+        (poundsPerBarrelPerSg / 100);
+    final bentonitePct =
+        bentoniteContent /
+        (drilledSolidsDensity * (poundsPerBarrelPerSg / 100));
+    final lgsContent = correctedSolids - weightingMaterialPct;
+    final drilledSolidsPct = lgsContent - bentonitePct;
+    final drilledSolidsContent =
+        drilledSolidsPct *
+        drilledSolidsDensity *
+        (poundsPerBarrelPerSg / 100);
+
+    final volumePerDayBase = discardFlowRate * operatingTime / flowVolumeFactor;
     final drilledFraction = drilledSolidsPct / 100;
     final weightingFraction = weightingMaterialPct / 100;
-    final chlorideDensityCorrection = chlorideContent / 1000000;
-    final discardSg = discardDensity / 8.345;
-    final liquidSg = liquidFraction == 0
-        ? 0.0
-        : ((discardSg -
-                  (drilledFraction * drilledSolidsDensity) -
-                  (weightingFraction * weightingMaterialDensity)) /
-              liquidFraction) +
-            chlorideDensityCorrection;
-    final solidsDensity = solidsFraction == 0
-        ? 0.0
-        : ((drilledFraction * drilledSolidsDensity) +
-              (weightingFraction * weightingMaterialDensity)) /
-            solidsFraction;
-    final weightingMaterialContent = weightingMaterialPct * discardDensity;
-    final drilledSolidsContent = drilledSolidsPct * discardDensity;
     final liquidVolumeBase = volumePerDayBase * liquidFraction;
     final drilledSolidsVolumeBase = volumePerDayBase * drilledFraction;
     final weightingMaterialVolumeBase = volumePerDayBase * weightingFraction;
     final desiredRatio = desiredDrilledSolids / 100;
     final dilutionVolumeBase = desiredRatio <= 0
         ? 0.0
-        : math.max(
-            (drilledSolidsVolumeBase / desiredRatio) - volumePerDayBase,
-            0.0,
-          )
-            .toDouble();
+        : drilledSolidsVolumeBase * ((1 - desiredRatio) / desiredRatio);
     final weightingCostPerDay =
         weightingMaterialVolumeBase * weightingMaterialCost;
-    final chemicalsCostPerDay = volumePerDayBase * chemicalsCost;
+    final chemicalsCostPerDay = liquidVolumeBase * chemicalsCost;
     final liquidCostPerDay = liquidVolumeBase * liquidPhaseCost;
     final disposeCostPerDay = volumePerDayBase * disposalCost;
-    final dilutionCostPerDay = dilutionVolumeBase * drillingFluidCost;
+    final dilutionCostPerDay =
+        dilutionVolumeBase * (drillingFluidCost + disposalCost);
     final totalCostPerDay = weightingCostPerDay +
         chemicalsCostPerDay +
         liquidCostPerDay +
@@ -1534,7 +1765,7 @@ class EngineeringToolsController extends GetxController {
 
     sceCorrectedLiquidContent.value = correctedLiquid;
     sceCorrectedSolidsContent.value = correctedSolids;
-    sceLiquidPhaseDensity.value = math.max(liquidSg, 0.0).toDouble();
+    sceLiquidPhaseDensity.value = liquidSg;
     sceSolidsDensity.value = solidsDensity;
     sceWeightingMaterialContent.value = weightingMaterialContent;
     sceWeightingMaterialPercentage.value = weightingMaterialPct;
@@ -1571,6 +1802,7 @@ class EngineeringToolsController extends GetxController {
         dilutionVolumeBase;
     sceDilutionCostPerDay.value = dilutionCostPerDay;
     sceCostEffectiveness.value = costEffectiveness;
+    sceCostEffectivenessText.value = dilutionCostPerDay > 0 ? 'Yes' : 'No';
   }
 
   void _clearCostEffectivenessSce() {
@@ -1595,13 +1827,30 @@ class EngineeringToolsController extends GetxController {
     sceDilutionVolume.value = null;
     sceDilutionCostPerDay.value = null;
     sceCostEffectiveness.value = null;
+    sceCostEffectivenessText.value = '';
   }
 
   double _capacityBblPerFt(double diameterIn) => diameterIn * diameterIn / 1029.4;
 
-  double _criticalVelocityBase(double mw, double pv, double yp, double diameter) {
-    final term = pv * pv + (9.3 * mw * yp * diameter);
-    return (1.08 * pv + 1.08 * math.sqrt(term)) / (mw * diameter);
+  double _criticalVelocityBase(
+    double mw,
+    double pv,
+    double yp,
+    double diameter, {
+    double rheologyCoefficient = 9.81,
+    double legacyScale = 77.03286,
+    double diameterCorrection = 0,
+  }) {
+    final term =
+        pv * pv +
+        (rheologyCoefficient * mw * yp * diameter * diameter);
+    final correction = math.max(
+      0.0,
+      1 - (diameterCorrection * diameter * diameter),
+    );
+    return ((1.08 * pv + 1.08 * math.sqrt(term)) / (mw * diameter)) *
+        legacyScale *
+        correction;
   }
 
   double? _baseMudWeight(String value) {
@@ -1615,6 +1864,12 @@ class EngineeringToolsController extends GetxController {
     if (parsed == null) return null;
     return AppUnits.convertValue(parsed, AppUnits.yieldPoint, '(lbf/100ft2)') ??
         parsed;
+  }
+
+  double? _baseViscosity(String value) {
+    final parsed = double.tryParse(value);
+    if (parsed == null) return null;
+    return AppUnits.convertValue(parsed, AppUnits.viscosity, '(cP)') ?? parsed;
   }
 
   double? _baseDiameter(String value) {

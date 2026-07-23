@@ -85,11 +85,11 @@ class PumpOutPage extends StatelessWidget {
           inputs: [
             _PumpOutInput(label: 'Liner ID ${AppUnits.diameter}', value: c.duplexLinerId),
             _PumpOutInput(label: 'Rod OD ${AppUnits.diameter}', value: c.duplexRodOd),
-            _PumpOutInput(label: 'Stroke length ${AppUnits.length}', value: c.duplexStrokeLength),
+            _PumpOutInput(label: 'Stroke length ${AppUnits.diameter}', value: c.duplexStrokeLength),
             _PumpOutInput(label: 'Pump efficiency (%)', value: c.duplexEfficiency),
           ],
           outputLabel: 'Pump output ${AppUnits.strokeDisplacement}',
-          outputValue: _format(c.duplexPumpOutput.value),
+          outputValue: c.duplexPumpOutput,
           onCalculate: () => c.calculateDuplexPump(),
           leftWidth: widths.left,
           outputWidth: widths.right,
@@ -99,11 +99,11 @@ class PumpOutPage extends StatelessWidget {
         return _layout(
           inputs: [
             _PumpOutInput(label: 'Liner ID ${AppUnits.diameter}', value: c.triplexLinerId),
-            _PumpOutInput(label: 'Stroke length ${AppUnits.length}', value: c.triplexStrokeLength),
+            _PumpOutInput(label: 'Stroke length ${AppUnits.diameter}', value: c.triplexStrokeLength),
             _PumpOutInput(label: 'Pump efficiency (%)', value: c.triplexEfficiency),
           ],
           outputLabel: 'Pump output ${AppUnits.strokeDisplacement}',
-          outputValue: _format(c.triplexPumpOutput.value),
+          outputValue: c.triplexPumpOutput,
           onCalculate: () => c.calculateTriplexPump(),
           leftWidth: widths.left,
           outputWidth: widths.right,
@@ -125,7 +125,7 @@ class PumpOutPage extends StatelessWidget {
   Widget _layout({
     required List<_PumpOutInput> inputs,
     required String outputLabel,
-    required String outputValue,
+    required RxnDouble outputValue,
     required VoidCallback onCalculate,
     required double leftWidth,
     required double outputWidth,
@@ -187,7 +187,11 @@ class PumpOutPage extends StatelessWidget {
     );
   }
 
-  Widget _outputTable(String label, String value, {required double width}) {
+  Widget _outputTable(
+    String label,
+    RxnDouble value, {
+    required double width,
+  }) {
     return Container(
       width: width,
       decoration: BoxDecoration(
@@ -199,7 +203,9 @@ class PumpOutPage extends StatelessWidget {
         child: Row(
           children: [
             _labelCell(label, width: width * 0.70),
-            Expanded(child: _resultCell(value)),
+            Expanded(
+              child: Obx(() => _resultCell(_format(value.value))),
+            ),
           ],
         ),
       ),
