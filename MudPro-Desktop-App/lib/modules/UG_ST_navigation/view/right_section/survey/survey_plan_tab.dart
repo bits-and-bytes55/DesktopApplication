@@ -91,10 +91,8 @@ class _PlanMarker {
 class _PlanGraphPainter extends CustomPainter {
   _PlanGraphPainter({required this.points, required this.markers});
 
-  static const double _axisMin = 0;
-  static const double _axisMinMax = 1200;
-  static const double _axisStep = 200;
-  static const int _gridDivisions = 12;
+  static const double _axisStep = 500;
+  static const double _minorGridStep = 250;
 
   final List<dynamic> points;
   final List<_PlanMarker> markers;
@@ -115,13 +113,17 @@ class _PlanGraphPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeJoin = StrokeJoin.round;
 
+    final xBounds = _planAxisBoundsFor(
+      points.map((point) => _numberValue(point.eastWest)),
+    );
+    final yBounds = _planAxisBoundsFor(
+      points.map((point) => _numberValue(point.northSouth)),
+    );
+    final xRange = xBounds.max - xBounds.min;
+    final yRange = yBounds.max - yBounds.min;
+
     canvas.drawRect(plot, border);
-    for (var i = 0; i <= _gridDivisions; i++) {
-      final x = plot.left + (plot.width * i / _gridDivisions);
-      drawDashedLine(canvas, Offset(x, plot.top), Offset(x, plot.bottom), grid);
-      final y = plot.top + (plot.height * i / _gridDivisions);
-      drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
-    }
+    _drawGrid(canvas, plot, grid, xBounds, yBounds);
 
     if (points.isEmpty) {
       drawSurveyText(
@@ -132,45 +134,34 @@ class _PlanGraphPainter extends CustomPainter {
       return;
     }
 
-    const minX = _axisMin;
-    const minY = _axisMin;
-    final maxX = _planAxisMaxFor(
-      points.fold<double>(0, (maxValue, point) {
-        return math.max(maxValue, _numberValue(point.eastWest).abs());
-      }),
-    );
-    final maxY = _planAxisMaxFor(
-      points.fold<double>(0, (maxValue, point) {
-        return math.max(maxValue, _numberValue(point.northSouth).abs());
-      }),
-    );
-    final xRange = maxX - _axisMin;
-    final yRange = maxY - _axisMin;
-    final xLabelDivisions = (maxX / _axisStep).round();
-    final yLabelDivisions = (maxY / _axisStep).round();
-
-    for (var i = 0; i <= yLabelDivisions; i++) {
-      final value = minY + (_axisStep * i);
-      final py = plot.bottom - (plot.height * (value - minY) / yRange);
-      _drawLeftAxisLabel(canvas, value.toStringAsFixed(0), plot.left, py);
-    }
-    for (var i = 0; i <= xLabelDivisions; i++) {
-      final value = minX + (_axisStep * i);
-      final px = plot.left + (plot.width * (value - minX) / xRange);
+    for (
+      var value = xBounds.min;
+      value <= xBounds.max + 0.1;
+      value += _axisStep
+    ) {
+      final px = plot.left + (plot.width * (value - xBounds.min) / xRange);
       drawSurveyText(
         canvas,
         value.toStringAsFixed(0),
         Offset(px - 10, plot.bottom + 8),
       );
     }
+    for (
+      var value = yBounds.min;
+      value <= yBounds.max + 0.1;
+      value += _axisStep
+    ) {
+      final py = plot.bottom - (plot.height * (value - yBounds.min) / yRange);
+      _drawLeftAxisLabel(canvas, value.toStringAsFixed(0), plot.left, py);
+    }
 
     final path = Path();
     for (var i = 0; i < points.length; i++) {
       final point = points[i];
-      final xRatio = ((_numberValue(point.eastWest) - minX) / xRange)
+      final xRatio = ((_numberValue(point.eastWest) - xBounds.min) / xRange)
           .clamp(0.0, 1.0)
           .toDouble();
-      final yRatio = ((_numberValue(point.northSouth) - minY) / yRange)
+      final yRatio = ((_numberValue(point.northSouth) - yBounds.min) / yRange)
           .clamp(0.0, 1.0)
           .toDouble();
       final px = plot.left + xRatio * plot.width;
@@ -184,8 +175,10 @@ class _PlanGraphPainter extends CustomPainter {
     canvas.drawPath(path, line);
 
     for (final marker in markers) {
-      final xRatio = ((marker.x - minX) / xRange).clamp(0.0, 1.0).toDouble();
-      final yRatio = ((marker.y - minY) / yRange).clamp(0.0, 1.0).toDouble();
+      final xRatio =
+          ((marker.x - xBounds.min) / xRange).clamp(0.0, 1.0).toDouble();
+      final yRatio =
+          ((marker.y - yBounds.min) / yRange).clamp(0.0, 1.0).toDouble();
       final px = plot.left + xRatio * plot.width;
       final py = plot.bottom - yRatio * plot.height;
       drawSurveyMarker(canvas, Offset(px, py), marker.symbol);
@@ -193,11 +186,55 @@ class _PlanGraphPainter extends CustomPainter {
     }
   }
 
-  double _planAxisMaxFor(double value) {
-    if (value <= 0) return _axisMinMax;
+  _PlanAxisBounds _planAxisBoundsFor(Iterable<double> values) {
+    final valueList = values.toList();
+    if (valueList.isEmpty) {
+      return const _PlanAxisBounds(min: -_axisStep, max: _axisStep);
+    }
 
-    final roundedMax = (value / _axisStep).ceil() * _axisStep;
-    return math.max(roundedMax, _axisMinMax);
+    final minValue = valueList.reduce(math.min);
+    final maxValue = valueList.reduce(math.max);
+    var minAxis = minValue < 0
+        ? ((minValue / _axisStep).floor() * _axisStep) - _axisStep
+        : -_axisStep;
+    var maxAxis = maxValue > 0
+        ? ((maxValue / _axisStep).ceil() * _axisStep) + _axisStep
+        : _axisStep;
+
+    if (minAxis == maxAxis) {
+      minAxis -= _axisStep;
+      maxAxis += _axisStep;
+    }
+
+    return _PlanAxisBounds(min: minAxis, max: maxAxis);
+  }
+
+  void _drawGrid(
+    Canvas canvas,
+    Rect plot,
+    Paint grid,
+    _PlanAxisBounds xBounds,
+    _PlanAxisBounds yBounds,
+  ) {
+    final xRange = xBounds.max - xBounds.min;
+    final yRange = yBounds.max - yBounds.min;
+
+    for (
+      var value = xBounds.min;
+      value <= xBounds.max + 0.1;
+      value += _minorGridStep
+    ) {
+      final x = plot.left + (plot.width * (value - xBounds.min) / xRange);
+      drawDashedLine(canvas, Offset(x, plot.top), Offset(x, plot.bottom), grid);
+    }
+    for (
+      var value = yBounds.min;
+      value <= yBounds.max + 0.1;
+      value += _minorGridStep
+    ) {
+      final y = plot.bottom - (plot.height * (value - yBounds.min) / yRange);
+      drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
+    }
   }
 
   double _numberValue(dynamic value) {
@@ -228,4 +265,11 @@ class _PlanGraphPainter extends CustomPainter {
   bool shouldRepaint(covariant _PlanGraphPainter oldDelegate) {
     return oldDelegate.points != points || oldDelegate.markers != markers;
   }
+}
+
+class _PlanAxisBounds {
+  const _PlanAxisBounds({required this.min, required this.max});
+
+  final double min;
+  final double max;
 }

@@ -92,9 +92,8 @@ class _SectionGraphPainter extends CustomPainter {
   _SectionGraphPainter({required this.points, required this.markers});
 
   static const double _axisMin = 0;
-  static const double _axisMinMax = 12000;
   static const double _axisStep = 2000;
-  static const int _gridDivisions = 12;
+  static const double _minorGridStep = 1000;
 
   final List<dynamic> points;
   final List<_SectionMarker> markers;
@@ -116,14 +115,8 @@ class _SectionGraphPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
 
     canvas.drawRect(plot, border);
-    for (var i = 0; i <= _gridDivisions; i++) {
-      final x = plot.left + (plot.width * i / _gridDivisions);
-      drawDashedLine(canvas, Offset(x, plot.top), Offset(x, plot.bottom), grid);
-      final y = plot.top + (plot.height * i / _gridDivisions);
-      drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
-    }
-
     if (points.isEmpty) {
+      _drawGrid(canvas, plot, _axisStep, grid);
       drawSurveyText(
         canvas,
         'No survey data',
@@ -132,27 +125,27 @@ class _SectionGraphPainter extends CustomPainter {
       return;
     }
 
-    final maxTvd = _tvdAxisMaxFor(
-      points.fold<double>(0, (maxValue, point) {
-        return math.max(maxValue, _numberValue(point.tvd));
-      }),
-    );
-    final maxX = _sectionAxisMaxFor(
-      points.fold<double>(0, (maxValue, point) {
-        return math.max(maxValue, _numberValue(point.vsec));
-      }),
+    final maxTvdDepth = points.fold<double>(0, (maxValue, point) {
+      return math.max(maxValue, _numberValue(point.tvd));
+    });
+    final maxHorizontalDisplacement = points.fold<double>(0, (maxValue, point) {
+      return math.max(maxValue, _numberValue(point.vsec).abs());
+    });
+    final axisMax = _sectionAxisMaxFor(
+      math.max(maxTvdDepth, maxHorizontalDisplacement),
     );
     const minX = _axisMin;
-    final xRange = maxX - _axisMin;
-    final tvdLabelDivisions = (maxTvd / _axisStep).round();
-    final xLabelDivisions = (maxX / _axisStep).round();
+    final xRange = axisMax - _axisMin;
+    final labelDivisions = (axisMax / _axisStep).round();
 
-    for (var i = 0; i <= tvdLabelDivisions; i++) {
+    _drawGrid(canvas, plot, axisMax, grid);
+
+    for (var i = 0; i <= labelDivisions; i++) {
       final value = _axisStep * i;
-      final py = plot.top + (plot.height * value / maxTvd);
+      final py = plot.top + (plot.height * value / axisMax);
       _drawLeftAxisLabel(canvas, value.toStringAsFixed(0), plot.left, py);
     }
-    for (var i = 0; i <= xLabelDivisions; i++) {
+    for (var i = 0; i <= labelDivisions; i++) {
       final value = minX + (_axisStep * i);
       final px = plot.left + (plot.width * (value - minX) / xRange);
       drawSurveyText(
@@ -168,7 +161,7 @@ class _SectionGraphPainter extends CustomPainter {
       final xRatio = ((_numberValue(point.vsec) - minX) / xRange)
           .clamp(0.0, 1.0)
           .toDouble();
-      final yRatio = (_numberValue(point.tvd) / maxTvd)
+      final yRatio = (_numberValue(point.tvd) / axisMax)
           .clamp(0.0, 1.0)
           .toDouble();
       final px = plot.left + xRatio * plot.width;
@@ -183,7 +176,7 @@ class _SectionGraphPainter extends CustomPainter {
 
     for (final marker in markers) {
       final xRatio = ((marker.x - minX) / xRange).clamp(0.0, 1.0).toDouble();
-      final yRatio = (marker.y / maxTvd).clamp(0.0, 1.0).toDouble();
+      final yRatio = (marker.y / axisMax).clamp(0.0, 1.0).toDouble();
       final px = plot.left + xRatio * plot.width;
       final py = plot.top + yRatio * plot.height;
       drawSurveyMarker(canvas, Offset(px, py), marker.symbol);
@@ -191,15 +184,11 @@ class _SectionGraphPainter extends CustomPainter {
     }
   }
 
-  double _tvdAxisMaxFor(double maxTvd) {
-    return _sectionAxisMaxFor(maxTvd);
-  }
-
   double _sectionAxisMaxFor(double value) {
-    if (value <= 0) return _axisMinMax;
+    if (value <= 0) return _axisStep;
 
     final roundedMax = (value / _axisStep).ceil() * _axisStep;
-    return math.max(roundedMax, _axisMinMax);
+    return math.max(roundedMax, _axisStep);
   }
 
   double _numberValue(dynamic value) {
@@ -224,6 +213,16 @@ class _SectionGraphPainter extends CustomPainter {
       canvas,
       Offset(plotLeft - 10 - painter.width, centerY - (painter.height / 2)),
     );
+  }
+
+  void _drawGrid(Canvas canvas, Rect plot, double axisMax, Paint grid) {
+    final divisions = math.max(1, (axisMax / _minorGridStep).round());
+    for (var i = 0; i <= divisions; i++) {
+      final x = plot.left + (plot.width * i / divisions);
+      drawDashedLine(canvas, Offset(x, plot.top), Offset(x, plot.bottom), grid);
+      final y = plot.top + (plot.height * i / divisions);
+      drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
+    }
   }
 
   @override

@@ -99,9 +99,7 @@ class Survey3DTab extends StatelessWidget {
                             label: 'All Quadrants',
                             value: showAllQuadrants,
                             onChanged: (value) {
-                              setState(
-                                () => showAllQuadrants = value ?? false,
-                              );
+                              setState(() => showAllQuadrants = value ?? false);
                             },
                           ),
                           const SizedBox(height: 10),
@@ -630,9 +628,7 @@ class _SettingsDropdownRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Expanded(
-            child: Text(label, style: const TextStyle(fontSize: 13)),
-          ),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
           SizedBox(
             width: 108,
             height: 28,
@@ -667,33 +663,14 @@ class _AngleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const values = [
-      0,
-      30,
-      60,
-      90,
-      120,
-      150,
-      180,
-      210,
-      240,
-      270,
-      300,
-      330,
-      360,
-    ];
+    const values = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360];
     final selected = values.contains(value) ? value : 150;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          const Expanded(
-            child: Text(
-              'Angle',
-              style: TextStyle(fontSize: 13),
-            ),
-          ),
+          const Expanded(child: Text('Angle', style: TextStyle(fontSize: 13))),
           SizedBox(
             width: 108,
             height: 28,
@@ -975,11 +952,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Container(
-                width: 60,
-                height: 44,
-                color: _selectedColor,
-              ),
+              Container(width: 60, height: 44, color: _selectedColor),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -1166,7 +1139,9 @@ class WellPath3DPainter extends CustomPainter {
   final double northSouthAxisMax;
   final double maxTvd;
 
-  static const int _gridDivisions = 6;
+  static const double _tvdStep = 2000;
+  static const double _tvdGridStep = 2000;
+  static const double _planAxisStep = 2000;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1235,13 +1210,7 @@ class WellPath3DPainter extends CustomPainter {
 
       _draw3DLine(canvas, _V3(t, 0, 1), _V3(t, 1, 1), projection, gridPaint);
       if (i > 0) {
-        _draw3DLine(
-          canvas,
-          _V3(t, 0, 0),
-          _V3(t, 0, 1),
-          projection,
-          gridPaint,
-        );
+        _draw3DLine(canvas, _V3(t, 0, 0), _V3(t, 0, 1), projection, gridPaint);
       }
     }
 
@@ -1250,32 +1219,14 @@ class WellPath3DPainter extends CustomPainter {
 
       _draw3DLine(canvas, _V3(0, t, 1), _V3(1, t, 1), projection, gridPaint);
       if (i > 0) {
-        _draw3DLine(
-          canvas,
-          _V3(0, t, 0),
-          _V3(0, t, 1),
-          projection,
-          gridPaint,
-        );
+        _draw3DLine(canvas, _V3(0, t, 0), _V3(0, t, 1), projection, gridPaint);
       }
     }
 
     for (var i = 0; i <= tvdStepCount; i++) {
       final t = i / tvdStepCount;
-      _draw3DLine(
-        canvas,
-        _V3(0, 0, t),
-        _V3(1, 0, t),
-        projection,
-        gridPaint,
-      );
-      _draw3DLine(
-        canvas,
-        _V3(0, 0, t),
-        _V3(0, 1, t),
-        projection,
-        gridPaint,
-      );
+      _draw3DLine(canvas, _V3(0, 0, t), _V3(1, 0, t), projection, gridPaint);
+      _draw3DLine(canvas, _V3(0, 0, t), _V3(0, 1, t), projection, gridPaint);
     }
   }
 
@@ -1340,45 +1291,36 @@ class WellPath3DPainter extends CustomPainter {
       fontSize: 11,
       fontWeight: FontWeight.w500,
     ).copyWith(color: gridLegendColor);
-    final eastWestGridStepCount = _eastWestGridStepCount();
-    final stepCount = _northSouthStepCount();
-    final rowY = (_northSouthGridStepCount() + 0.5) / _northSouthGridStepCount();
-    final firstValueX = 0.5 / eastWestGridStepCount;
-    final lastValueX = (eastWestGridStepCount - 0.5) / eastWestGridStepCount;
-    final axisStart = _project(_V3(firstValueX, rowY, 1), projection);
-    final axisEnd = _project(
-      _V3(lastValueX, rowY, 1),
-      projection,
-    );
+    final labelX = (_eastWestGridStepCount() + 0.5) / _eastWestGridStepCount();
+    final firstValueY = 0.5 / _northSouthGridStepCount();
+    final lastValueY =
+        (_northSouthGridStepCount() - 0.5) / _northSouthGridStepCount();
+    final axisStart = _project(_V3(labelX, firstValueY, 1), projection);
+    final axisEnd = _project(_V3(labelX, lastValueY, 1), projection);
     final axisAngle = _readableAxisAngle(axisStart, axisEnd);
-    final valueAngle = axisAngle + 0.50;
+    final stepCount = _northSouthGridStepCount();
 
-    for (var i = 1; i <= stepCount; i++) {
-      final value = i * 2000;
-      final ratio = stepCount == 1 ? 0.0 : (i - 1) / (stepCount - 1);
-      final valueX = firstValueX + ((lastValueX - firstValueX) * ratio);
-      final position = _project(
-        _V3(valueX, rowY, 1),
-        projection,
-      );
+    for (var i = 0; i <= stepCount; i++) {
+      final value = -i * _planAxisStep;
+      final ratio = stepCount == 0 ? 0.0 : i / stepCount;
+      final valueY = firstValueY + ((lastValueY - firstValueY) * ratio);
+      final position = _project(_V3(labelX, valueY, 1), projection);
       _drawRotatedCenteredText(
         canvas,
-        _formatAxisValue(value),
+        _formatAxisValue(value.round()),
         position + const Offset(0, 5),
-        valueAngle,
+        axisAngle - 0.50,
         labelStyle,
       );
     }
 
-    final firstTitleX = firstValueX;
-    final lastTitleX = lastValueX;
-    final titleStart = _project(_V3(firstTitleX, rowY, 1), projection);
-    final titleEnd = _project(_V3(lastTitleX, rowY, 1), projection);
+    final titleStart = _project(_V3(labelX, firstValueY, 1), projection);
+    final titleEnd = _project(_V3(labelX, lastValueY, 1), projection);
     final titleBase = (titleStart + titleEnd) / 2;
     final titlePosition = titleBase + const Offset(0, 42);
     _drawRotatedCenteredText(
       canvas,
-      'N+/S ${AppUnits.unitText('(ft)')}',
+      'E+/W ${AppUnits.unitText('(ft)')}',
       titlePosition,
       axisAngle,
       titleStyle,
@@ -1393,45 +1335,41 @@ class WellPath3DPainter extends CustomPainter {
       fontSize: 11,
       fontWeight: FontWeight.w500,
     ).copyWith(color: gridLegendColor);
-    final eastWestStepCount = _eastWestStepCount();
-    final northSouthGridStepCount = _northSouthGridStepCount();
-    final labelX = (_eastWestGridStepCount() + 0.5) / _eastWestGridStepCount();
-    final firstValueY = 0.5 / northSouthGridStepCount;
-    final lastValueY = (northSouthGridStepCount - 0.5) / northSouthGridStepCount;
-    final axisStart = _project(
-      _V3(labelX, firstValueY, 1),
-      projection,
-    );
-    final axisEnd = _project(
-      _V3(labelX, lastValueY, 1),
-      projection,
-    );
+    final rowY =
+        (_northSouthGridStepCount() + 0.5) / _northSouthGridStepCount();
+    final firstValueX = 0.5 / _eastWestGridStepCount();
+    final lastValueX =
+        (_eastWestGridStepCount() - 0.5) / _eastWestGridStepCount();
+    final axisStart = _project(_V3(firstValueX, rowY, 1), projection);
+    final axisEnd = _project(_V3(lastValueX, rowY, 1), projection);
     final axisAngle = _readableAxisAngle(axisStart, axisEnd);
-    final eastWestValueSign = minEastWest >= 0 && maxEastWest > 0 ? 1 : -1;
+    final valueAngle = axisAngle + 0.50;
+    final labelStep = _planLabelStep(maxEastWest - minEastWest);
 
-    for (var i = 0; i <= eastWestStepCount; i++) {
-      final value = eastWestValueSign * i * 2000;
-      final ratio = eastWestStepCount == 0 ? 0.0 : i / eastWestStepCount;
-      final y = firstValueY + ((lastValueY - firstValueY) * ratio);
-      final edgePosition = _project(_V3(labelX, y, 1), projection);
+    for (
+      var value = minEastWest;
+      value <= maxEastWest + 0.1;
+      value += labelStep
+    ) {
+      final ratio = _normalize(value, minEastWest, maxEastWest);
+      final valueX = firstValueX + ((lastValueX - firstValueX) * ratio);
+      final edgePosition = _project(_V3(valueX, rowY, 1), projection);
       _drawRotatedCenteredText(
         canvas,
-        _formatAxisValue(value),
+        _formatAxisValue(value.round()),
         edgePosition + const Offset(0, 5),
-        axisAngle - 0.50,
+        valueAngle,
         labelStyle,
       );
     }
 
-    final firstTitleY = firstValueY;
-    final lastTitleY = lastValueY;
-    final titleStart = _project(_V3(labelX, firstTitleY, 1), projection);
-    final titleEnd = _project(_V3(labelX, lastTitleY, 1), projection);
+    final titleStart = _project(_V3(firstValueX, rowY, 1), projection);
+    final titleEnd = _project(_V3(lastValueX, rowY, 1), projection);
     final titleBase = (titleStart + titleEnd) / 2;
     final titlePosition = titleBase + const Offset(0, 42);
     _drawRotatedCenteredText(
       canvas,
-      'E+/W ${AppUnits.unitText('(ft)')}',
+      'N+/S ${AppUnits.unitText('(ft)')}',
       titlePosition,
       axisAngle,
       titleStyle,
@@ -1449,12 +1387,12 @@ class WellPath3DPainter extends CustomPainter {
     final stepCount = _tvdStepCount();
 
     for (var i = 0; i <= stepCount; i++) {
-      final value = i * 2000;
+      final value = i * _tvdStep;
       final t = value / maxTvd;
       final position = _project(_V3(0, 1, t), projection);
       _drawText(
         canvas,
-        _formatAxisValue(value),
+        _formatAxisValue(value.round()),
         position + const Offset(10, -6),
         labelStyle,
       );
@@ -1485,31 +1423,7 @@ class WellPath3DPainter extends CustomPainter {
   }
 
   List<_V3> _centeredNormalPoints() {
-    final normalPoints = points.map(_normalPoint).toList();
-    if (normalPoints.isEmpty) return normalPoints;
-
-    var minX = normalPoints.first.x;
-    var maxX = normalPoints.first.x;
-    var minY = normalPoints.first.y;
-    var maxY = normalPoints.first.y;
-
-    for (final point in normalPoints) {
-      minX = math.min(minX, point.x);
-      maxX = math.max(maxX, point.x);
-      minY = math.min(minY, point.y);
-      maxY = math.max(maxY, point.y);
-    }
-
-    final offsetX = 0.5 - ((minX + maxX) / 2);
-    final offsetY = 0.42 - ((minY + maxY) / 2);
-
-    return normalPoints.map((point) {
-      return _V3(
-        (point.x + offsetX).clamp(0.0, 1.0).toDouble(),
-        (point.y + offsetY).clamp(0.0, 1.0).toDouble(),
-        point.z,
-      );
-    }).toList();
+    return points.map(_normalPoint).toList();
   }
 
   _V3 _normalPoint(SurveyPoint point) {
@@ -1526,27 +1440,34 @@ class WellPath3DPainter extends CustomPainter {
   }
 
   int _tvdStepCount() {
-    return math.max(1, (maxTvd / 2000).round());
+    return math.max(1, (maxTvd / _tvdStep).round());
   }
 
   int _tvdGridStepCount() {
-    return math.max(_gridDivisions, _tvdStepCount());
+    return math.max(1, (maxTvd / _tvdGridStep).round());
   }
 
   int _northSouthStepCount() {
-    return math.max(1, (northSouthAxisMax / 2000).round());
+    return math.max(
+      1,
+      ((maxNorthSouth - minNorthSouth) / _planAxisStep).round(),
+    );
   }
 
   int _northSouthGridStepCount() {
-    return math.max(_gridDivisions, _northSouthStepCount());
+    return _northSouthStepCount();
   }
 
   int _eastWestStepCount() {
-    return math.max(1, (eastWestAxisMax / 2000).round());
+    return math.max(1, ((maxEastWest - minEastWest) / _planAxisStep).round());
   }
 
   int _eastWestGridStepCount() {
-    return math.max(_gridDivisions, _eastWestStepCount());
+    return _eastWestStepCount();
+  }
+
+  double _planLabelStep(double range) {
+    return _planAxisStep;
   }
 
   Offset _project(_V3 point, _Projection projection) {
@@ -1628,10 +1549,7 @@ class WellPath3DPainter extends CustomPainter {
     canvas.save();
     canvas.translate(offset.dx, offset.dy);
     canvas.rotate(angle);
-    painter.paint(
-      canvas,
-      Offset(-(painter.width / 2), -(painter.height / 2)),
-    );
+    painter.paint(canvas, Offset(-(painter.width / 2), -(painter.height / 2)));
     canvas.restore();
   }
 
@@ -1682,13 +1600,13 @@ class _Survey3DBounds {
   factory _Survey3DBounds.fromPoints(List<SurveyPoint> points) {
     if (points.isEmpty) {
       return const _Survey3DBounds(
-        minEastWest: -12000,
-        maxEastWest: 0,
-        eastWestAxisMax: 12000,
+        minEastWest: 0,
+        maxEastWest: -2000,
+        eastWestAxisMax: 2000,
         minNorthSouth: 0,
-        maxNorthSouth: 3000,
-        northSouthAxisMax: 12000,
-        maxTvd: 12000,
+        maxNorthSouth: 2000,
+        northSouthAxisMax: 2000,
+        maxTvd: 2000,
       );
     }
 
@@ -1706,35 +1624,65 @@ class _Survey3DBounds {
       maxTvd = math.max(maxTvd, point.tvd);
     }
 
-    final northSouthPadding =
-        math.max((maxNorthSouth - minNorthSouth).abs() * 0.2, 100.0)
-            .toDouble();
-    final northSouthAxisMax = _roundedAxisMax(
-      math.max(maxNorthSouth.abs(), minNorthSouth.abs()).toDouble(),
+    final tvdAxisMax = _tvdAxisMax(maxTvd);
+    final eastWestBounds = _planAxisBounds(
+      minEastWest,
+      maxEastWest,
+      tvdAxisMax,
     );
-    final eastWestAxisMax = _roundedAxisMax(
-      math.max(maxEastWest.abs(), minEastWest.abs()).toDouble(),
+    final northSouthBounds = _planAxisBounds(
+      minNorthSouth,
+      maxNorthSouth,
+      tvdAxisMax,
     );
-    final hasEastValues = maxEastWest > 0;
-    final hasWestValues = minEastWest < 0;
 
     return _Survey3DBounds(
-      minEastWest: hasEastValues && !hasWestValues ? 0 : -eastWestAxisMax,
-      maxEastWest: hasEastValues ? eastWestAxisMax : 0,
-      eastWestAxisMax: eastWestAxisMax,
-      minNorthSouth:
-          minNorthSouth < 0 ? minNorthSouth - northSouthPadding : 0,
-      maxNorthSouth: northSouthAxisMax,
-      northSouthAxisMax: northSouthAxisMax,
-      maxTvd: _roundedAxisMax(maxTvd),
+      minEastWest: eastWestBounds.min,
+      maxEastWest: eastWestBounds.max,
+      eastWestAxisMax: math.max(
+        eastWestBounds.min.abs(),
+        eastWestBounds.max.abs(),
+      ),
+      minNorthSouth: northSouthBounds.min,
+      maxNorthSouth: northSouthBounds.max,
+      northSouthAxisMax: math.max(
+        northSouthBounds.min.abs(),
+        northSouthBounds.max.abs(),
+      ),
+      maxTvd: tvdAxisMax,
     );
   }
 
-  static double _roundedAxisMax(double value) {
+  static _PlanAxisBounds _planAxisBounds(
+    double minValue,
+    double maxValue,
+    double axisMax,
+  ) {
+    const axisStep = 2000.0;
+    var minAxis = minValue < 0 ? (minValue / axisStep).floor() * axisStep : 0.0;
+    var maxAxis = minAxis + axisMax;
+
+    if (maxValue > maxAxis) {
+      maxAxis = (maxValue / axisStep).ceil() * axisStep;
+      minAxis = maxAxis - axisMax;
+    }
+
+    if (minAxis > 0) {
+      minAxis = 0;
+      maxAxis = axisMax;
+    }
+    if (maxAxis < 0) {
+      maxAxis = 0;
+      minAxis = -axisMax;
+    }
+
+    return _PlanAxisBounds(min: minAxis, max: maxAxis);
+  }
+
+  static double _tvdAxisMax(double value) {
     const axisStep = 2000.0;
     if (value <= 0) return axisStep;
-    final paddedValue = value + axisStep;
-    return ((paddedValue / axisStep).ceil() * axisStep).toDouble();
+    return ((value / axisStep).ceil() * axisStep).toDouble();
   }
 
   final double minEastWest;
@@ -1744,6 +1692,13 @@ class _Survey3DBounds {
   final double maxNorthSouth;
   final double northSouthAxisMax;
   final double maxTvd;
+}
+
+class _PlanAxisBounds {
+  const _PlanAxisBounds({required this.min, required this.max});
+
+  final double min;
+  final double max;
 }
 
 class _V3 {
