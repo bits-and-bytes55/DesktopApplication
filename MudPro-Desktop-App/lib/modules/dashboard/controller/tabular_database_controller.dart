@@ -23,9 +23,9 @@ class TabularDatabaseController extends GetxController {
 
   // RIGHT TABLE DATA BASED ON TYPE
   final Map<String, List<Map<String, RxString>>> tableData = {
-    'CWS': List.generate(20, (i) => {
+    'CWS': List.generate(81, (i) => {
           'bodyId': '1.995'.obs,
-          'yield': '227761'.obs,
+          'yield': '33034'.obs,
           'connType': 'Various'.obs,
           'connOd': '2.820'.obs,
           'connId': '1.995'.obs,

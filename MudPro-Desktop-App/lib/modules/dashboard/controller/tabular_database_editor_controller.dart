@@ -341,17 +341,93 @@ class TabularDatabaseEditorController extends GetxController {
 
   Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
-  List<TubularDbRow> get currentRows {
+  int _compareRows(TubularDbRow a, TubularDbRow b) {
+    final bySort = a.sortOrder.compareTo(b.sortOrder);
+    if (bySort != 0) return bySort;
+    return (a.id ?? '').compareTo(b.id ?? '');
+  }
+
+  List<TubularDbRow> get catalogRows {
     final typeName = selectedTypeName;
     final catalogName = selectedCatalogName;
     return rows
         .where((row) => row.type == typeName && row.catalog == catalogName)
         .toList()
-      ..sort((a, b) {
-        final bySort = a.sortOrder.compareTo(b.sortOrder);
-        if (bySort != 0) return bySort;
-        return (a.id ?? '').compareTo(b.id ?? '');
-      });
+      ..sort(_compareRows);
+  }
+
+  TubularDbRow? get selectedCatalogRow {
+    final visibleRows = catalogRows;
+    if (visibleRows.isEmpty) return null;
+    return visibleRows[_safeIndex(selectedRowIndex.value, visibleRows.length)];
+  }
+
+  bool _matchesSelectedCombination(TubularDbRow row, TubularDbRow selected) =>
+      row.value('od') == selected.value('od') &&
+      row.value('nominalWt') == selected.value('nominalWt') &&
+      row.value('grade') == selected.value('grade');
+
+  bool _isCwsWeatherfordSeedRow(TubularDbRow row) {
+    final type = row.type.trim().toLowerCase();
+    final catalog = row.catalog.trim().toLowerCase();
+    final od = row.value('od');
+    final weight = row.value('nominalWt');
+    final grade = row
+        .value('grade')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim()
+        .toLowerCase();
+    final isZeroWeight = weight == '0.000' ||
+        weight == '0.00' ||
+        weight == '0.0' ||
+        weight == '0';
+
+    return type == 'cws' &&
+        catalog == 'weatherford' &&
+        isZeroWeight &&
+        (((od == '2.720' || od == '2.72') && grade == 'super weld') ||
+            ((od == '2.730' || od == '2.73') && grade == 'dura grip'));
+  }
+
+  List<TubularDbRow> get currentRows {
+    final selected = selectedCatalogRow;
+    if (selected == null) return <TubularDbRow>[];
+    final matches = catalogRows
+        .where((row) => _matchesSelectedCombination(row, selected))
+        .toList()
+      ..sort(_compareRows);
+    if (_isCwsWeatherfordSeedRow(selected) && matches.length > 81) {
+      return matches.take(81).toList();
+    }
+    return matches;
+  }
+
+  bool _matchesHierarchyForKey(
+    TubularDbRow row,
+    String key,
+    TubularDbRow selected,
+  ) {
+    if (key == 'od') return true;
+    final selectedOd = selected.value('od');
+    if (selectedOd.isNotEmpty && row.value('od') != selectedOd) return false;
+    if (key == 'nominalWt') return true;
+    final selectedWeight = selected.value('nominalWt');
+    if (selectedWeight.isNotEmpty &&
+        row.value('nominalWt') != selectedWeight) {
+      return false;
+    }
+    if (key == 'grade') return true;
+    return true;
+  }
+
+  List<TubularDbRow> _rowsForDistinctKey(String key) {
+    final visibleRows = catalogRows;
+    final selected = selectedCatalogRow;
+    if (selected == null) return visibleRows;
+    return visibleRows
+        .where((row) => _matchesHierarchyForKey(row, key, selected))
+        .toList()
+      ..sort(_compareRows);
   }
 
   int _safeIndex(int value, int length) {
@@ -512,7 +588,7 @@ class TabularDatabaseEditorController extends GetxController {
   List<String> distinctValues(String key) {
     final seen = <String>{};
     final values = <String>[];
-    for (final row in currentRows) {
+    for (final row in _rowsForDistinctKey(key)) {
       final value = row.value(key);
       if (value.isEmpty || seen.contains(value)) continue;
       seen.add(value);
@@ -522,8 +598,11 @@ class TabularDatabaseEditorController extends GetxController {
   }
 
   int firstRowIndexForValue(String key, String value) {
-    final visibleRows = currentRows;
-    return visibleRows.indexWhere((row) => row.value(key) == value);
+    final visibleRows = catalogRows;
+    for (final row in _rowsForDistinctKey(key)) {
+      if (row.value(key) == value) return visibleRows.indexOf(row);
+    }
+    return -1;
   }
 
   String rowBaseValue(TubularDbRow row, String key) =>
@@ -621,7 +700,7 @@ class TabularDatabaseEditorController extends GetxController {
       selectedCatalogIndex.value = catalogs.length - 1;
     }
 
-    final rowCount = currentRows.length;
+    final rowCount = catalogRows.length;
     if (rowCount == 0) {
       selectedRowIndex.value = 0;
     } else if (selectedRowIndex.value >= rowCount) {
@@ -644,7 +723,7 @@ class TabularDatabaseEditorController extends GetxController {
   }
 
   void selectRow(int index) {
-    if (index < 0 || index >= currentRows.length) return;
+    if (index < 0 || index >= catalogRows.length) return;
     selectedRowIndex.value = index;
   }
 
@@ -895,19 +974,25 @@ class TabularDatabaseEditorController extends GetxController {
 
   Future<void> addRow() async {
     if (selectedTypeName.isEmpty || selectedCatalogName.isEmpty) return;
+    final selected = selectedCatalogRow;
     final row = TubularDbRow(
       type: selectedTypeName,
       catalog: selectedCatalogName,
-      sortOrder: currentRows.length,
+      sortOrder: catalogRows.length,
     );
+    if (selected != null) {
+      row.controllers['od']?.text = selected.value('od');
+      row.controllers['nominalWt']?.text = selected.value('nominalWt');
+      row.controllers['grade']?.text = selected.value('grade');
+    }
     _attachRowListeners(row);
     rows.add(row);
-    selectedRowIndex.value = currentRows.length - 1;
+    selectedRowIndex.value = catalogRows.length - 1;
     await saveRow(row, immediate: true);
   }
 
   Future<void> deleteSelectedRow() async {
-    final visibleRows = currentRows;
+    final visibleRows = catalogRows;
     if (visibleRows.isEmpty) return;
     final row =
         visibleRows[_safeIndex(selectedRowIndex.value, visibleRows.length)];
@@ -1069,7 +1154,7 @@ class TabularDatabaseEditorController extends GetxController {
   }
 
   TubularDbRow? selectedVisibleRow() {
-    final visibleRows = currentRows;
+    final visibleRows = catalogRows;
     if (visibleRows.isEmpty) return null;
     return visibleRows[_safeIndex(selectedRowIndex.value, visibleRows.length)];
   }

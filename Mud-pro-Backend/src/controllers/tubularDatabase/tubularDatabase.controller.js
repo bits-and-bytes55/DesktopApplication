@@ -113,6 +113,195 @@ const rowPayload = (body) => ({
   assemblyAdjustWt: text(body.assemblyAdjustWt),
 });
 
+const CWS_WEATHERFORD_ROW_LIMIT = 81;
+
+const CWS_WEATHERFORD_SUPER_WELD_KEY = {
+  kind: "row",
+  type: "CWS",
+  catalog: "Weatherford",
+  od: "2.720",
+};
+
+const CWS_WEATHERFORD_SUPER_WELD_FILTER = {
+  ...CWS_WEATHERFORD_SUPER_WELD_KEY,
+  nominalWt: "0.000",
+  grade: "Super weld",
+};
+
+const CWS_WEATHERFORD_SUPER_WELD_CLEANUP_FILTER = {
+  kind: "row",
+  type: { $regex: /^\s*CWS\s*$/i },
+  catalog: { $regex: /^\s*Weatherford\s*$/i },
+  grade: { $regex: /^\s*super\s*weld\s*$/i },
+  $and: [
+    { $or: [{ od: "2.720" }, { od: "2.72" }, { od: 2.72 }] },
+    {
+      $or: [
+        { nominalWt: "0.000" },
+        { nominalWt: "0.00" },
+        { nominalWt: "0.0" },
+        { nominalWt: "0" },
+        { nominalWt: 0 },
+      ],
+    },
+  ],
+};
+
+const CWS_WEATHERFORD_DURA_GRIP_KEY = {
+  kind: "row",
+  type: "CWS",
+  catalog: "Weatherford",
+  od: "2.730",
+};
+
+const CWS_WEATHERFORD_DURA_GRIP_FILTER = {
+  ...CWS_WEATHERFORD_DURA_GRIP_KEY,
+  nominalWt: "0.000",
+  grade: "Dura Grip",
+};
+
+const CWS_WEATHERFORD_DURA_GRIP_CLEANUP_FILTER = {
+  kind: "row",
+  type: { $regex: /^\s*CWS\s*$/i },
+  catalog: { $regex: /^\s*Weatherford\s*$/i },
+  grade: { $regex: /^\s*dura\s*grip\s*$/i },
+  $and: [
+    { $or: [{ od: "2.730" }, { od: "2.73" }, { od: 2.73 }] },
+    {
+      $or: [
+        { nominalWt: "0.000" },
+        { nominalWt: "0.00" },
+        { nominalWt: "0.0" },
+        { nominalWt: "0" },
+        { nominalWt: 0 },
+      ],
+    },
+  ],
+};
+
+const cwsWeatherfordSuperWeldRow = (sortOrder) =>
+  rowPayload({
+    ...CWS_WEATHERFORD_SUPER_WELD_FILTER,
+    id: "1.995",
+    yieldPsi: "33034",
+    connectionType: "Various",
+    connectionOd: "2.820",
+    connectionId: "1.995",
+    assemblyAdjustWt: "7.900",
+    sortOrder,
+  });
+
+const cwsWeatherfordDuraGripRow = (sortOrder) =>
+  rowPayload({
+    ...CWS_WEATHERFORD_DURA_GRIP_FILTER,
+    id: "1.995",
+    yieldPsi: "32516",
+    connectionType: "Various",
+    connectionOd: "2.730",
+    connectionId: "1.995",
+    assemblyAdjustWt: "7.300",
+    sortOrder,
+  });
+
+const isExactCwsWeatherfordSuperWeldRows = (rows) =>
+  rows.length === CWS_WEATHERFORD_ROW_LIMIT &&
+  rows.every(
+    (row, index) =>
+      Number(row.sortOrder) === index &&
+      text(row.kind) === "row" &&
+      text(row.type) === "CWS" &&
+      text(row.catalog) === "Weatherford" &&
+      text(row.od) === "2.720" &&
+      text(row.nominalWt) === "0.000" &&
+      text(row.grade) === "Super weld" &&
+      text(row.id) === "1.995" &&
+      text(row.yieldPsi) === "33034" &&
+      text(row.connectionType) === "Various" &&
+      text(row.connectionOd) === "2.820" &&
+      text(row.connectionId) === "1.995" &&
+      text(row.assemblyAdjustWt) === "7.900"
+);
+
+const isExactCwsWeatherfordDuraGripRows = (rows) =>
+  rows.length === CWS_WEATHERFORD_ROW_LIMIT &&
+  rows.every(
+    (row, index) =>
+      Number(row.sortOrder) === index &&
+      text(row.kind) === "row" &&
+      text(row.type) === "CWS" &&
+      text(row.catalog) === "Weatherford" &&
+      text(row.od) === "2.730" &&
+      text(row.nominalWt) === "0.000" &&
+      text(row.grade) === "Dura Grip" &&
+      text(row.id) === "1.995" &&
+      text(row.yieldPsi) === "32516" &&
+      text(row.connectionType) === "Various" &&
+      text(row.connectionOd) === "2.730" &&
+      text(row.connectionId) === "1.995" &&
+      text(row.assemblyAdjustWt) === "7.300"
+);
+
+const isCwsWeatherfordSuperWeldCandidate = (row) =>
+  text(row.kind) === "row" &&
+  /^CWS$/i.test(text(row.type)) &&
+  /^Weatherford$/i.test(text(row.catalog)) &&
+  ["2.720", "2.72"].includes(text(row.od)) &&
+  ["0.000", "0.00", "0.0", "0"].includes(text(row.nominalWt)) &&
+  /^super\s*weld$/i.test(text(row.grade));
+
+const isCwsWeatherfordDuraGripCandidate = (row) =>
+  text(row.kind) === "row" &&
+  /^CWS$/i.test(text(row.type)) &&
+  /^Weatherford$/i.test(text(row.catalog)) &&
+  ["2.730", "2.73"].includes(text(row.od)) &&
+  ["0.000", "0.00", "0.0", "0"].includes(text(row.nominalWt)) &&
+  /^dura\s*grip$/i.test(text(row.grade));
+
+const capCwsWeatherfordSuperWeldRows = (rows) => {
+  const counts = new Map();
+  return rows.filter((row) => {
+    const key = isCwsWeatherfordSuperWeldCandidate(row)
+      ? "super-weld-2.720"
+      : isCwsWeatherfordDuraGripCandidate(row)
+        ? "dura-grip-2.730"
+        : "";
+    if (!key) return true;
+    const nextCount = (counts.get(key) || 0) + 1;
+    counts.set(key, nextCount);
+    return nextCount <= CWS_WEATHERFORD_ROW_LIMIT;
+  });
+};
+
+const ensureCwsWeatherfordSuperWeldRows = async () => {
+  const rows = await TubularDatabase.find(CWS_WEATHERFORD_SUPER_WELD_CLEANUP_FILTER)
+    .sort({ sortOrder: 1, createdAt: 1 })
+    .lean();
+
+  if (isExactCwsWeatherfordSuperWeldRows(rows)) return;
+
+  await TubularDatabase.deleteMany(CWS_WEATHERFORD_SUPER_WELD_CLEANUP_FILTER);
+  await TubularDatabase.insertMany(
+    Array.from({ length: CWS_WEATHERFORD_ROW_LIMIT }, (_item, index) =>
+      cwsWeatherfordSuperWeldRow(index)
+    )
+  );
+};
+
+const ensureCwsWeatherfordDuraGripRows = async () => {
+  const rows = await TubularDatabase.find(CWS_WEATHERFORD_DURA_GRIP_CLEANUP_FILTER)
+    .sort({ sortOrder: 1, createdAt: 1 })
+    .lean();
+
+  if (isExactCwsWeatherfordDuraGripRows(rows)) return;
+
+  await TubularDatabase.deleteMany(CWS_WEATHERFORD_DURA_GRIP_CLEANUP_FILTER);
+  await TubularDatabase.insertMany(
+    Array.from({ length: CWS_WEATHERFORD_ROW_LIMIT }, (_item, index) =>
+      cwsWeatherfordDuraGripRow(index)
+    )
+  );
+};
+
 const materialProperties = (name) => DEFAULT_MATERIAL_PROPERTIES[name] || {};
 
 const materialPayload = (body) => ({
@@ -179,6 +368,8 @@ const ensureSeedData = async () => {
         await TubularDatabase.updateOne({ _id: row._id }, { $set: patch });
       }
     }
+    await ensureCwsWeatherfordSuperWeldRows();
+    await ensureCwsWeatherfordDuraGripRows();
     return;
   }
 
@@ -215,6 +406,8 @@ const ensureSeedData = async () => {
   ];
 
   await TubularDatabase.insertMany(docs);
+  await ensureCwsWeatherfordSuperWeldRows();
+  await ensureCwsWeatherfordDuraGripRows();
 };
 
 const sendDatabase = async (res) => {
@@ -228,7 +421,7 @@ const sendDatabase = async (res) => {
 
   res.status(200).json({
     success: true,
-    data: { types, catalogs, materials, rows },
+    data: { types, catalogs, materials, rows: capCwsWeatherfordSuperWeldRows(rows) },
   });
 };
 
